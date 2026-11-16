@@ -43,7 +43,7 @@ The companion prepares its own game copy and account-specific character folder.
 Your installed game and its existing profiles are preserved.
 
 **Skip intro movies** is available in **Display & game** and applies on the next
-launch. It is off by default and bypasses the startup logo and splash sequence,
+launch. It is enabled by default for new or unset preferences and bypasses the startup logo and splash sequence,
 including its waits. Loading screens, the menu background and gameplay movies
 are retained. Turning it off restores the original startup behavior.
 
@@ -81,8 +81,12 @@ verified. Starting a server does not guarantee that other players can join.
 
 ## Keep the companion up to date
 
-The companion checks for updates when it starts. When one is available, finish
-playing, stop any hosted server, then choose **Update and restart**.
+The companion checks for updates when it starts. Choose **Update and restart**
+to download one while you play. Installation waits for games to close. If a
+game blocks it, close the game normally or choose **Force-close games and
+update**. Force-close ends running original Vegas games and servers; unsaved
+match progress may be lost. Progress is shown through download, verification,
+game closing, installation and restart.
 
 Updates are verified before installation and preserve your game copy, character,
 settings and saved sign-in. You can disable startup update checks in the app.

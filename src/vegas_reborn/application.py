@@ -19,7 +19,7 @@ from .display import available_monitors
 from .retail_rank import RankSourceError, read_rank
 from .retail_sync import SyncConflict
 from .ui.view import CompanionView, UiValues
-from .updater import UpdateError, GamesBlockingUpdate, close_running_games, check_latest, record_check, prepare_update, launch_helper
+from .updater import UpdateError, GamesBlockingUpdate, close_running_games, check_latest, record_check, prepare_update, launch_helper, load_plan
 from .version import VERSION
 
 ROOT = Path(sys.executable).resolve().parent if getattr(sys,"frozen",False) else Path(__file__).resolve().parents[2]
@@ -353,15 +353,19 @@ class CompanionController:
 
     def force_update(self):
         s=self.state
-        if s.updating or not s.staged_plan or not s.update_blocked or s.closing:
+        if s.updating or not s.staged_plan or not s.update_blocked or s.closing or (s.busy and not s.playing):
             return
         # The dedicated action is explicit consent; automatic update checks
         # and the normal update button never terminate a game.
         s.force_update_pending,s.force_close_finished=True,False
-        self.values.update_status.set("Closing Vegas games before installing the update...")
-        if s.hosting:
-            self.stop_host()
+        self.values.update_status.set("Verifying the update before closing games...")
+        host_stop=s.host_stop if s.hosting else None
+        plan=s.staged_plan
         def operation():
+            self.messages.put(("update_progress","Verifying the update before closing games..."))
+            load_plan(plan)
+            if host_stop:
+                host_stop.set()
             close_running_games(progress=lambda text:self.messages.put(("update_progress",text)))
             self.messages.put(("games_closed",None))
         self.start_update_worker(operation)
@@ -508,7 +512,7 @@ class CompanionController:
             return
         self._closed=True
         self.presence.close()
-        for timer in [self._poll_timer,*self._startup_timers]:
+        for timer in [self._poll_timer,getattr(self.view,"caption_timer",None),*self._startup_timers]:
             if timer:
                 try:self.root.after_cancel(timer)
                 except tk.TclError:pass

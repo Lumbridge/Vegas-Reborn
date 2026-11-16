@@ -139,7 +139,7 @@ class CompanionView:
         self._updates()
         root.bind("<MouseWheel>",lambda event:self.pages[self.current_page].wheel(event))
         self.show_page("overview")
-        root.after_idle(self._dark_caption)
+        self.caption_timer=root.after_idle(self._dark_caption)
 
     def button(self,parent,key,label,action,icon=None,style="Secondary.TButton",side="left"):
         kwargs={"text":label,"style":style,"command":action}
@@ -347,7 +347,7 @@ class CompanionView:
         enable("browse",idle and not state.hosting)
         enable("check_update",not state.updating)
         enable("install_update",state.available_release is not None and not state.updating and (not state.busy or state.playing))
-        enable("force_update",state.update_blocked and state.staged_plan is not None and not state.updating)
+        enable("force_update",state.update_blocked and state.staged_plan is not None and not state.updating and (not state.busy or state.playing))
         if state.update_blocked:
             self.force_update_frame.pack(fill="x",pady=(12,0),before=self.update_help)
         else:

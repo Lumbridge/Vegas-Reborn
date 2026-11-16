@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 import tkinter as tk
 from tkinter import messagebox
-from .updater import UpdateError, apply_update, launch_helper
+from .updater import launch_helper
 
 ROOT=Path(sys.executable).resolve().parent if getattr(sys,"frozen",False) else Path(__file__).resolve().parents[2]
 

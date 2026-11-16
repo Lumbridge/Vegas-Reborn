@@ -40,7 +40,7 @@ def run_update(plan, parent_pid):
             except queue.Empty:break
             if kind=="progress":status.set(value)
             elif kind=="done":
-                result[0]=0;root.destroy();return
+                activity.stop();result[0]=0;root.destroy();return
             else:
                 activity.stop()
                 status.set("Update not completed.")

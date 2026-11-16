@@ -128,7 +128,7 @@ class UpdateTests(unittest.TestCase):
     def test_active_game_blocks_all_install_changes(self):
         payload, release = self.payload()
         root, sentinels = self.install_root()
-        with self.assertRaisesRegex(u.UpdateError, "Close the game"):
+        with self.assertRaises(u.GamesBlockingUpdate):
             u.install_payload(root, payload, release, active=lambda: True)
         self.assertEqual((root/"VegasReborn.exe").read_bytes(), b"old companion")
         self.assertFalse((root/"runtime-0.3.1").exists())

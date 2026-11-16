@@ -351,7 +351,9 @@ def close_running_games(*, progress=lambda message: None):
                 raise UpdateError("Could not identify a Vegas game. Close it manually and retry.")
             if Path(image.value).name.casefold() not in {"r6vegas_game.exe", "r6vegasserver.exe"}:
                 continue
-            if not kernel.TerminateProcess(handle, 0) or kernel.WaitForSingleObject(handle, 10000) != 0:
+            if not kernel.TerminateProcess(handle, 0) and kernel.WaitForSingleObject(handle, 0) != 0:
+                raise UpdateError("A Vegas game did not close. Close it manually and retry.")
+            if kernel.WaitForSingleObject(handle, 10000) != 0:
                 raise UpdateError("A Vegas game did not close. Close it manually and retry.")
         finally:
             kernel.CloseHandle(handle)
