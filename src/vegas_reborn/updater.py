@@ -186,6 +186,17 @@ def check_latest(current=VERSION):
         raise UpdateError("GitHub returned an invalid update release") from None
 
 
+def record_check(root, release):
+    """Small public-state diagnostic; never records account or HTTP headers."""
+    path = beneath(Path(root).resolve(), ".updates/last-check.json")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    value = {"checkedVersion": VERSION, "availableVersion": release.version if release else None,
+             "status": "available" if release else "up-to-date", "checkedAt": int(time.time())}
+    temporary = path.with_name(path.name + ".new")
+    temporary.write_text(json.dumps(value), encoding="utf-8")
+    os.replace(temporary, path)
+
+
 def beneath(root, relative):
     target = (root / relative).resolve()
     if not target.is_relative_to(root.resolve()) or target == root.resolve():

@@ -52,6 +52,7 @@ class UpdateUiTests(unittest.TestCase):
                  patch.object(module,"DiscordPresence",return_value=Mock()),\
                  patch.object(module,"available_monitors",return_value=[]),\
                  patch.object(module,"check_latest",return_value=release),\
+                 patch.object(module,"record_check",return_value=None),\
                  patch.object(module,"prepare_update",prepare),patch.object(module,"launch_helper",handoff),\
                  patch.object(sys,"frozen",True,create=True),\
                  patch.object(sys,"argv",["vegas_companion","--session-file",str(session)]):

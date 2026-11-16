@@ -20,7 +20,7 @@ from vegas_reborn.display import MODES, available_monitors
 from vegas_reborn.discord_presence import DiscordPresence, activity_for
 from vegas_reborn.retail_rank import RankSourceError, read_rank
 from vegas_reborn.version import VERSION
-from vegas_reborn.updater import UpdateError, check_latest, prepare_update, launch_helper, apply_update
+from vegas_reborn.updater import UpdateError, check_latest, record_check, prepare_update, launch_helper, apply_update
 
 
 def main():
@@ -232,7 +232,12 @@ def main():
 
     def check_updates():
         update_status.set("Checking GitHub Releases…")
-        update_worker(lambda: messages.put(("update_checked", check_latest())))
+        def operation():
+            release = check_latest()
+            if getattr(sys, "frozen", False):
+                record_check(ROOT, release)
+            messages.put(("update_checked", release))
+        update_worker(operation)
 
     def apply_staged():
         if busy or hosting or closing:
