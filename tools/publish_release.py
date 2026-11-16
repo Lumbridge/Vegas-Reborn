@@ -8,6 +8,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"src"))
 from vegas_reborn.version import VERSION, REPOSITORY
 from vegas_reborn.updater import verify_manifest, digest_file
+from release_coordination import check_release_source
 
 
 def main():
@@ -21,6 +22,7 @@ def main():
         raise RuntimeError("Source must match the reviewed clean release commit")
     if digest_file(output/release.archive)!=release.sha256:
         raise RuntimeError("Release archive failed verification")
+    check_release_source(ROOT, VERSION, REPOSITORY)
     artifacts=[str(output/name) for name in (release.archive,"update.json","update.sig","build-receipt.json")]
     subprocess.run(["gh","release","create","v"+VERSION,"--repo",REPOSITORY,"--target",current,
                     "--title","Vegas Reborn Companion "+VERSION,"--notes-file",str(Path(sys.argv[1]).resolve()),*artifacts],check=True,cwd=ROOT)

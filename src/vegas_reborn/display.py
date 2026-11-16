@@ -37,6 +37,8 @@ class Desktop:
             "GetWindow": ([w.HWND, w.UINT], w.HWND),
             "GetWindowRect": ([w.HWND, c.POINTER(w.RECT)], w.BOOL),
             "GetClientRect": ([w.HWND, c.POINTER(w.RECT)], w.BOOL),
+            "GetDpiForWindow": ([w.HWND], w.UINT),
+            "AdjustWindowRectExForDpi": ([c.POINTER(w.RECT), w.DWORD, w.BOOL, w.DWORD, w.UINT], w.BOOL),
             "SetWindowPos": ([w.HWND, w.HWND, c.c_int, c.c_int, c.c_int, c.c_int, w.UINT], w.BOOL),
             "SetThreadDpiAwarenessContext": ([w.HANDLE], w.HANDLE),
         }
@@ -112,6 +114,41 @@ class Desktop:
             # while the companion maintains size and borderless styling.
             after, flags = (-2, 0x30) if topmost else (None, 0x34)
             if not self.u.SetWindowPos(hwnd, after, x, y, right-x, bottom-y, flags):
+                raise c.WinError(c.get_last_error())
+        return True
+
+    def fit_windowed(self, pid):
+        """Restore the retail framed style without pinning the user's window."""
+        hwnd = self.game_window(pid)
+        if not hwnd or self.u.IsIconic(hwnd):
+            return False
+        with self.physical_pixels():
+            style, extended = self.get_style(hwnd, -16), self.get_style(hwnd, -20)
+            # Same framed bits as retail FWindowsViewport::Resize. Clear popup
+            # and tool/no-activate flags left by fullscreen-style presentation.
+            framed = (style & ~0x80000000) | 0x00CF0000
+            framed_extended = extended & ~0x08000080
+            topmost = bool(extended & 8)
+            if (style, extended) == (framed, framed_extended) and not topmost:
+                return True
+            outer, client = w.RECT(), w.RECT()
+            if not self.u.GetWindowRect(hwnd, c.byref(outer)) or not self.u.GetClientRect(hwnd, c.byref(client)):
+                raise c.WinError(c.get_last_error())
+            # Add the non-client frame around the current render area. Simply
+            # adding WS_CAPTION would shrink/crop that area by the title height.
+            frame = w.RECT(0, 0, client.right, client.bottom)
+            if not self.u.AdjustWindowRectExForDpi(c.byref(frame), framed & 0xffffffff,
+                                                  False, framed_extended & 0xffffffff,
+                                                  self.u.GetDpiForWindow(hwnd) or 96):
+                raise c.WinError(c.get_last_error())
+            for index, old, new in ((-16, style, framed), (-20, extended, framed_extended)):
+                if old != new:
+                    c.set_last_error(0)
+                    if not self.set_style(hwnd, index, new) and c.get_last_error():
+                        raise c.WinError(c.get_last_error())
+            after, flags = (-2, 0x30) if topmost else (None, 0x34)
+            if not self.u.SetWindowPos(hwnd, after, outer.left, outer.top,
+                                       frame.right-frame.left, frame.bottom-frame.top, flags):
                 raise c.WinError(c.get_last_error())
         return True
 

@@ -44,9 +44,23 @@ in `src/vegas_reborn/ui/assets`, and icons are drawn by `ui/graphics.py`.
 
 ## Release process
 
+Windowed mode explicitly maintains the original framed Win32 style on the owned
+game window. Frame repair preserves the current client area and window position;
+later maintenance leaves ordinary user moves and resizes alone. It also demotes
+topmost windows without activating them. Synthetic Win32 checks cover a real
+caption hit-test, client dimensions, repeated maintenance, movement and recovery
+after a borderless style reset. Retail rendering, title-bar dragging during play
+and Alt-Tab still require a separate original-client acceptance run with the
+required startup-safe private audio route.
+
 The version is defined in `src/vegas_reborn/version.py`. Keep `pyproject.toml` in
-sync. Commit and test the reviewed source before building; dirty sources are
-rejected. Run `tools/companion/Package-Companion.ps1`, then publish the ZIP,
+sync. Merge and test all intended changes, then build from the exact current
+`origin/main` commit; dirty and unmerged sources are rejected. Build and publish
+tools reserve the version atomically in the common Git directory, shared by all
+linked worktrees. A reservation belongs to one worktree and commit; use a new
+version if a different candidate is needed. Never remove another reservation.
+Only install published releases in the user's normal app. Keep candidate builds
+in isolated acceptance directories. Run `tools/companion/Package-Companion.ps1`, then publish the ZIP,
 `update.json`, `update.sig` and `build-receipt.json` through `tools/publish_release.py`.
 The release feed is the repository's latest stable release. Preview releases are
 not offered by the updater.

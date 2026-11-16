@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives import serialization
 from vegas_reborn.version import VERSION, REPOSITORY
 from vegas_reborn.update_key import PUBLIC_KEY_HEX
 from vegas_reborn.updater import ROOT_FILES, SEED_FILES, digest_file, managed_path, verify_manifest
+from release_coordination import check_release_source
 
 
 def main():
@@ -25,6 +26,7 @@ def main():
     args = parser.parse_args()
     if subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT).strip():
         raise RuntimeError("Commit the reviewed companion sources before building a public release")
+    commit = check_release_source(ROOT, VERSION, REPOSITORY)
     output = ROOT / "local/releases" / VERSION
     if output.exists():
         raise RuntimeError("Preserve the existing release; choose a new version")
@@ -77,12 +79,14 @@ def main():
             bundle.write(app / entry["path"], "VegasReborn/" + entry["path"])
     manifest = {"schema": 1, "version": VERSION, "repository": REPOSITORY, "platform": "win64",
                 "archive": archive.name, "bytes": archive.stat().st_size, "sha256": digest_file(archive), "files": files}
+    if (subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT).strip()
+            or subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip() != commit):
+        raise RuntimeError("Source changed during the build; this candidate must not be signed or published")
     data = (json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n").encode()
     signature = key.sign(data)
     verify_manifest(data, signature)
     (output / "update.json").write_bytes(data)
     (output / "update.sig").write_bytes(signature)
-    commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     (output / "build-receipt.json").write_text(json.dumps({"version": VERSION, "sourceCommit": commit,
         "sourceDirty": False, "archiveSha256": manifest["sha256"], "gameFilesIncluded": False,
         "accountFilesIncluded": False, "backendIncluded": False}, indent=2), encoding="utf-8")
