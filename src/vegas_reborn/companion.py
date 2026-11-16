@@ -31,9 +31,13 @@ class CompanionError(Exception):
 
 class CredentialIPC:
     """Loopback capability endpoint; no Discord bearer is handed to the game."""
-    def __init__(self, session, *, client=None, notify=lambda text: None, dedicated=False):
+    def __init__(self, session, *, client=None, notify=lambda text: None, dedicated=False,
+                 statistics_codec=""):
         self.session, self.client, self.notify = session, client or DiscordClient(), notify
         self.dedicated = dedicated
+        if statistics_codec not in ("", "native-base-v1"):
+            raise CompanionError("Unsupported native statistics codec")
+        self.statistics_codec = statistics_codec
         self.capability = secrets.token_hex(32)
         self.lock = threading.Lock()
         self.closed = False
@@ -56,8 +60,10 @@ class CredentialIPC:
                     status, payload = 401, b"Unauthorized"
                 elif not owner.closed and owner.lock.acquire(blocking=False):
                     try:
-                        lease = (owner.client.mint_native(owner.session, dedicated=True)
-                                 if owner.dedicated else owner.client.mint_native(owner.session))
+                        options = {"statistics_codec": owner.statistics_codec} if owner.statistics_codec else {}
+                        if owner.dedicated:
+                            options["dedicated"] = True
+                        lease = owner.client.mint_native(owner.session, **options)
                         payload = (lease.username + "\n" + lease.password + "\n").encode("ascii")
                         status = 200
                         owner.notify("Discord credentials supplied to the game.")
@@ -120,6 +126,14 @@ def validate_compatibility(compatibility, *, claimed_name=None, display_mode="Ga
                 compatibility.get(key) == 7 for key in ("unlockHookStatus", "taskHookStatus", "prefillHookStatus")):
             raise CompanionError("The game did not finish preparing its executable code. Close the game and retry launching.")
         raise CompanionError("The game's code matched, but compatibility setup failed. Update the companion and retry.")
+    if (compatibility.get("nativeVersion") != 9
+            or not compatibility.get("nativeStatisticsVerified")
+            or not compatibility.get("nativeRankedHostVerified")
+            or not compatibility.get("nativeSoloHuntVerified")
+            or not compatibility.get("nativeUnlockPolicyVerified")
+            or not compatibility.get("nativeRankVerified")
+            or not compatibility.get("rankedAccessVerified")):
+        raise CompanionError("Update the companion's online compatibility module before playing")
     if claimed_name and not compatibility.get("claimedNameVerified"):
         raise CompanionError("The game's player-name setup was not verified; update the companion and retry")
     if display_mode == "Borderless" and not compatibility.get("displayStyleVerified"):
@@ -244,6 +258,13 @@ class RetailLauncher:
                 raise CompanionError("Choose your player name in the companion before playing")
             self.sync.pull(session)
             game = prepare_game(source, notify=self.notify)
+            from .trueskill_carrier import ensure_carrier
+            try:
+                statistics_codec = ensure_carrier(Path(source).resolve(), game)
+            except (OSError, ValueError) as error:
+                raise CompanionError("The copied game's leaderboard compatibility setup failed") from error
+            if statistics_codec != "native-base-v1":
+                raise CompanionError("The copied game's leaderboard compatibility was not verified")
             from .startup_movies import configure_startup_movies
             configure_startup_movies(game, skip_intros)
             from .display import Desktop, configure_display, select_monitor
@@ -274,8 +295,8 @@ class RetailLauncher:
             _private_write(config, text.encode())
             # Mint only for the stable alias here; this lease is revoked by
             # the on-demand game Login request. Its password is never saved.
-            lease = DiscordClient().mint_native(session)
-            ipc = CredentialIPC(session, notify=self.notify)
+            lease = DiscordClient().mint_native(session, statistics_codec=statistics_codec)
+            ipc = CredentialIPC(session, notify=self.notify, statistics_codec=statistics_codec)
             address = socket.gethostbyname(self.config["host"])
             ipaddress.IPv4Address(address)
             _private_write(account / "native-route.txt",
@@ -303,7 +324,7 @@ class RetailLauncher:
                 time.sleep(.1)
             child = json.loads(child_file.read_text())
             _native([ROOT / "local/companion/bin/VegasInjector.exe", child["pid"], child["tid"],
-                     ROOT / "local/companion/bin/VegasCompanion-8.dll", account, game, Path(source).resolve()])
+                     ROOT / "local/companion/bin/VegasCompanion-9.dll", account, game, Path(source).resolve()])
             _native([control, "--stop-gate", steam_pid, gate["module"], gate_dll])
             gate = None
             deadline = time.monotonic() + 65

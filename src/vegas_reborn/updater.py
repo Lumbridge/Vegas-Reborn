@@ -55,7 +55,7 @@ def managed_path(name, version):
     if name.startswith("runtime-" + version + "/"):
         return True
     if name.startswith("local/companion/bin/") and len(parts) == 4:
-        return parts[-1] in NATIVE_FILES or bool(re.fullmatch(r"VegasCompanion-[1-9][0-9]*\.dll", parts[-1]))
+        return parts[-1] in NATIVE_FILES or bool(re.fullmatch(r"Vegas(?:Companion|Dedicated)-[1-9][0-9]*\.dll", parts[-1]))
     return False
 
 

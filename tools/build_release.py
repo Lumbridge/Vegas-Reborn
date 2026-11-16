@@ -50,8 +50,14 @@ def main():
         shutil.copy2(args.config_directory / name, config / name)
     native = config / "bin"
     native.mkdir()
-    for name in ("VegasCompanion.dll", "VegasCompanion-8.dll", "VegasDedicated.dll", "VegasInjector.exe", "VegasSteamGate.dll", "VegasSteamControl.exe", "build.json"):
+    for name in ("VegasCompanion.dll", "VegasCompanion-9.dll", "VegasDedicated.dll", "VegasInjector.exe", "VegasSteamGate.dll", "VegasSteamControl.exe", "build.json"):
         shutil.copy2(args.native_directory / name, native / name)
+    # Existing 0.4.5 updaters accept the versioned runtime subtree, but not a
+    # new VegasDedicated-N.dll name under local/companion/bin. Keep the fresh
+    # dedicated module in the runtime that installs alongside this executable.
+    runtime_native = app / ("runtime-" + VERSION) / "native"
+    runtime_native.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(args.native_directory / "VegasDedicated-4.dll", runtime_native / "VegasDedicated-4.dll")
     shutil.copy2(ROOT / "third_party/MinHook-LICENSE.txt", app / "LICENSE-Minhook.txt")
     shutil.copy2(Path(sys.base_prefix) / "LICENSE.txt", app / "LICENSE-Python.txt")
     notices = []

@@ -235,7 +235,9 @@ def _run(game, *, source, owned, stop_event, session_file=None, config_path=None
         raise DedicatedError("dedicated_start_cancelled")
     online = session_file is not None
     source = Path(source).resolve()
-    dll = ROOT / "local/companion/bin/VegasDedicated.dll"
+    dll = (Path(sys._MEIPASS) / "native/VegasDedicated-4.dll"
+           if getattr(sys, "frozen", False)
+           else ROOT / "local/companion/bin/VegasDedicated-4.dll")
     injector = ROOT / "local/companion/bin/VegasInjector.exe"
     if not dll.is_file() or not injector.is_file():
         raise DedicatedError("build_dedicated_module_and_existing_injector_first")
@@ -311,6 +313,22 @@ def _run(game, *, source, owned, stop_event, session_file=None, config_path=None
             raise DedicatedError("dedicated_injection_failed_" + str(result.returncode))
         receipt["injected"] = True
         receipt["injector"] = json.loads(result.stdout)
+        status = runtime / "compat-status.json"
+        ready_deadline = time.monotonic() + 65
+        while not status.exists():
+            if stop_event.is_set():
+                raise DedicatedError("dedicated_start_cancelled")
+            if kernel.WaitForSingleObject(child.process, 100) != 258:
+                raise DedicatedError("dedicated_exited_during_native_setup")
+            if time.monotonic() >= ready_deadline:
+                raise DedicatedError("dedicated_native_setup_timeout")
+        compatibility = json.loads(status.read_text())
+        receipt["compatibility"] = compatibility
+        if (not compatibility.get("ready") or compatibility.get("nativeVersion") != 4
+                or not compatibility.get("nativeStatisticsVerified")
+                or not compatibility.get("nativeRankedHostVerified")
+                or not compatibility.get("nativeSoloHuntVerified")):
+            raise DedicatedError("dedicated_native_statistics_setup_not_verified")
         write_json(runtime / "running.json", {"pid": child.pid, "runtime": str(runtime), "stopRequest": str(runtime / "stop.request")})
         started = {"pid": child.pid, "runtime": str(runtime), "stopRequest": str(runtime / "stop.request")}
         if on_started:

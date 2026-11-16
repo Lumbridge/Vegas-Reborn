@@ -15,6 +15,12 @@
 #include "claimed_name.h"
 #include "native_readiness.h"
 #include "launch_options.h"
+#include "native_rank.h"
+#include "native_ranked_access.h"
+#include "native_host_statistics.h"
+#include "native_ranked_host.h"
+#include "native_solo_hunt.h"
+#include "native_unlock_policy.h"
 
 static std::wstring Output,ProfileDirectory,WorkingRoot,SourceRoot,RegisteredExecutable;
 static std::string RouteAddress;
@@ -199,6 +205,7 @@ static void __fastcall DiscordLoginFields(void* form,void*,void* username,void* 
     assign(username,&name);assign(password,&placeholder);
 }
 static void __fastcall DiscordTaskStart(void* task,void*){
+    NativeHostStatistics::ObserveLogin(task);
     // Grounded in TaskLogin1185eba0 and its completion1185efb0. Both
     // authentication and profile-ID derivation consume this SAME UserInfo.
     auto user=*reinterpret_cast<BYTE**>(static_cast<BYTE*>(task)+0x30);
@@ -219,27 +226,11 @@ static void __fastcall DiscordTaskStart(void* task,void*){
 
 static bool HookAPI(const wchar_t* module,const char* name,void* replacement,void** original){return MH_CreateHookApi(module,name,replacement,original)==MH_OK;}
 
-using ProfileLookup=void*(__thiscall*)(void*,unsigned);
-using InfoLookup=void*(__thiscall*)(void*);
-using GroupLookup=void*(__thiscall*)(void*,unsigned);
-using GroupRequirements=bool(__thiscall*)(void*,void*,void*);
-static ProfileLookup NativeProfileLookup;
-static InfoLookup NativeInfoLookup;
-static GroupLookup NativeGroupLookup;
-static GroupRequirements NativeGroupRequirements;
 static void* OriginalUnlockFacade;
-static bool __fastcall NativeUnlockEligibility(void* controller,void*,unsigned profileHandle,unsigned groupId){
-    // Replacement progression policy: the shipped PC facade always returns
-    // true. Evaluate its dormant original group requirements, including their
-    // native rank and other conditions; do not manufacture a new unlock table.
-    if(!controller)return false;
-    auto service=*reinterpret_cast<void**>(static_cast<BYTE*>(controller)+8);
-    if(!service)return false;
-    void* profile=NativeProfileLookup(service,profileHandle);
-    void* info=NativeInfoLookup(service);
-    if(!profile||!info)return false;
-    void* group=NativeGroupLookup(static_cast<BYTE*>(info)+0x30,groupId);
-    return group&&NativeGroupRequirements(group,profile,info);
+static bool __fastcall NativeUnlockEligibility(void* controller,void*,unsigned profileHandle,unsigned itemId){
+    // The facade receives an item ID. Preserve the original item -> group ->
+    // bundle availability path and named rank ordinal, including starter gear.
+    return NativeUnlockPolicy::Available(controller,profileHandle,itemId);
 }
 static bool LocalPhysics(){
     // The pinned original ships the correct PhysX 2.5.1 core, but its loader
@@ -317,6 +308,18 @@ static DWORD WINAPI NativeInitialize(LPVOID){
                     NativeReadiness::Executable(base+LaunchOptions::ResizeRva)&&LaunchOptions::ResizeMatches(base);
             }
             if(SkipIntrosRequested)executablePagesReady=executablePagesReady&&NativeReadiness::Executable(base+LaunchOptions::AppendRva)&&NativeReadiness::Executable(base+LaunchOptions::CompleteRva)&&LaunchOptions::SequenceMatches(base);
+            // New online hooks must obey the same plaintext-versus-executable
+            // distinction as the existing startup hooks before installation.
+            const unsigned onlineTargets[]{
+                NativeHostStatistics::Rva(Dedicated?0x10d95b20:0x10924720),
+                NativeHostStatistics::Rva(Dedicated?0x111a1540:0x111a23d0),
+                NativeHostStatistics::Rva(Dedicated?0x10ce5000:0x10ce6270),
+                Dedicated?0x8a6130u:0x8a6fc0u};
+            for(unsigned rva:onlineTargets)executablePagesReady=executablePagesReady&&NativeReadiness::Executable(base+rva);
+            if(!Dedicated)executablePagesReady=executablePagesReady&&
+                NativeReadiness::Executable(base+NativeRank::PopulateRva)&&NativeReadiness::Executable(base+NativeRank::SelectionRva)&&
+                NativeReadiness::Executable(base+NativeRankedAccess::CreateRva)&&NativeReadiness::Executable(base+NativeRankedAccess::FiltersRva)&&
+                NativeReadiness::Executable(base+0x56a300);
             if(!executablePagesReady){Sleep(100);continue;}
             taskStatus=prefillStatus=unlockStatus=-1;
             if(BorderlessRequested){
@@ -327,10 +330,7 @@ static DWORD WINAPI NativeInitialize(LPVOID){
                 if(!displayStyleVerified)break;
             }
             if(!Dedicated){
-                NativeProfileLookup=reinterpret_cast<ProfileLookup>(base+0x5656c0);
-                NativeInfoLookup=reinterpret_cast<InfoLookup>(base+0x565380);
-                NativeGroupLookup=reinterpret_cast<GroupLookup>(base+0x56db30);
-                NativeGroupRequirements=reinterpret_cast<GroupRequirements>(base+0x5729d0);
+                if(!NativeUnlockPolicy::Install(base))break;
                 unlockStatus=int(MH_CreateHook(base+0x563150,reinterpret_cast<void*>(NativeUnlockEligibility),&OriginalUnlockFacade));
                 if(unlockStatus==MH_ERROR_NOT_EXECUTABLE){executablePagesReady=false;Sleep(100);continue;}
                 if(unlockStatus!=MH_OK)break;
@@ -368,12 +368,17 @@ static DWORD WINAPI NativeInitialize(LPVOID){
             }
             if(ready&&!Dedicated)ready=ClaimedName::Install(base,Output);
             if(ready&&!Dedicated)ready=LaunchOptions::InstallNative(base);
+            if(ready&&!Dedicated)ready=NativeRank::Install(base);
+            if(ready&&!Dedicated)ready=NativeRankedAccess::Install(base);
+            if(ready)ready=NativeHostStatistics::Install(base,Dedicated);
+            if(ready)ready=NativeRankedHost::Install(base,Dedicated);
+            if(ready)ready=NativeSoloHunt::Install(base,Dedicated);
             break;
         }
         Sleep(100);
     }
     FILE* status=nullptr;_wfopen_s(&status,(Output+L"\\compat-status.tmp").c_str(),L"wb");
-    if(status){fprintf(status,"{\"ready\":%s,\"executablePagesReady\":%s,\"unlockTargetProtection\":%lu,\"unlockDetourProtection\":%lu,\"displayStyleVerified\":%s,\"claimedNameVerified\":%s,\"claimedNameInstalled\":%s,\"claimedNameStatus\":\"%s\",\"nativeVersion\":%u,\"signatures\":%u,\"taskHookStatus\":%d,\"prefillHookStatus\":%d,\"unlockHookStatus\":%d,\"unlockVerified\":%s,\"moduleBase\":%lu,\"progression\":\"%s\",\"unlockPolicy\":\"%s\"}\n",ready?"true":"false",executablePagesReady?"true":"false",unlockTargetProtection,unlockDetourProtection,displayStyleVerified?"true":"false",ClaimedName::Verified?"true":"false",ClaimedName::Installed?"true":"false",Dedicated?"notApplicable":ClaimedName::Error,Dedicated?2u:8u,signatures,taskStatus,prefillStatus,unlockStatus,unlockVerified?"true":"false",DWORD(reinterpret_cast<ULONG_PTR>(base)),Dedicated?"nativeDedicatedDefaults":"nativeRawXp",Dedicated?"nativeDedicatedDefaults":"nativeGroupRequirements");fclose(status);MoveFileExW((Output+L"\\compat-status.tmp").c_str(),(Output+L"\\compat-status.json").c_str(),MOVEFILE_REPLACE_EXISTING);}
+    if(status){fprintf(status,"{\"ready\":%s,\"executablePagesReady\":%s,\"unlockTargetProtection\":%lu,\"unlockDetourProtection\":%lu,\"displayStyleVerified\":%s,\"claimedNameVerified\":%s,\"claimedNameInstalled\":%s,\"claimedNameStatus\":\"%s\",\"nativeRankVerified\":%s,\"remotePipelineRecognized\":%s,\"nativeRankStatus\":\"%s\",\"rankedAccessVerified\":%s,\"rankedAccessStatus\":\"%s\",\"nativeSoloHuntVerified\":%s,\"nativeSoloHuntStatus\":\"%s\",\"nativeStatisticsVerified\":%s,\"nativeRankedHostVerified\":%s,\"nativeRankedHostStatus\":\"%s\",\"nativeVersion\":%u,\"signatures\":%u,\"taskHookStatus\":%d,\"prefillHookStatus\":%d,\"unlockHookStatus\":%d,\"nativeUnlockPolicyVerified\":%s,\"nativeUnlockPolicyStatus\":\"%s\",\"unlockVerified\":%s,\"moduleBase\":%lu,\"progression\":\"%s\",\"unlockPolicy\":\"%s\"}\n",ready?"true":"false",executablePagesReady?"true":"false",unlockTargetProtection,unlockDetourProtection,displayStyleVerified?"true":"false",ClaimedName::Verified?"true":"false",ClaimedName::Installed?"true":"false",Dedicated?"notApplicable":ClaimedName::Error,NativeRank::Verified?"true":"false",NativeRank::RemotePipelineRecognized?"true":"false",Dedicated?"notApplicable":NativeRank::LastError(),NativeRankedAccess::Verified?"true":"false",Dedicated?"notApplicable":NativeRankedAccess::LastError(),NativeSoloHunt::Verified?"true":"false",NativeSoloHunt::LastError(),NativeHostStatistics::Verified?"true":"false",NativeRankedHost::Verified?"true":"false",NativeRankedHost::LastError(),Dedicated?4u:9u,signatures,taskStatus,prefillStatus,unlockStatus,NativeUnlockPolicy::Verified?"true":"false",Dedicated?"notApplicable":NativeUnlockPolicy::LastError(),unlockVerified?"true":"false",DWORD(reinterpret_cast<ULONG_PTR>(base)),Dedicated?"nativeDedicatedDefaults":"nativeRawXp",Dedicated?"nativeDedicatedDefaults":"nativeItemBundleAvailability");fclose(status);MoveFileExW((Output+L"\\compat-status.tmp").c_str(),(Output+L"\\compat-status.json").c_str(),MOVEFILE_REPLACE_EXISTING);}
     return ready?1:0;
 }
 extern "C" DWORD WINAPI StartCompanion(LPVOID configuration){

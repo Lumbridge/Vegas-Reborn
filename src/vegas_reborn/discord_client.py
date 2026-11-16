@@ -246,15 +246,20 @@ class DiscordClient:
             raise DiscordClientError("invalid_account_response")
         return updated
 
-    def mint_native(self, session, *, dedicated=False):
+    def mint_native(self, session, *, dedicated=False, statistics_codec=""):
         if type(dedicated) is not bool:
             raise DiscordClientError("invalid_native_credential_purpose")
+        if statistics_codec not in ("", "native-base-v1"):
+            raise DiscordClientError("invalid_statistics_codec")
         path = "/retail/v1/dedicated-session" if dedicated else "/retail/v1/session"
-        status, response = self.transport.request("POST", path, bearer=session.token, timeout=10)
+        options = {"body": {"statisticsCodec": statistics_codec}} if statistics_codec else {}
+        status, response = self.transport.request("POST", path, bearer=session.token, timeout=10, **options)
         if status == 401:
             raise DiscordClientError("account_session_expired_or_revoked")
         if status != 200 or not isinstance(response, dict):
             raise DiscordClientError("native_credential_mint_failed")
+        if statistics_codec and response.get("statisticsCodec") != statistics_codec:
+            raise DiscordClientError("statistics_codec_not_acknowledged")
         identifier, name = _account({"id": response.get("discordId"), "name": response.get("displayName")})
         username, password, expires = (response.get(key) for key in ("username", "password", "expiresIn"))
         if (identifier != session.discord_id or not isinstance(username, str)
