@@ -33,7 +33,7 @@ specific original PC build used in testing; other game versions are unverified.
 3. Open **Display & game** and use **Browse** to select your installed game folder.
 4. Open **Account**, choose **Sign in with Discord**, and complete sign-in in your browser. Claim
    your player name if prompted.
-5. Open **Overview** and choose **Launch game**. In the game, select **Multiplayer > Online > Login**.
+5. Open **Play** and choose **Launch game**. In the game, select **Multiplayer > Online > Login**.
    The companion handles game sign-in; never enter your Discord password in the
    game.
 6. When you finish playing, close the game normally and leave the companion open

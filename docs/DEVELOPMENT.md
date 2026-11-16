@@ -27,7 +27,7 @@ retail key in a configuration or commit a user's account session.
 `entrypoint.py` handles CLI/update routing, `application.py` coordinates account,
 launch and synchronization operations, and `ui/` owns the pages, theme and
 graphics. Background workers communicate with the UI through queued events.
-The normal navigation has Overview, Account, Display & Game, Connections and
+The normal navigation has Play, Account, Display & Game, Connections and
 Updates. Dedicated hosting is a separate operator tool (`tools/host_server.py`);
 the legacy explicit `--host` path remains available.
 
