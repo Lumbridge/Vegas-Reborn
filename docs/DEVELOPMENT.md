@@ -87,3 +87,26 @@ hook errors remain fatal. The original five-byte unlock stub is exercised with
 the pinned MinHook library in native_readiness_test: read/write memory rejects
 hook creation, executable memory permits it, and removal restores the bytes.
 This synthetic reproduction does not establish a successful retail launch.
+
+Adapter 8 applies Windowed/Borderless to the original viewport resize routine
+at RVA 0x579350 (thiscall: viewport, width, height, fullscreen), and forces
+windowed Direct3D9 presentation on CreateDevice, Reset and additional swapchains.
+Only Windowed and fullscreen refresh rate change; resolution, format, MSAA,
+quality and presentation interval are preserved. The primary swapchain's actual
+presentation parameters are read back before the launcher accepts startup.
+
+Skip intros completes only the startup groups appended from return RVAs
+0x4c58bb (logo), 0x4c59fe (splash/picture and timer), and 0x4c5cb9 (Ubisoft).
+The original group append (0x4c5470), completion (0x4c3270) and all four call
+sites, including the retained loading group at 0x4c5b96, are signature checked.
+The original queue, finish callbacks and ownership remain intact. Each marked
+group completes once; its marker is removed before the pointer can be reused.
+Other groups retain original completion checks. Playback suppression alone left
+black waits in manual testing and is not used by this adapter.
+
+The user manually tested this in an isolated copy with a fresh profile and
+character sync disabled. They confirmed a draggable window and direct arrival
+at the menu without intro-length black waits. Runtime readback confirmed actual
+windowed presentation, requested fullscreen=1/applied=0, and exactly three
+startup groups registered and skipped. This is distinct from the synthetic
+regressions; no automated retail launch or multiplayer acceptance was performed.

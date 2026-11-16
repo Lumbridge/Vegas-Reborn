@@ -17,7 +17,8 @@ pages. Switching pages preserves the selected window size and position.
 Borderless mode fills the selected monitor without keeping the game always on
 top. Display settings apply on the next game launch. Discord desktop activity
 sharing is optional; retail Discord join invites are not available yet.
-Enable Skip intro movies in Display & game to skip the startup logo movie.
+Enable Skip intro movies in Display & game to bypass the startup logo and splash
+sequence and continue to the menu without its intro-length waits.
 This option is off by default. Turning it off restores the original setting
 in the companion's game copy. Loading screens and gameplay movies are retained.
 
