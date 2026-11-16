@@ -29,9 +29,10 @@ The local game copy, characters, preferences and account session are preserved.
 Previous managed files remain available under .updates/backups for recovery.
 
 Companion downloads and source: https://github.com/Lumbridge/Vegas-Reborn
-To use your PEC character in Coop Terrorist Hunt, select Options > Multiplayer
-> Coop Appearance > Custom Character in the original game, then relaunch the
-Hunt. This is separate from creating or saving the PEC character.
+Your saved PEC character is used by default in multiplayer, including Coop
+Terrorist Hunt, once it is available. Choose a preset under Options > Multiplayer
+> Coop Appearance to override that default. Explicit choices are remembered for
+this account. Single-player appearance is unchanged.
 
 Only companion files are distributed. No original game files, profiles, account
 tokens, private update signing keys or backend server are included.
