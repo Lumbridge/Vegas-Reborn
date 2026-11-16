@@ -126,7 +126,7 @@ def validate_compatibility(compatibility, *, claimed_name=None, display_mode="Ga
                 compatibility.get(key) == 7 for key in ("unlockHookStatus", "taskHookStatus", "prefillHookStatus")):
             raise CompanionError("The game did not finish preparing its executable code. Close the game and retry launching.")
         raise CompanionError("The game's code matched, but compatibility setup failed. Update the companion and retry.")
-    if (compatibility.get("nativeVersion") != 9
+    if (compatibility.get("nativeVersion") != 10
             or not compatibility.get("nativeStatisticsVerified")
             or not compatibility.get("nativeRankedHostVerified")
             or not compatibility.get("nativeSoloHuntVerified")
@@ -134,7 +134,8 @@ def validate_compatibility(compatibility, *, claimed_name=None, display_mode="Ga
             or not compatibility.get("nativeRankVerified")
             or not compatibility.get("rankedAccessVerified")):
         raise CompanionError("Update the companion's online compatibility module before playing")
-    if claimed_name and not compatibility.get("claimedNameVerified"):
+    if claimed_name and (not compatibility.get("claimedNameVerified")
+                         or not compatibility.get("claimedSessionNameVerified")):
         raise CompanionError("The game's player-name setup was not verified; update the companion and retry")
     if display_mode == "Borderless" and not compatibility.get("displayStyleVerified"):
         raise CompanionError("Borderless setup was not verified. Update the companion's native compatibility module, then retry.")
@@ -324,7 +325,7 @@ class RetailLauncher:
                 time.sleep(.1)
             child = json.loads(child_file.read_text())
             _native([ROOT / "local/companion/bin/VegasInjector.exe", child["pid"], child["tid"],
-                     ROOT / "local/companion/bin/VegasCompanion-9.dll", account, game, Path(source).resolve()])
+                     ROOT / "local/companion/bin/VegasCompanion-10.dll", account, game, Path(source).resolve()])
             _native([control, "--stop-gate", steam_pid, gate["module"], gate_dll])
             gate = None
             deadline = time.monotonic() + 65
