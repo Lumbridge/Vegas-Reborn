@@ -30,6 +30,7 @@ class ApplicationFlowTests(ControllerFixture):
             self.pump(lambda:controller.state.playing)
             controller.close()
             self.assertFalse(controller._closed)
+            self.confirmation.assert_not_called()
             self.assertIn("Keep the companion open",controller.values.status.get())
         finally:
             finish.set()
@@ -75,6 +76,44 @@ class ApplicationFlowTests(ControllerFixture):
         self.assertFalse(self.args.session_file.exists())
         self.assertEqual(profile.read_bytes(),b"synthetic character")
         self.assertEqual(controller.view.primary_button.cget("text"),"Sign in to launch")
+        self.confirmation.assert_called_once()
+
+    def test_cancel_signout_keeps_session_and_character_state(self):
+        controller=self.signed_in()
+        original=self.args.session_file.read_bytes()
+        session=controller.state.session
+        self.confirmation.return_value=False
+        controller.sign_out()
+        self.assertIs(controller.state.session,session)
+        self.assertEqual(self.args.session_file.read_bytes(),original)
+        self.assertTrue(controller.ready_to_play)
+        self.assertEqual(self.confirmation.call_args.kwargs["default"],"no")
+
+    def test_close_requires_confirmation(self):
+        controller=self.create()
+        self.confirmation.return_value=False
+        controller.close()
+        self.assertFalse(controller._closed)
+        self.assertTrue(self.root.winfo_exists())
+        self.confirmation.return_value=True
+        controller.close()
+        self.assertTrue(controller._closed)
+
+    def test_cancel_close_does_not_stop_dedicated_server(self):
+        controller=self.create()
+        controller.state.hosting=True
+        controller.state.host_stop=threading.Event()
+        self.confirmation.return_value=False
+        controller.close()
+        self.assertFalse(controller.state.closing)
+        self.assertFalse(controller.state.host_stop.is_set())
+
+    def test_close_waits_for_update_without_prompting(self):
+        controller=self.create()
+        controller.state.updating=True
+        controller.close()
+        self.assertFalse(controller._closed)
+        self.confirmation.assert_not_called()
 
     def test_switching_accounts_clears_previous_accounts_character_conflict(self):
         controller=self.signed_in()

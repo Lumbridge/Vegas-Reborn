@@ -7,7 +7,7 @@ import sys
 import threading
 import time
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 import webbrowser
 
 from .companion import CompanionError, RetailLauncher
@@ -73,6 +73,7 @@ class CompanionController:
             raise CompanionSetupError("Missing or invalid companion configuration") from error
         self.presence=DiscordPresence(notify=lambda value:self.messages.put(("discord_status",value)))
         self._closed=False
+        self._confirming=False
         self._poll_timer=None
         self._startup_timers=[]
         for variable in (self.values.retail,self.values.mode,self.values.minimize,self.values.share_discord,
@@ -187,7 +188,7 @@ class CompanionController:
 
     def claim(self):
         session,name=self.state.session,self.values.claimed_name.get()
-        if session is None or not session.name_claims_enabled or self.state.busy or self.state.hosting:
+        if session is None or not session.name_claims_enabled or session.rename_on_cooldown or self.state.busy or self.state.hosting:
             return
         def operation():
             updated=DiscordClient().claim_name(session,name)
@@ -256,7 +257,11 @@ class CompanionController:
             self.values.retail.set(selected)
 
     def sign_out(self):
-        if self.state.busy or self.state.hosting:
+        if self.state.busy or self.state.hosting or self.state.updating or not self.state.session:
+            return
+        if not self.confirm("Sign out?", "Sign out of Vegas Reborn on this PC?\n\nYour character and saved settings will be kept."):
+            return
+        if self.state.busy or self.state.hosting or self.state.updating:
             return
         try:
             self.args.session_file.unlink(missing_ok=True)
@@ -371,8 +376,6 @@ class CompanionController:
                 s.session,s.account_verified=value,True
                 self.values.account.set("Signed in as "+(value.claimed_name or value.display_name))
                 self.values.claimed_name.set(value.claimed_name or "")
-                self.values.rename_hint.set("Next rename: "+value.name_change_allowed[:10]+". Capitalization and separator changes remain available."
-                    if value.name_change_allowed else "Names are unique. A previous name is held for 14 days after a rename.")
                 self.update_rank()
                 if value.name_claims_enabled and value.claim_required:
                     self.view.focus_name()
@@ -423,9 +426,32 @@ class CompanionController:
             self.shutdown();self.root.destroy();return
         self._poll_timer=self.root.after(100,self.poll)
 
+    def confirm(self,title,message):
+        if self._confirming or self._closed:
+            return False
+        self._confirming=True
+        try:
+            return messagebox.askyesno(title,message,parent=self.root,default=messagebox.NO)
+        finally:
+            self._confirming=False
+
     def close(self):
+        if self._closed or self.state.closing or self._confirming:
+            return
+        if self.state.updating:
+            self.values.status.set("Wait for the update check or download to finish before closing.")
+            return
         if self.state.busy:
             self.values.status.set("Keep the companion open while the game or account operation is running. It saves your character when the game closes.")
+            return
+        message="Close Vegas Reborn?"
+        if self.state.hosting:
+            message+="\n\nYour dedicated server will be stopped."
+        if not self.confirm("Close Vegas Reborn?",message):
+            return
+        # A native modal dialog still dispatches Tk events. Recheck work that
+        # may have started while it was open before changing application state.
+        if self.state.busy or self.state.updating:
             return
         if self.state.hosting:
             self.state.closing=True

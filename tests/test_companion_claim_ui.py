@@ -21,7 +21,8 @@ class ControllerFixture(unittest.TestCase):
         self.launcher=Mock()
         self.launcher.sync.profile_directory.return_value=self.directory/"profile"
         self.client=Mock()
-        self.patchers=[patch.object(app,"RetailLauncher",return_value=self.launcher),patch.object(app,"DiscordPresence",return_value=Mock()),patch.object(app,"available_monitors",return_value=[]),patch.object(app,"DiscordClient",return_value=self.client)]
+        self.confirmation=Mock(return_value=True)
+        self.patchers=[patch.object(app.messagebox,"askyesno",self.confirmation),patch.object(app,"RetailLauncher",return_value=self.launcher),patch.object(app,"DiscordPresence",return_value=Mock()),patch.object(app,"available_monitors",return_value=[]),patch.object(app,"DiscordClient",return_value=self.client)]
         for item in self.patchers:item.start()
         self.controller=None
     def create(self,session=None):
@@ -50,6 +51,26 @@ class ControllerFixture(unittest.TestCase):
         gc.collect()
 
 class ClaimUiTests(ControllerFixture):
+    def test_name_readonly_during_cooldown_and_unlocks_when_it_expires(self):
+        from datetime import datetime, timedelta, timezone
+        now=datetime.now(timezone.utc)
+        session=AccountSession("199999999999999999","Tester","a"*64,"Test_Name",True,False,(now+timedelta(days=30)).isoformat())
+        self.client.refresh_account.return_value=session
+        controller=self.create(session)
+        self.pump(lambda:controller.ready_to_play and not controller.state.busy)
+        entry=controller.view.widgets["name_entry"]
+        self.assertTrue(entry.instate(["readonly"]))
+        self.assertTrue(controller.view.widgets["claim"].instate(["disabled"]))
+        controller.claim()
+        self.client.claim_name.assert_not_called()
+        # The normal polling render must unlock the field without a refresh.
+        with patch("vegas_reborn.discord_client.datetime") as clock:
+            clock.fromisoformat=datetime.fromisoformat
+            clock.now.return_value=now+timedelta(days=31)
+            controller.refresh()
+            self.assertTrue(entry.instate(["!readonly","!disabled"]))
+            self.assertTrue(controller.view.widgets["claim"].instate(["!disabled"]))
+
     def exercise(self,enabled):
         session=AccountSession("199999999999999999","Tester","a"*64,None,enabled,enabled)
         self.client.refresh_account.return_value=session
