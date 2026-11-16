@@ -1,79 +1,105 @@
-# Vegas Reborn Companion
+# Vegas Reborn
 
-The Windows companion for the **original PC Rainbow Six Vegas**: Steam-authorized
-launching, shared account/character synchronization, player names and rank,
-borderless display options, local dedicated hosting, native Discord activity,
-and signed updates through GitHub Releases.
+Play the **original PC Rainbow Six Vegas** with a companion app that handles
+Discord sign-in, character sync and launching the game. Choose your display
+settings, keep your character with your account, and run a local dedicated server
+from the same app.
 
-This is the **companion repository**. The account, native-protocol matchmaking,
-database and deployment backend are maintained separately. Hosting here means
-running your owned original dedicated game server; it is not the backend service.
-No original game files or account data are distributed.
+**[Download for Windows](https://github.com/Lumbridge/Vegas-Reborn/releases/latest)**
 
-## Download and play
+Vegas Reborn is experimental. Sign-in, character creation, customization and
+save/reload have been demonstrated with the original game, along with server
+browsing and joining a dedicated lobby. Full multiplayer matches and play across
+different networks are still being verified. Discord join invites are not yet
+available.
 
-Download the Windows ZIP from [Releases](https://github.com/Lumbridge/Vegas-Reborn/releases/latest),
-extract the whole `VegasReborn` folder to a writable location, and run
-`VegasReborn.exe`. Python is included. You must own and install the original PC
-game and have Steam running. Sign in, select your game folder, and choose Play.
-The companion creates its own game copy and keeps character files separate from
-the installed game's profiles. Keep it open until the game exits to synchronize.
+## What you need
 
-The companion checks for updates at startup. **Update and restart** downloads a
-signed release, verifies it, waits for the companion to exit, installs, and
-restarts. Finish playing and stop hosting first. Checks can be disabled in the
-app. The updater preserves `local` account sessions, preferences, saves and game
-copies. Only specifically listed native helper files within `local/companion/bin`
-can be replaced. Existing service configuration and public trust key are seeded
-only on a fresh installation.
+- A Windows PC with an owned, installed copy of the original **Rainbow Six Vegas**.
+  This companion is for the original game, not the UE5 remake.
+- Steam running and signed in.
+- A Discord account and an internet connection for sign-in and character sync.
+- A writable folder for the companion and its separate game copy.
 
-Update HTTPS uses Windows' native certificate validation, without disabling TLS
-checks or changing the machine's trust store. Version 0.3.1 corrects a missing
-certificate-chain issue found during the first public-feed test on this PC.
-The most recent successful check is recorded in `.updates/last-check.json` for
-diagnostics, containing only app/release versions and the check time.
+The download includes the runtime: you do not need to install Python or build
+tools. Original game files are not included. Support currently targets the
+specific original PC build used in testing; other game versions are unverified.
 
-Retail Discord join invites, rendered Alt-Tab acceptance and gameplay acceptance
-remain separate work. App and updater tests do not establish retail gameplay.
+## Get started
 
-## Development
+1. Download the Windows ZIP from the
+   [latest release](https://github.com/Lumbridge/Vegas-Reborn/releases/latest).
+2. Extract the entire `VegasReborn` folder to a writable location, then open
+   `VegasReborn.exe`.
+3. Use **Browse** to select your installed Rainbow Six Vegas folder.
+4. Choose **Sign in with Discord** and complete sign-in in your browser. Claim
+   your player name if prompted.
+5. Choose **Play Vegas**. In the game, select **Multiplayer > Online > Login**.
+   The companion handles game sign-in; never enter your Discord password in the
+   game.
+6. When you finish playing, close the game normally and leave the companion open
+   until it confirms **Character saved to your account**.
 
-Requires Python 3.10+, Windows, Visual Studio C++ build tools and Windows SDK.
+The companion prepares its own game copy and account-specific character folder.
+Your installed game and its existing profiles are preserved.
 
-```powershell
-python -m venv .venv
-.venv/Scripts/python.exe -m pip install -r requirements-build.txt
-.venv/Scripts/python.exe -m unittest discover -s tests -v
-tools/companion/Build-Companion.ps1
-tools/companion/Build-Companion.ps1 -Dedicated
-tools/companion/Test-Native.ps1
-```
+## Your character and settings
 
-MinHook is fetched at its pinned commit into ignored `local/dependencies`.
-Public launch configuration (`service.json` and `root-public.der`) belongs in
-`local/companion`, obtainable from a published companion ZIP. Do not use a real
-retail key in a configuration or commit a user's account session.
+Your account's saved character is downloaded before you play. When the game
+closes, the companion uploads your character and progression. If the local and
+account copies conflict, the app lets you choose the appearance while preserving
+the higher XP. Complete match-earned XP and unlock behavior are still being
+verified.
 
-```powershell
-.venv/Scripts/python.exe tools/vegas_companion.py
-```
+Use **Sync character** to sync without starting the game, or **Character folder**
+to open your local character files.
 
-## Release process
+Display options include **Borderless**, **Windowed**, **Fullscreen** and
+**Game default**. Borderless fills your selected monitor without keeping the
+game always on top. Changes apply the next time you launch the game; Alt-Tab and
+multi-monitor gameplay testing are still in progress. You can also have the
+companion minimize when the game starts.
 
-The version is defined in `src/vegas_reborn/version.py`. Keep `pyproject.toml` in
-sync. Commit and test the reviewed source before building; dirty sources are
-rejected. Run `tools/companion/Package-Companion.ps1`, then publish the ZIP,
-`update.json`, `update.sig` and `build-receipt.json` through `tools/publish_release.py`.
-The release feed is the repository's latest stable release. Preview releases are
-not offered by the updater.
+**Share my Vegas Reborn activity on Discord** is optional. Turn it off in the app
+if you do not want to share your activity. Discord desktop activity sharing is
+separate from signing in with your Discord account.
 
-The Ed25519 private release key is local-only under
-`local/release/signing-key.pem`; **back it up securely**. Only its public key is
-compiled into the application. The signature authenticates the archive hash,
-file hashes, sizes, platform, repository and version. The updater rejects path
-traversal, Windows device names, case collisions, symlinks, unlisted files and
-downgrades. Installation is transactional, with previous managed files under
-`.updates/backups`. A failed file replacement restores the previous app.
+## Host a dedicated server
 
-New signing keys require an intentional trust migration in an already-trusted
-release; replacing a GitHub manifest alone cannot rotate the key.
+Choose **Host dedicated server** to run the original game's dedicated server in
+a separate companion-owned copy. You can then choose **Play Vegas** from the
+same app. Use **Stop server** when you are finished hosting.
+
+Hosting is experimental: reaching a server lobby has been demonstrated, but
+hosting a complete match and connecting across different networks are not yet
+verified. Starting a server does not guarantee that other players can join.
+
+## Keep the companion up to date
+
+The companion checks for updates when it starts. When one is available, finish
+playing, stop any hosted server, then choose **Update and restart**.
+
+Updates are verified before installation and preserve your game copy, character,
+settings and saved sign-in. You can disable startup update checks in the app.
+
+## If something goes wrong
+
+- **The game will not launch:** check that Steam is running and signed in, and
+  that **Browse** points to your installed original Rainbow Six Vegas folder.
+- **Game sign-in fails:** sign in with Discord again in the companion, then retry
+  **Multiplayer > Online > Login** in the game.
+- **Borderless mode does not work as expected:** select **Windowed** and launch
+  the game again.
+- **Your character has not synced:** keep the companion open after the game exits
+  and check its status message. Use **Sync character** to retry once the game is
+  closed.
+
+To report a problem, [open an issue](https://github.com/Lumbridge/Vegas-Reborn/issues)
+with your companion version, what you were doing and the error shown. Do not
+attach account sessions, tokens or private character files.
+
+## For contributors
+
+See [Development and releases](docs/DEVELOPMENT.md) for source setup, native
+helper builds, tests and release signing. This repository contains the Windows
+companion; the account and matchmaking backend are maintained separately.
