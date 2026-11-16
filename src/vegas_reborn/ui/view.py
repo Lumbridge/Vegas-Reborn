@@ -313,9 +313,10 @@ class CompanionView:
 
     def render(self,state):
         session=state.session
+        cooldown=bool(session and session.rename_on_cooldown)
         key=(state.busy,state.hosting,state.closing,state.playing,state.updating,state.account_verified,
              state.sync_conflict,getattr(state.available_release,"version",None),
-             (session.discord_id,session.display_name,session.claimed_name,session.name_claims_enabled,session.claim_required)
+             (session.discord_id,session.display_name,session.claimed_name,session.name_claims_enabled,session.claim_required,session.name_change_allowed,cooldown)
              if session else None,self.values.mode.get(),self.values.monitor_name.get())
         if key==getattr(self,"_render_key",None):
             return
@@ -348,8 +349,11 @@ class CompanionView:
             self.widgets["claim"].configure(text="Claim name" if state.session.claim_required else "Save name")
         else:
             self.identity_card.pack_forget()
-        enable("claim",claims and idle and not state.hosting)
-        self.widgets["name_entry"].configure(state="normal" if claims and idle and not state.hosting and not state.closing else "disabled")
+        enable("claim",claims and idle and not state.hosting and not cooldown)
+        name_state="readonly" if cooldown else "normal"
+        self.widgets["name_entry"].configure(state=name_state if claims and idle and not state.hosting and not state.closing else "disabled")
+        self.values.rename_hint.set("Next rename: "+session.name_change_allowed[:10]+". Your name is read-only until then."
+            if cooldown else "Names are unique. A previous name is held for 14 days after a rename.")
         if state.playing:
             primary="Game running"
         elif state.busy:

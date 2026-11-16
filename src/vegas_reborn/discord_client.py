@@ -74,6 +74,12 @@ class AccountSession:
     claim_required: bool = False
     name_change_allowed: str | None = None
 
+    @property
+    def rename_on_cooldown(self):
+        if self.claim_required or not self.name_change_allowed:
+            return False
+        return datetime.fromisoformat(self.name_change_allowed.replace("Z", "+00:00")) > datetime.now(timezone.utc)
+
 
 def _session_from_account(value, token):
     identifier, name = _account(value)
