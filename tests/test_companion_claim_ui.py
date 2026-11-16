@@ -3,6 +3,7 @@ import gc
 from dataclasses import replace
 from pathlib import Path
 import sys,tempfile,time,tkinter as tk,unittest
+import _tkinter
 from types import SimpleNamespace
 from unittest.mock import Mock,patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"src"))
@@ -30,7 +31,11 @@ class ControllerFixture(unittest.TestCase):
     def pump(self,condition):
         end=time.monotonic()+4
         while not condition() and time.monotonic()<end:
-            try:self.root.update()
+            try:
+                # update() drains the whole queue and can starve this deadline
+                # while progress animations keep adding events on a slow VM.
+                for _ in range(30):
+                    if not self.root.tk.dooneevent(_tkinter.ALL_EVENTS|_tkinter.DONT_WAIT) or condition():break
             except tk.TclError:
                 if condition():break
                 raise

@@ -196,8 +196,9 @@ class CompanionView:
             inner.bind("<Configure>",lambda event,item=label:item.configure(wraplength=max(140,event.width-40)),add="+")
 
     def _resize_hero(self,event):
-        if event.width<2:
+        if event.width<2 or event.width==getattr(self,"_hero_width",None):
             return
+        self._hero_width=event.width
         image=ImageOps.fit(self.hero_source,(event.width,310),Image.Resampling.LANCZOS,centering=(.5,.72))
         self.hero_photo=ImageTk.PhotoImage(image,master=self.root)
         self.hero.itemconfigure(self.hero_image_item,image=self.hero_photo)
@@ -311,6 +312,14 @@ class CompanionView:
         self.root.after_idle(focus)
 
     def render(self,state):
+        session=state.session
+        key=(state.busy,state.hosting,state.closing,state.playing,state.updating,state.account_verified,
+             state.sync_conflict,getattr(state.available_release,"version",None),
+             (session.discord_id,session.display_name,session.claimed_name,session.name_claims_enabled,session.claim_required)
+             if session else None,self.values.mode.get(),self.values.monitor_name.get())
+        if key==getattr(self,"_render_key",None):
+            return
+        self._render_key=key
         def enable(key,condition):
             self.widgets[key].configure(state="normal" if condition and not state.closing else "disabled")
         idle=not state.busy
