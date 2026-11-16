@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives import serialization
 from vegas_reborn.version import VERSION, REPOSITORY
 from vegas_reborn.update_key import PUBLIC_KEY_HEX
 from vegas_reborn.updater import ROOT_FILES, SEED_FILES, digest_file, managed_path, verify_manifest
+from release_coordination import check_release_source
 
 
 def main():
@@ -25,6 +26,7 @@ def main():
     args = parser.parse_args()
     if subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT).strip():
         raise RuntimeError("Commit the reviewed companion sources before building a public release")
+    check_release_source(ROOT, VERSION, REPOSITORY)
     output = ROOT / "local/releases" / VERSION
     if output.exists():
         raise RuntimeError("Preserve the existing release; choose a new version")

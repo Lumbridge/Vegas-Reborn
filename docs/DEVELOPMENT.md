@@ -54,8 +54,13 @@ and Alt-Tab still require a separate original-client acceptance run with the
 required startup-safe private audio route.
 
 The version is defined in `src/vegas_reborn/version.py`. Keep `pyproject.toml` in
-sync. Commit and test the reviewed source before building; dirty sources are
-rejected. Run `tools/companion/Package-Companion.ps1`, then publish the ZIP,
+sync. Merge and test all intended changes, then build from the exact current
+`origin/main` commit; dirty and unmerged sources are rejected. Build and publish
+tools reserve the version atomically in the common Git directory, shared by all
+linked worktrees. A reservation belongs to one worktree and commit; use a new
+version if a different candidate is needed. Never remove another reservation.
+Only install published releases in the user's normal app. Keep candidate builds
+in isolated acceptance directories. Run `tools/companion/Package-Companion.ps1`, then publish the ZIP,
 `update.json`, `update.sig` and `build-receipt.json` through `tools/publish_release.py`.
 The release feed is the repository's latest stable release. Preview releases are
 not offered by the updater.

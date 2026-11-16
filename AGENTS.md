@@ -12,3 +12,4 @@
 - Use plain, functional UI copy. Do not add quips, slogans or marketing language.
 - Normal hosting belongs in the game's Create Match flow. Keep dedicated hosting out of normal companion navigation; retain the separate operator tool and explicit legacy CLI support.
 - Switching pages must preserve the user's window size and position. Scroll content within the page when needed.
+- Use tools/build_release.py and tools/publish_release.py for signed releases. Merge all intended changes first, then build at the exact current origin/main commit. Shared Git version reservations identify one publishing worktree and commit; never bypass or delete another reservation or reuse a version for a different build. Never install an unpublished candidate over the user's normal app; use isolated acceptance directories.
