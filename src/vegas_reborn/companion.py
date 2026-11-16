@@ -193,7 +193,7 @@ class RetailLauncher:
         self.running = False
 
     def play(self, session, *, source=DEFAULT_RETAIL, display_mode="Game default", monitor_device="",
-             on_started=lambda: None):
+             skip_intros=False, on_started=lambda: None):
         if os.name != "nt":
             raise CompanionError("The original retail client requires Windows")
         if retail_game_running():
@@ -220,6 +220,8 @@ class RetailLauncher:
                 raise CompanionError("Choose your player name in the companion before playing")
             self.sync.pull(session)
             game = prepare_game(source, notify=self.notify)
+            from .startup_movies import configure_startup_movies
+            configure_startup_movies(game, skip_intros)
             from .display import Desktop, configure_display, select_monitor
             desktop = Desktop() if display_mode == "Borderless" else None
             monitor = select_monitor(desktop.monitors(), monitor_device) if desktop else None

@@ -76,7 +76,7 @@ class CompanionController:
         self._confirming=False
         self._poll_timer=None
         self._startup_timers=[]
-        for variable in (self.values.retail,self.values.mode,self.values.minimize,self.values.share_discord,
+        for variable in (self.values.retail,self.values.mode,self.values.minimize,self.values.skip_intros,self.values.share_discord,
                          self.values.auto_check,self.values.monitor_name):
             variable.trace_add("write",self.preference_changed)
         self.values.retail.trace_add("write",lambda *_:self.update_rank())
@@ -106,7 +106,8 @@ class CompanionController:
         v=self.values
         try:
             Preferences(game_folder=v.retail.get().strip(),display_mode=v.mode.get(),monitor_device=v.monitor_labels[v.monitor_name.get()],
-                        minimize_on_play=v.minimize.get(),discord_presence=v.share_discord.get(),check_updates=v.auto_check.get()).save(self.preferences_path)
+                        minimize_on_play=v.minimize.get(),discord_presence=v.share_discord.get(),check_updates=v.auto_check.get(),
+                        skip_intros=v.skip_intros.get()).save(self.preferences_path)
         except OSError:
             v.status.set("Preferences could not be saved. Check that the companion folder is writable.")
         self.refresh()
@@ -216,7 +217,9 @@ class CompanionController:
         mode=self.values.mode.get()
         device=self.values.monitor_labels[self.values.monitor_name.get()]
         minimize=self.values.minimize.get()
+        skip_intros=self.values.skip_intros.get()
         self.start_operation(lambda:self.launcher.play(session,source=source,display_mode=mode,monitor_device=device,
+                              skip_intros=skip_intros,
                               on_started=lambda:self.messages.put(("game_started",minimize))))
 
     def sync(self):

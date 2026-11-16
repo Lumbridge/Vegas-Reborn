@@ -25,6 +25,7 @@ class ApplicationFlowTests(ControllerFixture):
             kwargs["on_started"]()
             finish.wait(timeout=5)
         self.launcher.play.side_effect=game
+        controller.values.skip_intros.set(True)
         try:
             controller.play()
             self.pump(lambda:controller.state.playing)
@@ -37,6 +38,7 @@ class ApplicationFlowTests(ControllerFixture):
             self.pump(lambda:not controller.state.busy)
         self.assertFalse(controller.state.playing)
         self.launcher.play.assert_called_once()
+        self.assertTrue(self.launcher.play.call_args.kwargs["skip_intros"])
 
     def test_sync_conflict_shows_resolution_and_blocks_launch_until_choice(self):
         controller=self.signed_in()
@@ -131,6 +133,7 @@ class ApplicationFlowTests(ControllerFixture):
         self.assertEqual(len(controller.view.nav_buttons),5)
         controller.values.mode.set("Windowed")
         controller.values.minimize.set(False)
+        controller.values.skip_intros.set(True)
         for key in controller.view.nav_buttons:
             controller.view.nav_buttons[key].invoke()
             self.root.update()
@@ -138,6 +141,7 @@ class ApplicationFlowTests(ControllerFixture):
         preferences=app.Preferences.load(controller.preferences_path)
         self.assertEqual(preferences.display_mode,"Windowed")
         self.assertFalse(preferences.minimize_on_play)
+        self.assertTrue(preferences.skip_intros)
 
     def test_page_switching_preserves_initial_and_manually_resized_geometry(self):
         import ctypes as c
