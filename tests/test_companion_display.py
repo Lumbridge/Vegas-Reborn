@@ -57,6 +57,70 @@ class DisplayConfigTests(unittest.TestCase):
 
 @unittest.skipUnless(os.name == "nt", "Windows desktop API required")
 class DesktopTests(unittest.TestCase):
+    def test_windowed_restores_draggable_frame_and_preserves_user_moves(self):
+        desktop = Desktop()
+        u = desktop.u
+        u.CreateWindowExW.argtypes = [w.DWORD, w.LPCWSTR, w.LPCWSTR, w.DWORD,
+                                      c.c_int, c.c_int, c.c_int, c.c_int,
+                                      w.HWND, w.HMENU, w.HINSTANCE, c.c_void_p]
+        u.CreateWindowExW.restype = w.HWND
+        u.DestroyWindow.argtypes = [w.HWND]
+        u.SendMessageW.argtypes = [w.HWND, w.UINT, w.WPARAM, w.LPARAM]
+        u.SendMessageW.restype = c.c_ssize_t
+        u.GetForegroundWindow.restype = w.HWND
+        procedure_type = c.WINFUNCTYPE(c.c_ssize_t, w.HWND, w.UINT, w.WPARAM, w.LPARAM)
+        u.DefWindowProcW.argtypes = [w.HWND, w.UINT, w.WPARAM, w.LPARAM]
+        u.DefWindowProcW.restype = c.c_ssize_t
+        procedure = procedure_type(lambda *args: u.DefWindowProcW(*args))
+        class WindowClass(c.Structure):
+            _fields_ = [("style", w.UINT), ("procedure", procedure_type),
+                        ("class_extra", c.c_int), ("window_extra", c.c_int),
+                        ("instance", w.HINSTANCE), ("icon", w.HANDLE),
+                        ("cursor", w.HANDLE), ("background", w.HANDLE),
+                        ("menu", w.LPCWSTR), ("name", w.LPCWSTR)]
+        window_class = WindowClass()
+        window_class.procedure, window_class.name = procedure, "VegasFramedWindowTest"
+        u.RegisterClassW.argtypes = [c.POINTER(WindowClass)]
+        u.UnregisterClassW.argtypes = [w.LPCWSTR, w.HINSTANCE]
+        self.assertTrue(u.RegisterClassW(c.byref(window_class)))
+        def rectangle(hwnd, client=False):
+            rect = w.RECT()
+            self.assertTrue((u.GetClientRect if client else u.GetWindowRect)(hwnd, c.byref(rect)))
+            return rect.left, rect.top, rect.right, rect.bottom
+        with desktop.physical_pixels():
+            hwnd = u.CreateWindowExW(0x08000080, window_class.name, "Windowed frame test", 0x90000000,
+                                      -30000, -30000, 800, 600, None, None, None, None)
+            self.assertTrue(hwnd)
+            try:
+                before = rectangle(hwnd)
+                self.assertFalse(desktop.fit_windowed(0))
+                self.assertEqual(rectangle(hwnd), before)
+                self.assertTrue(u.SetWindowPos(hwnd, -1, 0, 0, 0, 0, 0x13))
+                foreground = u.GetForegroundWindow()
+                self.assertTrue(desktop.fit_windowed(os.getpid()))
+                self.assertEqual(desktop.get_style(hwnd, -16) & 0x80CF0000, 0x00CF0000)
+                self.assertFalse(desktop.get_style(hwnd, -20) & 0x08000088)
+                self.assertEqual(rectangle(hwnd, True), (0, 0, 800, 600))
+                # Windows must recognize a real draggable non-client caption.
+                left, top, right, bottom = rectangle(hwnd)
+                point = ((top+15) & 0xffff) << 16 | ((left+100) & 0xffff)
+                self.assertEqual(u.SendMessageW(hwnd, 0x84, 0, point), 2)  # WM_NCHITTEST / HTCAPTION
+                # Maintenance must not undo movement, resize or change focus.
+                self.assertTrue(u.SetWindowPos(hwnd, None, -29000, -29000, 700, 500, 0x14))
+                moved, client = rectangle(hwnd), rectangle(hwnd, True)
+                for _ in range(4):
+                    self.assertTrue(desktop.fit_windowed(os.getpid()))
+                    self.assertEqual(rectangle(hwnd), moved)
+                    self.assertEqual(rectangle(hwnd, True), client)
+                    self.assertEqual(u.GetForegroundWindow(), foreground)
+                # Repair a later game-style reset as well as initial startup.
+                desktop.fit_borderless(os.getpid(), Monitor("test", (-29000, -29000, -28200, -28400), False))
+                self.assertTrue(desktop.fit_windowed(os.getpid()))
+                self.assertEqual(rectangle(hwnd, True), (0, 0, 800, 600))
+            finally:
+                u.DestroyWindow(hwnd)
+                u.UnregisterClassW(window_class.name, None)
+
     def test_borderless_only_touches_owned_window_and_uses_exact_bounds(self):
         desktop = Desktop()
         u = desktop.u

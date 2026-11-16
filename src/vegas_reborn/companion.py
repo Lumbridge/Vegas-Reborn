@@ -223,7 +223,7 @@ class RetailLauncher:
             from .startup_movies import configure_startup_movies
             configure_startup_movies(game, skip_intros)
             from .display import Desktop, configure_display, select_monitor
-            desktop = Desktop() if display_mode == "Borderless" else None
+            desktop = Desktop() if display_mode in ("Borderless", "Windowed") else None
             monitor = select_monitor(desktop.monitors(), monitor_device) if desktop else None
             configure_display(game, display_mode, monitor)
             account = self.sync.account_directory(session)
@@ -303,13 +303,16 @@ class RetailLauncher:
                 raise CompanionError("The game exited during startup")
             try:
                 while kernel.WaitForSingleObject(process, 500) == 258:
-                    if desktop and monitor:
+                    if desktop:
                         try:
-                            current = select_monitor(desktop.monitors(), monitor_device)
-                            if current:
-                                desktop.fit_borderless(child["pid"], current)
+                            if display_mode == "Windowed":
+                                desktop.fit_windowed(child["pid"])
+                            else:
+                                current = select_monitor(desktop.monitors(), monitor_device)
+                                if current:
+                                    desktop.fit_borderless(child["pid"], current)
                         except OSError:
-                            self.notify("Could not apply borderless mode. The game is still running; choose Windowed next time.")
+                            self.notify(f"Could not apply {display_mode.lower()} mode. The game is still running; restart it to retry.")
                             desktop = None
             finally:
                 kernel.CloseHandle(process)
