@@ -19,7 +19,7 @@ from .display import available_monitors
 from .retail_rank import RankSourceError, read_rank
 from .retail_sync import SyncConflict
 from .ui.view import CompanionView, UiValues
-from .updater import UpdateError, check_latest, record_check, prepare_update, launch_helper
+from .updater import UpdateError, GamesBlockingUpdate, close_running_games, check_latest, record_check, prepare_update, launch_helper
 from .version import VERSION
 
 ROOT = Path(sys.executable).resolve().parent if getattr(sys,"frozen",False) else Path(__file__).resolve().parents[2]
@@ -43,6 +43,9 @@ class AppState:
     updating: bool = False
     available_release: object = None
     staged_plan: object = None
+    update_blocked: bool = False
+    force_update_pending: bool = False
+    force_close_finished: bool = False
     sync_conflict: bool = False
     launch_after_refresh: str | None = None
 
@@ -63,6 +66,7 @@ class CompanionController:
                  "signout":self.sign_out,"claim":self.claim,"sync":self.sync,"saves":self.open_saves,
                  "browse":self.browse,"host":self.host,"stop_host":self.stop_host,
                  "check_updates":self.check_updates,"update":self.update_and_restart,
+                 "force_update":self.force_update,
                  "cloud":lambda:self.resolve(True),"local":lambda:self.resolve(False),
                  "get_discord":lambda:webbrowser.open("https://discord.com/download"),
                  "release_notes":lambda:webbrowser.open("https://vegas.lumbridge.co.uk/changelog.html")}
@@ -136,7 +140,7 @@ class CompanionController:
         return str(error) if isinstance(error,CompanionError) else "The operation failed. Your local character was preserved. Retry sign-in or synchronization."
 
     def start_operation(self,operation):
-        if self.state.busy or self.state.closing:
+        if self.state.busy or self.state.closing or self.state.updating:
             return
         self.state.busy=True
         self.refresh()
@@ -330,10 +334,16 @@ class CompanionController:
 
     def apply_staged(self):
         if self.state.busy or self.state.hosting or self.state.closing:
-            self.values.update_status.set("Update downloaded. Finish playing and stop hosting, then choose Update and restart.")
+            self.state.update_blocked=self.state.playing or self.state.hosting
+            self.values.update_status.set("Update ready. Close the game, or choose Force-close games and update."
+                                          if self.state.update_blocked else "Update ready. Wait for the current operation to finish, then retry.")
             return False
         try:
             launch_helper(self.state.staged_plan,os.getpid())
+        except GamesBlockingUpdate as error:
+            self.state.update_blocked=True
+            self.values.update_status.set(str(error))
+            return False
         except UpdateError as error:
             self.values.update_status.set(str(error))
             return False
@@ -341,9 +351,24 @@ class CompanionController:
         self.root.destroy()
         return True
 
+    def force_update(self):
+        s=self.state
+        if s.updating or not s.staged_plan or not s.update_blocked or s.closing:
+            return
+        # The dedicated action is explicit consent; automatic update checks
+        # and the normal update button never terminate a game.
+        s.force_update_pending,s.force_close_finished=True,False
+        self.values.update_status.set("Closing Vegas games before installing the update...")
+        if s.hosting:
+            self.stop_host()
+        def operation():
+            close_running_games(progress=lambda text:self.messages.put(("update_progress",text)))
+            self.messages.put(("games_closed",None))
+        self.start_update_worker(operation)
+
     def update_and_restart(self):
         s=self.state
-        if s.busy or s.hosting or s.updating or not s.available_release:
+        if (s.busy and not s.playing) or s.updating or not s.available_release:
             return
         if not getattr(sys,"frozen",False):
             self.values.update_status.set("Run the packaged companion to install updates. Source checkouts update through Git.")
@@ -353,7 +378,8 @@ class CompanionController:
         else:
             release=s.available_release
             self.values.update_status.set("Downloading and verifying "+release.version+"...")
-            self.start_update_worker(lambda:self.messages.put(("update_staged",prepare_update(ROOT,release))))
+            self.start_update_worker(lambda:self.messages.put(("update_staged",prepare_update(
+                ROOT,release,progress=lambda text:self.messages.put(("update_progress",text))))))
 
     def refresh(self):
         if self._closed:
@@ -412,6 +438,7 @@ class CompanionController:
                 self.view.show_conflict(False)
             elif kind=="update_checked":
                 s.available_release,s.staged_plan=value,None
+                s.update_blocked=False
                 self.values.update_status.set("Version "+value.version+" is available. Update and restart when you are ready." if value
                                               else "Version "+VERSION+" · You are up to date.")
             elif kind=="update_staged":
@@ -419,11 +446,23 @@ class CompanionController:
                 if self.apply_staged():
                     return
             elif kind=="update_done":
-                s.updating=False
+                if not s.force_update_pending:
+                    s.updating=False
             elif kind=="update_error":
+                s.force_update_pending,s.force_close_finished=False,False
                 self.values.update_status.set(value)
+            elif kind=="update_progress":
+                self.values.update_status.set(value)
+            elif kind=="games_closed":
+                s.force_close_finished=True
+                self.values.update_status.set("Games closed. Waiting for character saving and server shutdown...")
             else:
                 self.values.status.set(value)
+        if s.force_update_pending and s.force_close_finished and not s.busy and not s.hosting:
+            s.force_update_pending,s.updating=False,False
+            self.values.update_status.set("Starting the update installer...")
+            if self.apply_staged():
+                return
         self.refresh()
         if s.closing and not s.hosting and not s.busy:
             self.shutdown();self.root.destroy();return
@@ -474,6 +513,8 @@ class CompanionController:
                 try:self.root.after_cancel(timer)
                 except tk.TclError:pass
         try:self.view.activity.stop()
+        except tk.TclError:pass
+        try:self.view.update_activity.stop()
         except tk.TclError:pass
 
     def run(self):

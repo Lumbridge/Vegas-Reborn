@@ -280,7 +280,14 @@ class CompanionView:
         row=ttk.Frame(inner,style="Panel.TFrame");row.pack(fill="x")
         self.button(row,"check_update","Check for updates",self.actions["check_updates"],"sync")
         self.button(row,"install_update","Update and restart",self.actions["update"],"arrow","Primary.TButton")
-        ttk.Label(inner,text="Close the game before installing an update. Downloaded files are verified, and character data and settings are preserved.",style="PanelMuted.TLabel",wraplength=700).pack(anchor="w",pady=(22,16))
+        self.update_activity=ttk.Progressbar(inner,mode="indeterminate")
+        self.update_activity.pack(fill="x",pady=(16,8))
+        self.force_update_frame=ttk.Frame(inner,style="Panel.TFrame")
+        self.force_update_frame.pack(fill="x",pady=(12,0))
+        self.button(self.force_update_frame,"force_update","Force-close games and update",self.actions["force_update"],"arrow","Danger.TButton")
+        ttk.Label(self.force_update_frame,text="Ends running original Vegas games and servers. Unsaved match progress may be lost.",style="PanelMuted.TLabel",wraplength=700).pack(anchor="w",pady=(8,0))
+        self.update_help=ttk.Label(inner,text="Updates can download while you play. Installation waits for games to close. Character data and settings are preserved.",style="PanelMuted.TLabel",wraplength=700)
+        self.update_help.pack(anchor="w",pady=(22,16))
         self.button(inner,"release_notes","View website changelog",self.actions["release_notes"],"external","Quiet.TButton")
 
     def show_page(self,key):
@@ -317,6 +324,7 @@ class CompanionView:
         session=state.session
         cooldown=bool(session and session.rename_on_cooldown)
         key=(state.busy,state.hosting,state.closing,state.playing,state.updating,state.account_verified,
+             state.update_blocked,state.staged_plan is not None,
              state.sync_conflict,getattr(state.available_release,"version",None),
              (session.discord_id,session.display_name,session.claimed_name,session.name_claims_enabled,session.claim_required,session.name_change_allowed,cooldown)
              if session else None,self.values.mode.get(),self.values.monitor_name.get())
@@ -325,7 +333,7 @@ class CompanionView:
         self._render_key=key
         def enable(key,condition):
             self.widgets[key].configure(state="normal" if condition and not state.closing else "disabled")
-        idle=not state.busy
+        idle=not state.busy and not state.updating
         signed=state.session is not None
         ready=signed and state.account_verified and not state.sync_conflict and not (state.session.name_claims_enabled and state.session.claim_required)
         enable("connect",idle and not state.hosting)
@@ -338,7 +346,19 @@ class CompanionView:
         enable("stop_host",state.hosting)
         enable("browse",idle and not state.hosting)
         enable("check_update",not state.updating)
-        enable("install_update",state.available_release is not None and not (state.updating or state.busy or state.hosting))
+        enable("install_update",state.available_release is not None and not state.updating and (not state.busy or state.playing))
+        enable("force_update",state.update_blocked and state.staged_plan is not None and not state.updating)
+        if state.update_blocked:
+            self.force_update_frame.pack(fill="x",pady=(12,0),before=self.update_help)
+        else:
+            self.force_update_frame.pack_forget()
+        if state.updating:
+            self.update_activity.pack(fill="x",pady=(16,8),before=self.update_help)
+            if not getattr(self,"_update_animating",False):
+                self.update_activity.start(14);self._update_animating=True
+        else:
+            self.update_activity.stop();self._update_animating=False
+            self.update_activity.pack_forget()
         enable("cloud",signed and idle)
         enable("local",signed and idle)
         self.widgets["folder_entry"].configure(state="normal" if idle and not state.hosting and not state.closing else "disabled")

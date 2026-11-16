@@ -14,7 +14,7 @@ class Preferences:
     minimize_on_play: bool = True
     discord_presence: bool = True
     check_updates: bool = True
-    skip_intros: bool = False
+    skip_intros: bool = True
 
     @classmethod
     def load(cls, path):

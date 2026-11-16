@@ -25,12 +25,8 @@ def main():
     launch.add_argument("--host",action="store_true",help="Host after checking the saved account")
     args=parser.parse_args()
     if args.apply_update:
-        try:
-            apply_update(args.apply_update,args.parent_pid)
-            return 0
-        except UpdateError as error:
-            messagebox.showerror("Update not installed",str(error))
-            return 1
+        from .update_ui import run_update
+        return run_update(args.apply_update,args.parent_pid)
     if args.install_staged_update:
         launch_helper(args.install_staged_update,os.getpid())
         return 0

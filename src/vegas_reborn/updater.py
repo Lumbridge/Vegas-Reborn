@@ -36,6 +36,10 @@ class UpdateError(Exception):
     """Fixed, user-safe update diagnostics."""
 
 
+class GamesBlockingUpdate(UpdateError):
+    """Installation is waiting for original Vegas game/server processes."""
+
+
 def version_tuple(value):
     if not isinstance(value, str) or not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", value):
         raise UpdateError("Invalid release version")
@@ -256,12 +260,14 @@ def extract_archive(archive, folder, release):
     verify_tree(folder, release)
 
 
-def prepare_update(root, release, *, downloader=download):
+def prepare_update(root, release, *, downloader=download, progress=lambda message: None):
     root = Path(root).resolve()
     stage = beneath(root, ".updates/staging/" + uuid.uuid4().hex)
     stage.mkdir(parents=True)
     archive, payload = stage / release.archive, stage / "VegasReborn"
+    progress("Downloading version " + release.version + "...")
     downloader(release.base_url + release.archive, limit=release.size, destination=archive)
+    progress("Verifying and extracting the signed update...")
     payload.mkdir()
     extract_archive(archive, payload, release)
     plan = {"schema": 1, "root": str(root), "payload": str(payload),
@@ -290,17 +296,70 @@ def load_plan(path):
         raise UpdateError("The staged update plan is invalid") from None
 
 
-def game_processes_running():
+def game_process_ids():
     if os.name != "nt":
-        return False
+        return []
     result = subprocess.run(["tasklist", "/FO", "CSV", "/NH"], capture_output=True, timeout=10,
                             creationflags=subprocess.CREATE_NO_WINDOW)
     if result.returncode:
         raise UpdateError("Could not check running games before updating")
-    return bool(re.search(rb'(?mi)^"R6Vegas(?:_Game|Server)\.exe"', result.stdout))
+    import csv
+    import io
+    names = {"r6vegas_game.exe", "r6vegasserver.exe"}
+    try:
+        return [int(row[1]) for row in csv.reader(io.StringIO(result.stdout.decode("utf-8", errors="replace")))
+                if len(row) >= 2 and row[0].casefold() in names]
+    except ValueError:
+        raise UpdateError("Could not identify running games before updating") from None
 
 
-def install_payload(root, payload, release, *, active=game_processes_running):
+def game_processes_running():
+    return bool(game_process_ids())
+
+
+def close_running_games(*, progress=lambda message: None):
+    """Only called by the explicit force-close action; never during auto-check."""
+    pids = game_process_ids()
+    if not pids:
+        return
+    progress("Force-closing running Vegas games and servers...")
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
+    kernel.QueryFullProcessImageNameW.restype = wintypes.BOOL
+    kernel.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
+    kernel.TerminateProcess.restype = wintypes.BOOL
+    kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    kernel.WaitForSingleObject.restype = wintypes.DWORD
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    for pid in pids:
+        # Query and terminate the same handle, so PID reuse cannot close an
+        # unrelated process between enumeration and termination.
+        handle = kernel.OpenProcess(0x101001, False, pid)
+        if not handle:
+            if ctypes.get_last_error() == 87:
+                continue
+            raise UpdateError("Could not close a Vegas game. Close it manually and retry the update.")
+        try:
+            if kernel.WaitForSingleObject(handle, 0) == 0:
+                continue
+            size, image = wintypes.DWORD(32768), ctypes.create_unicode_buffer(32768)
+            if not kernel.QueryFullProcessImageNameW(handle, 0, image, ctypes.byref(size)):
+                if kernel.WaitForSingleObject(handle, 0) == 0:
+                    continue
+                raise UpdateError("Could not identify a Vegas game. Close it manually and retry.")
+            if Path(image.value).name.casefold() not in {"r6vegas_game.exe", "r6vegasserver.exe"}:
+                continue
+            if not kernel.TerminateProcess(handle, 0) or kernel.WaitForSingleObject(handle, 10000) != 0:
+                raise UpdateError("A Vegas game did not close. Close it manually and retry.")
+        finally:
+            kernel.CloseHandle(handle)
+    if game_processes_running():
+        raise GamesBlockingUpdate("A Vegas game is still running. Close it or retry force-close.")
+
+
+def install_payload(root, payload, release, *, active=game_processes_running, progress=lambda message: None):
     """Transactionally install only signed managed files; keep rollback copies."""
     root, payload = Path(root).resolve(), Path(payload).resolve()
     verify_tree(payload, release)
@@ -313,14 +372,15 @@ def install_payload(root, payload, release, *, active=game_processes_running):
         except (OSError, ValueError, KeyError, TypeError):
             raise UpdateError("Could not verify the installed companion version") from None
     if active():
-        raise UpdateError("Close the game and dedicated server before updating")
+        raise GamesBlockingUpdate("A Vegas game or server is blocking the update. Close it and retry.")
     backup = beneath(root, ".updates/backups/" + uuid.uuid4().hex)
     backup.mkdir(parents=True)
     changed = []
     try:
         # Install the executable last; all its new runtime files exist first.
         ordered = sorted(release.files, key=lambda entry: entry["path"] == "VegasReborn.exe")
-        for entry in ordered:
+        for index, entry in enumerate(ordered, 1):
+            progress(f"Installing update files: {index} of {len(ordered)}")
             name = entry["path"]
             target = beneath(root, name)
             if entry["mode"] == "seed" and target.exists():
@@ -360,7 +420,7 @@ def install_payload(root, payload, release, *, active=game_processes_running):
 def launch_helper(plan, parent_pid):
     root, payload, release = load_plan(plan)
     if game_processes_running():
-        raise UpdateError("Close the game and dedicated server before updating")
+        raise GamesBlockingUpdate("A Vegas game or server is blocking the update. Close it or choose Force-close games and update.")
     executable = payload / "VegasReborn.exe"
     subprocess.Popen([str(executable), "--apply-update", str(plan), "--parent-pid", str(parent_pid)],
                      cwd=payload, creationflags=subprocess.CREATE_NO_WINDOW,
@@ -400,8 +460,10 @@ def wait_for_parent(pid, root):
         kernel.CloseHandle(handle)
 
 
-def apply_update(plan, parent_pid):
+def apply_update(plan, parent_pid, *, progress=lambda message: None):
+    progress("Verifying the staged update...")
     root, payload, release = load_plan(plan)
+    progress("Waiting for Vegas Reborn to close...")
     wait_for_parent(parent_pid, root)
     lock = beneath(root, ".updates/install.lock")
     import msvcrt
@@ -417,10 +479,11 @@ def apply_update(plan, parent_pid):
         except OSError:
             raise UpdateError("Another update is already being installed") from None
         try:
-            install_payload(root, payload, release)
+            install_payload(root, payload, release, progress=progress)
         finally:
             owner.seek(0)
             msvcrt.locking(owner.fileno(), msvcrt.LK_UNLCK, 1)
+    progress("Restarting Vegas Reborn...")
     child = subprocess.Popen([str(root / "VegasReborn.exe")], cwd=root, creationflags=subprocess.CREATE_NO_WINDOW,
                              env={**os.environ, "PYINSTALLER_RESET_ENVIRONMENT": "1"})
     beneath(root, ".updates/last-update.json").write_text(json.dumps({"version": release.version, "status": "installed", "restartedPid": child.pid}), encoding="utf-8")

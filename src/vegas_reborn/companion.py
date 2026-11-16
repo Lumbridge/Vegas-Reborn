@@ -252,7 +252,7 @@ class RetailLauncher:
             mutex = kernel.CreateMutexW(None, True, "Local\\VegasRetailCompanion")
             if not mutex or ctypes.get_last_error() == 183:
                 raise CompanionError("Another companion is already launching the game")
-            self.notify("Checking the account's cloud characterÃ¢â‚¬Â¦")
+            self.notify("Checking the account's cloud character...")
             # Rehydrate the claim from its owner-authenticated source. A cached
             # display name cannot authorize an in-game identity or rename.
             session = DiscordClient().refresh_account(session)
@@ -351,7 +351,7 @@ class RetailLauncher:
                         raise CompanionError("The game's requested display or intro settings were not verified. Close the game and retry.")
                     time.sleep(.1)
             started = True
-            self.notify("Game running. Choose Multiplayer Ã¢â€ â€™ Online and click Login. Sign-in is automatic.")
+            self.notify("Game running. Choose Multiplayer > Online and click Login. Sign-in is automatic.")
             on_started()
             kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
             kernel.OpenProcess.restype = wintypes.HANDLE
@@ -374,7 +374,7 @@ class RetailLauncher:
                             desktop = None
             finally:
                 kernel.CloseHandle(process)
-            self.notify("Saving the character and progression to your accountÃ¢â‚¬Â¦")
+            self.notify("Saving the character and progression to your account...")
             result = self.sync.push(session) if (profile / "R6_PECPEC").exists() else None
             self.notify("Character saved to your account." if result else "Game closed. No character was created.")
             return result
