@@ -14,6 +14,7 @@ class Preferences:
     minimize_on_play: bool = True
     discord_presence: bool = True
     check_updates: bool = True
+    skip_intros: bool = False
 
     @classmethod
     def load(cls, path):
@@ -22,7 +23,8 @@ class Preferences:
             result = cls(**{key: value[key] for key in cls.__dataclass_fields__ if key in value})
             if (not isinstance(result.game_folder, str) or result.display_mode not in MODES
                     or not isinstance(result.monitor_device, str) or type(result.minimize_on_play) is not bool
-                    or type(result.discord_presence) is not bool or type(result.check_updates) is not bool):
+                    or type(result.discord_presence) is not bool or type(result.check_updates) is not bool
+                    or type(result.skip_intros) is not bool):
                 return cls()
             return result
         except (OSError, ValueError, TypeError):

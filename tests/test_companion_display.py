@@ -50,7 +50,7 @@ class DisplayConfigTests(unittest.TestCase):
             prefs = Preferences("D:/Owned Vegas", "Windowed", "other", False)
             prefs.save(path)
             self.assertEqual(Preferences.load(path), prefs)
-            for value in ('{"display_mode":"invalid"}', '{"minimize_on_play":"false"}', 'null', '[]', '{'):
+            for value in ('{"display_mode":"invalid"}', '{"minimize_on_play":"false"}', '{"skip_intros":"false"}', 'null', '[]', '{'):
                 path.write_text(value)
                 self.assertEqual(Preferences.load(path), Preferences())
 
