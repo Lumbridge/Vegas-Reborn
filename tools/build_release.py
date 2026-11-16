@@ -51,10 +51,10 @@ def main():
     shutil.copy2(ROOT / "third_party/MinHook-LICENSE.txt", app / "LICENSE-Minhook.txt")
     shutil.copy2(Path(sys.base_prefix) / "LICENSE.txt", app / "LICENSE-Python.txt")
     notices = []
-    for package in ("cryptography", "cffi", "pyinstaller"):
+    for package in ("cryptography", "cffi", "pyinstaller", "truststore"):
         distribution = importlib.metadata.distribution(package)
         for item in distribution.files or ():
-            if "/licenses/" in str(item).replace("\\", "/") and "LICENSE" in item.name.upper():
+            if ".dist-info/" in str(item).replace("\\", "/") and "LICENSE" in item.name.upper():
                 path = distribution.locate_file(item)
                 if path.is_file():
                     notices.append(f"{package}: {item.name}\n\n" + path.read_text(encoding="utf-8"))

@@ -27,6 +27,10 @@ copies. Only specifically listed native helper files within `local/companion/bin
 can be replaced. Existing service configuration and public trust key are seeded
 only on a fresh installation.
 
+Update HTTPS uses Windows' native certificate validation, without disabling TLS
+checks or changing the machine's trust store. Version 0.3.1 corrects a missing
+certificate-chain issue found during the first public-feed test on this PC.
+
 Retail Discord join invites, rendered Alt-Tab acceptance and gameplay acceptance
 remain separate work. App and updater tests do not establish retail gameplay.
 

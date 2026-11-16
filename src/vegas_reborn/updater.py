@@ -9,6 +9,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import ssl
 import stat
 import subprocess
 import time
@@ -17,6 +18,7 @@ import urllib.parse
 import urllib.request
 import uuid
 import zipfile
+import truststore
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
@@ -121,7 +123,10 @@ class ReleaseRedirects(urllib.request.HTTPRedirectHandler):
 def download(url, *, limit, destination=None):
     request = urllib.request.Request(url, headers={"User-Agent": "Vegas-Reborn-Companion/" + VERSION,
                                                     "Accept": "application/vnd.github+json" if "api.github.com/" in url else "application/octet-stream"})
-    opener = urllib.request.build_opener(ReleaseRedirects())
+    # Use Windows CryptoAPI certificate validation (including intermediate
+    # chain discovery) without altering process-wide ssl or certificate stores.
+    context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    opener = urllib.request.build_opener(ReleaseRedirects(), urllib.request.HTTPSHandler(context=context))
     output = None
     chunks, count, deadline = [], 0, time.monotonic() + 180
     try:
