@@ -21,7 +21,8 @@ class UpdateTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+        # Hosted Windows runners may provide an 8.3 alias in %TEMP%.
+        self.root = Path(self.temporary.name).resolve()
         self.key = Ed25519PrivateKey.generate()
         self.public = self.key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw).hex()
         self.contents = {"VegasReborn.exe": b"new companion", "runtime-0.3.1/python310.dll": b"new runtime",
