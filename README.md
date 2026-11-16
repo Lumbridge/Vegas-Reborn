@@ -43,9 +43,9 @@ The companion prepares its own game copy and account-specific character folder.
 Your installed game and its existing profiles are preserved.
 
 **Skip intro movies** is available in **Display & game** and applies on the next
-launch. It is off by default and changes only the startup intro setting in the
-companion's game copy. Turning it off restores the original setting. Loading
-screens and gameplay movies are retained.
+launch. It is off by default and bypasses the startup logo and splash sequence,
+including its waits. Loading screens, the menu background and gameplay movies
+are retained. Turning it off restores the original startup behavior.
 
 ## Your character and settings
 

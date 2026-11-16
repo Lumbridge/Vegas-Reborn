@@ -126,6 +126,16 @@ def validate_compatibility(compatibility, *, claimed_name=None, display_mode="Ga
         raise CompanionError("Borderless setup was not verified. Update the companion's native compatibility module, then retry.")
 
 
+def launch_options_ready(report, display_mode, skip_intros):
+    if report.get("hookFailed"):
+        raise CompanionError("The game's requested display settings could not be installed. Update the companion and retry.")
+    if skip_intros and not report.get("introSequenceHookInstalled"):
+        return False
+    if display_mode in ("Windowed", "Borderless"):
+        return bool(report.get("viewportHookInstalled") and report.get("deviceVerified") and report.get("actualWindowed"))
+    return True
+
+
 def load_configuration(path):
     path = Path(path).resolve()
     value = json.loads(path.read_text(encoding="utf-8"))
@@ -226,7 +236,7 @@ class RetailLauncher:
             mutex = kernel.CreateMutexW(None, True, "Local\\VegasRetailCompanion")
             if not mutex or ctypes.get_last_error() == 183:
                 raise CompanionError("Another companion is already launching the game")
-            self.notify("Checking the account's cloud character…")
+            self.notify("Checking the account's cloud characterÃ¢â‚¬Â¦")
             # Rehydrate the claim from its owner-authenticated source. A cached
             # display name cannot authorize an in-game identity or rename.
             session = DiscordClient().refresh_account(session)
@@ -247,7 +257,9 @@ class RetailLauncher:
             else:
                 claim_file.unlink(missing_ok=True)
             _private_write(account / "display-mode.txt",
-                           b"borderless\n" if display_mode == "Borderless" else b"native\n")
+                           b"borderless\n" if display_mode == "Borderless" else b"windowed\n" if display_mode == "Windowed" else b"native\n")
+            _private_write(account / "skip-intros.txt", b"skip\n" if skip_intros else b"play\n")
+            (account / "launch-options-status.json").unlink(missing_ok=True)
             profile = self.sync.profile_directory(session)
             profile.mkdir(parents=True, exist_ok=True)
             license_file = profile / "PlayerProfile.ini"
@@ -291,7 +303,7 @@ class RetailLauncher:
                 time.sleep(.1)
             child = json.loads(child_file.read_text())
             _native([ROOT / "local/companion/bin/VegasInjector.exe", child["pid"], child["tid"],
-                     ROOT / "local/companion/bin/VegasCompanion-7.dll", account, game, Path(source).resolve()])
+                     ROOT / "local/companion/bin/VegasCompanion-8.dll", account, game, Path(source).resolve()])
             _native([control, "--stop-gate", steam_pid, gate["module"], gate_dll])
             gate = None
             deadline = time.monotonic() + 65
@@ -301,8 +313,22 @@ class RetailLauncher:
                 time.sleep(.1)
             compatibility = json.loads(ready_file.read_text())
             validate_compatibility(compatibility, claimed_name=session.claimed_name, display_mode=display_mode)
+            if display_mode in ("Windowed", "Borderless") or skip_intros:
+                self.notify("Verifying the game's requested display and intro settings...")
+                options_file=account / "launch-options-status.json"
+                deadline=time.monotonic()+15
+                while True:
+                    try:
+                        options=json.loads(options_file.read_text())
+                    except (OSError,ValueError):
+                        options={}
+                    if launch_options_ready(options,display_mode,skip_intros):
+                        break
+                    if time.monotonic()>deadline:
+                        raise CompanionError("The game's requested display or intro settings were not verified. Close the game and retry.")
+                    time.sleep(.1)
             started = True
-            self.notify("Game running. Choose Multiplayer → Online and click Login. Sign-in is automatic.")
+            self.notify("Game running. Choose Multiplayer Ã¢â€ â€™ Online and click Login. Sign-in is automatic.")
             on_started()
             kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
             kernel.OpenProcess.restype = wintypes.HANDLE
@@ -325,7 +351,7 @@ class RetailLauncher:
                             desktop = None
             finally:
                 kernel.CloseHandle(process)
-            self.notify("Saving the character and progression to your account…")
+            self.notify("Saving the character and progression to your accountÃ¢â‚¬Â¦")
             result = self.sync.push(session) if (profile / "R6_PECPEC").exists() else None
             self.notify("Character saved to your account." if result else "Game closed. No character was created.")
             return result

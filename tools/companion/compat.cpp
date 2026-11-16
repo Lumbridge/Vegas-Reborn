@@ -1,5 +1,5 @@
-// Retail companion compatibility only: no graphics/input hooks, captures,
-// memory dumps, scripted commands, frame limits or gameplay replacements.
+// Retail companion compatibility and requested display/intro controls only:
+// no input hooks, captures, dumps, frame limits or gameplay replacements.
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -14,6 +14,7 @@
 #include "display_style.h"
 #include "claimed_name.h"
 #include "native_readiness.h"
+#include "launch_options.h"
 
 static std::wstring Output,ProfileDirectory,WorkingRoot,SourceRoot,RegisteredExecutable;
 static std::string RouteAddress;
@@ -23,6 +24,7 @@ static unsigned IpcPort=0;
 static std::wstring IpcCapability;
 static std::string NativeAlias;
 static bool BorderlessRequested=false;
+static bool WindowedRequested=false,SkipIntrosRequested=false;
 #ifdef R6V_DEDICATED
 static constexpr bool Dedicated=true;
 #else
@@ -311,7 +313,10 @@ static DWORD WINAPI NativeInitialize(LPVOID){
                 executablePagesReady=executablePagesReady&&targetReady&&detourReady&&
                     NativeReadiness::Executable(base+0xb7230)&&
                     NativeReadiness::Executable(reinterpret_cast<const void*>(DiscordLoginFields));
+                if(WindowedRequested)executablePagesReady=executablePagesReady&&
+                    NativeReadiness::Executable(base+LaunchOptions::ResizeRva)&&LaunchOptions::ResizeMatches(base);
             }
+            if(SkipIntrosRequested)executablePagesReady=executablePagesReady&&NativeReadiness::Executable(base+LaunchOptions::AppendRva)&&NativeReadiness::Executable(base+LaunchOptions::CompleteRva)&&LaunchOptions::SequenceMatches(base);
             if(!executablePagesReady){Sleep(100);continue;}
             taskStatus=prefillStatus=unlockStatus=-1;
             if(BorderlessRequested){
@@ -362,12 +367,13 @@ static DWORD WINAPI NativeInitialize(LPVOID){
                 ready=unlockVerified;
             }
             if(ready&&!Dedicated)ready=ClaimedName::Install(base,Output);
+            if(ready&&!Dedicated)ready=LaunchOptions::InstallNative(base);
             break;
         }
         Sleep(100);
     }
     FILE* status=nullptr;_wfopen_s(&status,(Output+L"\\compat-status.tmp").c_str(),L"wb");
-    if(status){fprintf(status,"{\"ready\":%s,\"executablePagesReady\":%s,\"unlockTargetProtection\":%lu,\"unlockDetourProtection\":%lu,\"displayStyleVerified\":%s,\"claimedNameVerified\":%s,\"claimedNameInstalled\":%s,\"claimedNameStatus\":\"%s\",\"nativeVersion\":%u,\"signatures\":%u,\"taskHookStatus\":%d,\"prefillHookStatus\":%d,\"unlockHookStatus\":%d,\"unlockVerified\":%s,\"moduleBase\":%lu,\"progression\":\"%s\",\"unlockPolicy\":\"%s\"}\n",ready?"true":"false",executablePagesReady?"true":"false",unlockTargetProtection,unlockDetourProtection,displayStyleVerified?"true":"false",ClaimedName::Verified?"true":"false",ClaimedName::Installed?"true":"false",Dedicated?"notApplicable":ClaimedName::Error,Dedicated?2u:7u,signatures,taskStatus,prefillStatus,unlockStatus,unlockVerified?"true":"false",DWORD(reinterpret_cast<ULONG_PTR>(base)),Dedicated?"nativeDedicatedDefaults":"nativeRawXp",Dedicated?"nativeDedicatedDefaults":"nativeGroupRequirements");fclose(status);MoveFileExW((Output+L"\\compat-status.tmp").c_str(),(Output+L"\\compat-status.json").c_str(),MOVEFILE_REPLACE_EXISTING);}
+    if(status){fprintf(status,"{\"ready\":%s,\"executablePagesReady\":%s,\"unlockTargetProtection\":%lu,\"unlockDetourProtection\":%lu,\"displayStyleVerified\":%s,\"claimedNameVerified\":%s,\"claimedNameInstalled\":%s,\"claimedNameStatus\":\"%s\",\"nativeVersion\":%u,\"signatures\":%u,\"taskHookStatus\":%d,\"prefillHookStatus\":%d,\"unlockHookStatus\":%d,\"unlockVerified\":%s,\"moduleBase\":%lu,\"progression\":\"%s\",\"unlockPolicy\":\"%s\"}\n",ready?"true":"false",executablePagesReady?"true":"false",unlockTargetProtection,unlockDetourProtection,displayStyleVerified?"true":"false",ClaimedName::Verified?"true":"false",ClaimedName::Installed?"true":"false",Dedicated?"notApplicable":ClaimedName::Error,Dedicated?2u:8u,signatures,taskStatus,prefillStatus,unlockStatus,unlockVerified?"true":"false",DWORD(reinterpret_cast<ULONG_PTR>(base)),Dedicated?"nativeDedicatedDefaults":"nativeRawXp",Dedicated?"nativeDedicatedDefaults":"nativeGroupRequirements");fclose(status);MoveFileExW((Output+L"\\compat-status.tmp").c_str(),(Output+L"\\compat-status.json").c_str(),MOVEFILE_REPLACE_EXISTING);}
     return ready?1:0;
 }
 extern "C" DWORD WINAPI StartCompanion(LPVOID configuration){
@@ -380,8 +386,15 @@ extern "C" DWORD WINAPI StartCompanion(LPVOID configuration){
         if(!_wfopen_s(&display,(Output+L"\\display-mode.txt").c_str(),L"rb")&&display){
             char mode[16]{};bool validMode=fscanf_s(display,"%15s",mode,unsigned(sizeof(mode)))==1;
             fclose(display);
-            if(!validMode||(strcmp(mode,"borderless")&&strcmp(mode,"native")))return 0;
+            if(!validMode||(strcmp(mode,"borderless")&&strcmp(mode,"windowed")&&strcmp(mode,"native")))return 0;
             BorderlessRequested=!strcmp(mode,"borderless");
+            WindowedRequested=BorderlessRequested||!strcmp(mode,"windowed");
+        }
+        FILE* intros=nullptr;
+        if(!_wfopen_s(&intros,(Output+L"\\skip-intros.txt").c_str(),L"rb")&&intros){
+            char value[16]{};const bool valid=fscanf_s(intros,"%15s",value,unsigned(sizeof(value)))==1;
+            fclose(intros);if(!valid||(strcmp(value,"skip")&&strcmp(value,"play")))return 0;
+            SkipIntrosRequested=!strcmp(value,"skip");
         }
     }
     if(!LocalPhysics())return 0;
@@ -409,6 +422,7 @@ extern "C" DWORD WINAPI StartCompanion(LPVOID configuration){
     HOOK("ws2_32.dll","getaddrinfo",CompanionResolveAddr,OriginalResolveAddr);
     HOOK("ws2_32.dll","connect",CompanionConnect,OriginalConnectSocket);
 #undef HOOK
+    if(!Dedicated)ready=ready&&LaunchOptions::Arm(Output,WindowedRequested,SkipIntrosRequested);
     if(!ready||MH_EnableHook(MH_ALL_HOOKS)!=MH_OK){MH_Uninitialize();return 0;}
     HANDLE thread=CreateThread(nullptr,0,NativeInitialize,nullptr,0,nullptr);
     if(!thread)return 0;CloseHandle(thread);return 1;
