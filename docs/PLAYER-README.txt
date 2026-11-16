@@ -5,11 +5,14 @@ VegasReborn.exe. Python and build tools are not required on the playing PC.
 You must own and install the original PC Rainbow Six Vegas and run Steam.
 
 Choose the installed game folder, sign in, claim your player name if prompted,
-and choose Play Vegas. In-game, choose Multiplayer > Online > Login. The
+and choose Launch game in Overview. In-game, choose Multiplayer > Online > Login. The
 companion supplies a short-lived native credential. Never enter your Discord
 password in the game. Keep the companion open until the game closes so your
-character can synchronize. Hosting runs your original dedicated server in a
-separate companion-owned copy; it is not the backend account/matchmaking service.
+character can synchronize. Use Create Match in the game for normal hosting.
+Dedicated hosting is available separately through the operator tool.
+
+The interface has Overview, Account, Display & Game, Connections and Updates
+pages. Switching pages preserves the selected window size and position.
 
 Borderless mode fills the selected monitor without keeping the game always on
 top. Display settings apply on the next game launch. Discord desktop activity

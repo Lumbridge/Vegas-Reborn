@@ -1,9 +1,8 @@
 # Vegas Reborn
 
-Play the **original PC Rainbow Six Vegas** with a companion app that handles
-Discord sign-in, character sync and launching the game. Choose your display
-settings, keep your character with your account, and run a local dedicated server
-from the same app.
+Companion app for the **original PC Rainbow Six Vegas**, with account sign-in,
+character synchronization, display settings, Discord activity and game launching.
+The account and matchmaking backend are maintained separately.
 
 **[Download for Windows](https://github.com/Lumbridge/Vegas-Reborn/releases/latest)**
 
@@ -31,10 +30,10 @@ specific original PC build used in testing; other game versions are unverified.
    [latest release](https://github.com/Lumbridge/Vegas-Reborn/releases/latest).
 2. Extract the entire `VegasReborn` folder to a writable location, then open
    `VegasReborn.exe`.
-3. Use **Browse** to select your installed Rainbow Six Vegas folder.
-4. Choose **Sign in with Discord** and complete sign-in in your browser. Claim
+3. Open **Display & game** and use **Browse** to select your installed game folder.
+4. Open **Account**, choose **Sign in with Discord**, and complete sign-in in your browser. Claim
    your player name if prompted.
-5. Choose **Play Vegas**. In the game, select **Multiplayer > Online > Login**.
+5. Open **Overview** and choose **Launch game**. In the game, select **Multiplayer > Online > Login**.
    The companion handles game sign-in; never enter your Discord password in the
    game.
 6. When you finish playing, close the game normally and leave the companion open
@@ -64,11 +63,12 @@ companion minimize when the game starts.
 if you do not want to share your activity. Discord desktop activity sharing is
 separate from signing in with your Discord account.
 
-## Host a dedicated server
+## Hosting
 
-Choose **Host dedicated server** to run the original game's dedicated server in
-a separate companion-owned copy. You can then choose **Play Vegas** from the
-same app. Use **Stop server** when you are finished hosting.
+Use **Create Match in the game** for normal hosting. Dedicated hosting is a
+separate process and is not in the companion's normal navigation. Operators can
+use `python tools/host_server.py` from a prepared source checkout. The explicit
+legacy `--host` argument remains supported for existing shortcuts.
 
 Hosting is experimental: reaching a server lobby has been demonstrated, but
 hosting a complete match and connecting across different networks are not yet

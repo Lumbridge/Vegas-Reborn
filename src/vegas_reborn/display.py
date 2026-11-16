@@ -20,7 +20,7 @@ class Monitor:
     @property
     def label(self):
         x, y, right, bottom = self.bounds
-        return f"{self.device} Â· {right-x} Ã— {bottom-y}" + (" Â· Primary" if self.primary else "")
+        return f"{self.device} · {right-x} × {bottom-y}" + (" · Primary" if self.primary else "")
 
 
 class Desktop:

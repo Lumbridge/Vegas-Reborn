@@ -35,6 +35,8 @@ def main():
     output.mkdir(parents=True)
     command = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onedir", "--windowed",
                "--name", "VegasReborn", "--contents-directory", "runtime-" + VERSION,
+               "--icon", str(ROOT / "src/vegas_reborn/ui/assets/vegas-reborn.ico"),
+               "--add-data", str(ROOT / "src/vegas_reborn/ui/assets") + ";vegas_reborn/ui/assets",
                "--paths", str(ROOT / "src"), "--distpath", str(output / "dist"),
                "--workpath", str(ROOT / "local/build" / VERSION), "--specpath", str(output),
                str(ROOT / "tools/vegas_companion.py")]
@@ -51,7 +53,7 @@ def main():
     shutil.copy2(ROOT / "third_party/MinHook-LICENSE.txt", app / "LICENSE-Minhook.txt")
     shutil.copy2(Path(sys.base_prefix) / "LICENSE.txt", app / "LICENSE-Python.txt")
     notices = []
-    for package in ("cryptography", "cffi", "pyinstaller", "truststore"):
+    for package in ("cryptography", "cffi", "pyinstaller", "truststore", "Pillow"):
         distribution = importlib.metadata.distribution(package)
         for item in distribution.files or ():
             if ".dist-info/" in str(item).replace("\\", "/") and "LICENSE" in item.name.upper():

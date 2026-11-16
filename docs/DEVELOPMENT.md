@@ -22,6 +22,26 @@ retail key in a configuration or commit a user's account session.
 .venv/Scripts/python.exe tools/vegas_companion.py
 ```
 
+## Desktop presentation
+
+`entrypoint.py` handles CLI/update routing, `application.py` coordinates account,
+launch and synchronization operations, and `ui/` owns the pages, theme and
+graphics. Background workers communicate with the UI through queued events.
+The normal navigation has Overview, Account, Display & Game, Connections and
+Updates. Dedicated hosting is a separate operator tool (`tools/host_server.py`);
+the legacy explicit `--host` path remains available.
+
+UI text is functional: no slogans or quips. Page changes preserve window size
+and position. Content scrolls inside the fixed content area. Button styles must
+set normal, hover, pressed and disabled background colors explicitly so theme
+defaults cannot show through rounded corners.
+
+`tools/render_ui_preview.py` renders its own synthetic Tk window without capturing
+the desktop or game. Use `--compact` for a separate compact-size preview run;
+the tool never resizes the window while switching pages. Output goes to ignored
+`local/design-preview`. Original generated artwork and its prompt/provenance are
+in `src/vegas_reborn/ui/assets`, and icons are drawn by `ui/graphics.py`.
+
 ## Release process
 
 The version is defined in `src/vegas_reborn/version.py`. Keep `pyproject.toml` in

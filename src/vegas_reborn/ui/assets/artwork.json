@@ -1,0 +1,7 @@
+{
+  "tool": "built-in image_gen",
+  "asset": "vegas-night.png",
+  "purpose": "Vegas Reborn desktop companion hero background",
+  "prompt": "Use case: stylized-concept. Asset type: wide cinematic background artwork for the Vegas Reborn desktop companion of an original 2006 PC tactical game. Create a refined atmospheric nocturnal Las Vegas cityscape, distant casino towers and neon signs without readable names, warm amber windows, restrained red neon, dusty teal charcoal shadows, desert mountains faintly behind the city, subtle analog photographic grain, grounded architectural realism with slightly painterly matte-painting finish, sophisticated restrained contrast. Composition: wide panoramic landscape, skyline weighted toward the right half with a graceful fading dark empty left half to accommodate application headings; medium-low horizon and generous dark sky. Absolutely no typography, no UI, no logos, no watermark, no people, no guns. Premium game launcher key art, quiet and cinematic rather than an action poster. Aspect ratio 3:2 or wider landscape, detailed sufficient for a 1200px-wide desktop hero.",
+  "icons": "Original vector drawings in ui/graphics.py; Windows ICO generated from mark_image."
+}
