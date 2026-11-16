@@ -1,89 +1,72 @@
-"""Hidden real-Tk controls with synthetic account replies; no game or network."""
-from dataclasses import replace
+"""Real hidden-Tk account flow with synthetic services, no game/network."""
 import gc
-import importlib.util
+from dataclasses import replace
 from pathlib import Path
-import sys
-import tempfile
-import time
-import tkinter as tk
-from tkinter import ttk
+import sys,tempfile,time,tkinter as tk,unittest
 from types import SimpleNamespace
-import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock,patch
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"src"))
+from vegas_reborn import application as app
+from vegas_reborn.companion_settings import Preferences
+from vegas_reborn.discord_client import AccountSession,save_session
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from vegas_reborn.discord_client import AccountSession, save_session
-
-
-class ClaimUiTests(unittest.TestCase):
+class ControllerFixture(unittest.TestCase):
+    def setUp(self):
+        self.temporary=tempfile.TemporaryDirectory()
+        self.directory=Path(self.temporary.name)
+        self.args=SimpleNamespace(config=self.directory/"service.json",session_file=self.directory/"account-session.json",play=False,host=False)
+        Preferences(check_updates=False,discord_presence=False,minimize_on_play=False).save(self.directory/"preferences.json")
+        self.root=tk.Tk();self.root.withdraw()
+        self.launcher=Mock()
+        self.launcher.sync.profile_directory.return_value=self.directory/"profile"
+        self.client=Mock()
+        self.patchers=[patch.object(app,"RetailLauncher",return_value=self.launcher),patch.object(app,"DiscordPresence",return_value=Mock()),patch.object(app,"available_monitors",return_value=[]),patch.object(app,"DiscordClient",return_value=self.client)]
+        for item in self.patchers:item.start()
+        self.controller=None
+    def create(self,session=None):
+        if session:save_session(self.args.session_file,session)
+        self.controller=app.CompanionController(self.root,self.args)
+        return self.controller
+    def pump(self,condition):
+        end=time.monotonic()+4
+        while not condition() and time.monotonic()<end:
+            try:self.root.update()
+            except tk.TclError:
+                if condition():break
+                raise
+            time.sleep(.005)
+        self.assertTrue(condition())
     def tearDown(self):
-        # Tcl objects from a destroyed fixture must be finalized on the UI
-        # thread, before a later test starts an account worker and triggers GC.
+        if self.controller:self.controller.shutdown()
+        try:self.root.destroy()
+        except tk.TclError:pass
+        for item in reversed(self.patchers):item.stop()
+        self.temporary.cleanup()
         gc.collect()
 
-    def exercise(self, enabled):
-        spec = importlib.util.spec_from_file_location("claim_ui_fixture", Path(__file__).resolve().parents[1] / "tools/vegas_companion.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        try:
-            window = tk.Tk()
-        except tk.TclError:
-            self.skipTest("Tk display unavailable")
-        window.withdraw()
-        real_tk_type = type(window)
-        with tempfile.TemporaryDirectory() as directory:
-            session = AccountSession("199999999999999999", "ry", "a" * 64, None, enabled, enabled)
-            path = Path(directory) / "session.json"
-            save_session(path, session)
-            client = SimpleNamespace(refresh_account=Mock(return_value=session),
-                claim_name=Mock(side_effect=lambda old, name: replace(old, claimed_name=name.strip(), claim_required=False)))
-            def children(parent):
-                for child in parent.winfo_children():
-                    yield child
-                    yield from children(child)
-            def button(text):
-                return next(child for child in children(window) if isinstance(child, ttk.Button) and child.cget("text") == text)
-            def pump_until(condition):
-                deadline = time.monotonic() + 3
-                while not condition() and time.monotonic() < deadline:
-                    window.update()
-                    time.sleep(.005)
-                self.assertTrue(condition())
-            def run_loop(_window, *_args):
-                try:
-                    pump_until(lambda: client.refresh_account.called and not button("Refresh account").instate(["disabled"]))
-                    client.claim_name.assert_not_called()
-                    if enabled:
-                        self.assertTrue(button("Play Vegas   â†’").instate(["disabled"]))
-                        self.assertTrue(button("Host dedicated server").instate(["disabled"]))
-                        claim = button("Claim name")
-                        entry = next(child for child in claim.master.winfo_children() if isinstance(child, ttk.Entry))
-                        self.assertEqual(entry.get(), "")  # Never autoclaim Discord display "ry".
-                        entry.insert(0, "Test_Name")
-                        claim.invoke()
-                        pump_until(lambda: client.claim_name.called and not button("Play Vegas   â†’").instate(["disabled"]))
-                        client.claim_name.assert_called_once_with(session, "Test_Name")
-                        self.assertFalse(button("Host dedicated server").instate(["disabled"]))
-                    else:
-                        self.assertFalse(button("Play Vegas   â†’").instate(["disabled"]))
-                        self.assertFalse(button("Host dedicated server").instate(["disabled"]))
-                        self.assertEqual(button("Claim name").master.master.winfo_manager(), "")
-                finally:
-                    for pending in window.tk.call("after", "info"):
-                        window.after_cancel(pending)
-                    window.destroy()
-            with patch.object(module.tk, "Tk", return_value=window), \
-                 patch.object(real_tk_type, "mainloop", run_loop), \
-                 patch.object(module, "available_monitors", return_value=[]), \
-                 patch.object(module, "RetailLauncher", return_value=Mock()), \
-                 patch.object(module, "DiscordPresence", return_value=Mock()), \
-                 patch.object(module, "DiscordClient", return_value=client), \
-                 patch.object(sys, "argv", ["vegas_companion", "--session-file", str(path)]):
-                self.assertEqual(module.main(), 0)
-
-    def test_advertised_claim_feature_blocks_play_until_explicit_name(self):
-        self.exercise(True)
-
-    def test_old_server_without_claim_feature_retains_play(self):
-        self.exercise(False)
+class ClaimUiTests(ControllerFixture):
+    def exercise(self,enabled):
+        session=AccountSession("199999999999999999","Tester","a"*64,None,enabled,enabled)
+        self.client.refresh_account.return_value=session
+        self.client.claim_name.side_effect=lambda old,name:replace(old,claimed_name=name.strip(),claim_required=False)
+        controller=self.create(session)
+        self.pump(lambda:controller.state.account_verified and not controller.state.busy)
+        self.client.claim_name.assert_not_called()
+        if enabled:
+            self.assertFalse(controller.ready_to_play)
+            self.assertEqual(controller.view.primary_button.cget("text"),"Choose player name")
+            controller.play();self.launcher.play.assert_not_called()
+            self.assertTrue(controller.view.widgets["host"].instate(["disabled"]))
+            self.assertEqual(controller.view.current_page,"account")
+            entry=controller.view.widgets["name_entry"]
+            self.assertEqual(entry.get(),"")
+            entry.insert(0,"Test_Name")
+            controller.view.widgets["claim"].invoke()
+            self.pump(lambda:controller.ready_to_play and not controller.state.busy)
+            self.client.claim_name.assert_called_once_with(session,"Test_Name")
+        else:
+            self.assertTrue(controller.ready_to_play)
+            self.assertEqual(controller.view.identity_card.winfo_manager(),"")
+        self.assertFalse(controller.view.widgets["host"].instate(["disabled"]))
+    def test_advertised_claim_feature_blocks_play_until_explicit_name(self):self.exercise(True)
+    def test_old_server_without_claim_feature_retains_play(self):self.exercise(False)

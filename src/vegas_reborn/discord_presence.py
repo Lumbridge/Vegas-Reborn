@@ -129,9 +129,9 @@ def activity_for(*, playing=False, hosting=False, preparing_host=False, started=
     activity = {"details": "Original PC game" if playing else "Vegas Reborn Companion",
                 "state": "Playing Rainbow Six Vegas" if playing else "Ready to play"}
     if hosting:
-        activity["state"] = "Playing Â· Dedicated server running" if playing else "Dedicated server running"
+        activity["state"] = "Playing · Dedicated server running" if playing else "Dedicated server running"
     elif preparing_host:
-        activity["state"] = "Playing Â· Preparing dedicated server" if playing else "Preparing dedicated server"
+        activity["state"] = "Playing · Preparing dedicated server" if playing else "Preparing dedicated server"
     if playing and started:
         activity["timestamps"] = {"start": int(started)}
     return activity
@@ -188,7 +188,7 @@ class DiscordPresence:
             self.pipe = self.connector()
             self.pipe.send(0, json.dumps({"v": 1, "client_id": APPLICATION_ID}).encode())
             self.handshake_deadline = now + 10
-            self._status("Connecting to Discord desktopâ€¦")
+            self._status("Connecting to Discord desktop…")
         for opcode, payload in self.pipe.poll():
             if opcode == 3:
                 self.pipe.send(4, payload)
@@ -225,7 +225,7 @@ class DiscordPresence:
                 except (OSError, ValueError, TypeError):
                     self._disconnect()
                     self.next_connect = time.monotonic() + 5
-                    self._status("Discord unavailable â€” play continues normally")
+                    self._status("Discord unavailable — play continues normally")
                 self.stop.wait(.05)
         finally:
             try:

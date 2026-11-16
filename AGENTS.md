@@ -9,3 +9,6 @@
 - Automated retail launches require an established startup-safe private-audio route for that test. App/updater tests do not require launching the retail game.
 - Run python -m unittest discover -s tests -v for updater and transport changes. Synthetic tests do not establish retail gameplay interoperability.
 - Publish only allowlisted companion files. Sign update manifests and preserve local game, account, preference and save directories during updates.
+- Use plain, functional UI copy. Do not add quips, slogans or marketing language.
+- Normal hosting belongs in the game's Create Match flow. Keep dedicated hosting out of normal companion navigation; retain the separate operator tool and explicit legacy CLI support.
+- Switching pages must preserve the user's window size and position. Scroll content within the page when needed.
