@@ -365,6 +365,9 @@ class CompanionController:
             except queue.Empty:
                 break
             if kind=="session":
+                if s.session is None or s.session.discord_id!=value.discord_id:
+                    s.sync_conflict=False
+                    self.view.show_conflict(False)
                 s.session,s.account_verified=value,True
                 self.values.account.set("Signed in as "+(value.claimed_name or value.display_name))
                 self.values.claimed_name.set(value.claimed_name or "")

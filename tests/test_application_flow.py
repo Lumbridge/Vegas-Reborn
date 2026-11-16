@@ -76,6 +76,17 @@ class ApplicationFlowTests(ControllerFixture):
         self.assertEqual(profile.read_bytes(),b"synthetic character")
         self.assertEqual(controller.view.primary_button.cget("text"),"Sign in to launch")
 
+    def test_switching_accounts_clears_previous_accounts_character_conflict(self):
+        controller=self.signed_in()
+        controller.state.sync_conflict=True
+        controller.view.show_conflict(True)
+        other=AccountSession("188888888888888888","Other","b"*64,"Other",True,False)
+        controller.messages.put(("session",other))
+        self.pump(lambda:controller.state.session is other)
+        self.assertFalse(controller.state.sync_conflict)
+        self.assertEqual(controller.view.conflict_card.winfo_manager(),"")
+        self.assertTrue(controller.ready_to_play)
+
     def test_navigation_preserves_preferences_and_uses_five_main_pages(self):
         controller=self.create()
         self.assertEqual(len(controller.view.nav_buttons),5)

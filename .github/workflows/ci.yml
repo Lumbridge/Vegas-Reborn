@@ -18,7 +18,7 @@ jobs:
       - name: Install build and test dependencies
         run: python -m pip install -r requirements-build.txt
       - name: Test companion and signed updater
-        run: python -m unittest discover -s tests -v
+        run: python -c "import faulthandler, unittest; faulthandler.dump_traceback_later(60, exit=True); unittest.main(module=None, argv=['unittest', 'discover', '-s', 'tests', '-v'])"
       - name: Build native client adapter
         run: tools/companion/Build-Companion.ps1
       - name: Build native dedicated adapter

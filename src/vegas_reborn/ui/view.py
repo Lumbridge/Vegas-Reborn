@@ -357,7 +357,8 @@ class CompanionView:
             primary="Launch game"
         self.primary_button.configure(text=primary,state="normal" if idle and not state.closing else "disabled")
         name=(state.session.claimed_name or state.session.display_name) if signed else "Sign in"
-        self.account_chip.configure(text="  "+name[:24])
+        name=name.replace("\r"," ").replace("\n"," ")
+        self.account_chip.configure(text="  "+name[:18]+("…" if len(name)>18 else ""))
         self.values.display_summary.set(self.values.mode.get()+"\n"+self.values.monitor_name.get())
         if state.busy or state.updating:
             if not getattr(self,"_animating",False):
