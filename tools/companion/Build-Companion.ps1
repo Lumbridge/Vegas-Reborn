@@ -26,7 +26,7 @@ if($Dedicated){$Arguments=$Arguments | ForEach-Object {$_ -replace 'VegasCompani
 if($LASTEXITCODE -ne 0){throw 'Retail companion adapter build failed'}
 if($Dedicated){Copy-Item -LiteralPath (Join-Path $OutputDirectory 'VegasDedicated.dll') -Destination (Join-Path $OutputDirectory 'VegasDedicated-4.dll') -Force;Get-FileHash -LiteralPath (Join-Path $OutputDirectory 'VegasDedicated.dll') -Algorithm SHA256;return}
 Get-FileHash -LiteralPath (Join-Path $OutputDirectory 'VegasCompanion.dll') -Algorithm SHA256
-Copy-Item -LiteralPath (Join-Path $OutputDirectory 'VegasCompanion.dll') -Destination (Join-Path $OutputDirectory 'VegasCompanion-11.dll') -Force
+Copy-Item -LiteralPath (Join-Path $OutputDirectory 'VegasCompanion.dll') -Destination (Join-Path $OutputDirectory 'VegasCompanion-12.dll') -Force
 $Injector=@('/nologo','/std:c++17','/EHsc','/MT','/O2',('/I'+(Join-Path $Compiler 'include')),('/I'+(Join-Path $Sdk "Include/$SdkVersion/ucrt")),('/I'+(Join-Path $Sdk "Include/$SdkVersion/shared")),('/I'+(Join-Path $Sdk "Include/$SdkVersion/um")),(Join-Path $PSScriptRoot 'injector.cpp'),('/Fo'+(Join-Path $OutputDirectory 'retail_injector.obj')),'/link',('/OUT:'+(Join-Path $OutputDirectory 'VegasInjector.exe')),('/LIBPATH:'+(Join-Path $Compiler 'lib/x86')),('/LIBPATH:'+(Join-Path $Sdk "Lib/$SdkVersion/ucrt/x86")),('/LIBPATH:'+(Join-Path $Sdk "Lib/$SdkVersion/um/x86")),'kernel32.lib')
 & $Cl @Injector
 if($LASTEXITCODE -ne 0){throw 'Retail injector build failed'}
@@ -40,7 +40,7 @@ $Control=$Injector|ForEach-Object{$_ -replace '([/\\])x86','$1x64' -replace 'Veg
 & $Cl64 @Control
 if($LASTEXITCODE -ne 0){throw 'Retail launch gate control build failed'}
 $Sources=@{}
-foreach($Name in @('compat.cpp','dedicated_compat.cpp','display_style.h','claimed_name.h','native_claimed_session_name.h','native_readiness.h','launch_options.h','native_rank.h','native_ranked_access.h','native_ranked_host.h','native_host_statistics.h','native_solo_hunt.h','native_unlock_policy.h','native_pec_defaults.h','compat.def','injector.cpp','steam_gate.cpp','steam_gate.def','Build-Companion.ps1','Compiler.ps1')){
+foreach($Name in @('compat.cpp','dedicated_compat.cpp','display_style.h','claimed_name.h','native_claimed_session_name.h','native_readiness.h','launch_options.h','native_rank.h','native_ranked_access.h','native_ranked_host.h','native_host_statistics.h','native_solo_hunt.h','native_procedural_animation.h','procedural_clock.h','native_unlock_policy.h','native_pec_defaults.h','compat.def','injector.cpp','steam_gate.cpp','steam_gate.def','Build-Companion.ps1','Compiler.ps1')){
     $Sources[$Name]=(Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $Name) -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 @{kind='retail_companion_build';sources=$Sources;minhookCommit='c3fcafdc10146beb5919319d0683e44e3c30d537';adapterSha256=(Get-FileHash -LiteralPath (Join-Path $OutputDirectory 'VegasCompanion.dll') -Algorithm SHA256).Hash.ToLowerInvariant()}|ConvertTo-Json -Depth 4|Set-Content -LiteralPath (Join-Path $OutputDirectory 'build.json')
