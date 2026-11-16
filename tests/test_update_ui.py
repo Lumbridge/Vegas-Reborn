@@ -7,6 +7,12 @@ from test_companion_claim_ui import ControllerFixture
 from vegas_reborn import application as app
 
 class UpdateUiTests(ControllerFixture):
+    def test_release_notes_opens_website_changelog(self):
+        controller=self.create()
+        with patch.object(app.webbrowser,"open") as open_browser:
+            controller.view.widgets["release_notes"].invoke()
+            open_browser.assert_called_once_with("https://vegas.lumbridge.co.uk/changelog.html")
+
     def test_check_download_verify_handoff_without_touching_a_real_install(self):
         controller=self.create()
         release=SimpleNamespace(version="0.4.1")

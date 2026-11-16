@@ -60,7 +60,7 @@ class ScrollPage(ttk.Frame):
 
 class CompanionView:
     PAGES=(
-        ("overview","Overview","home","Launch the game and view your settings."),
+        ("overview","Play","play","Launch the game and view your settings."),
         ("account","Account","account","Manage your account, player name and character data."),
         ("display","Display & game","display","Game location, screen mode and launch preferences."),
         ("connections","Connections","connections","Manage Discord activity sharing."),
@@ -106,7 +106,7 @@ class CompanionView:
         top=ttk.Frame(main,padding=(28,22,28,18))
         top.pack(fill="x")
         titles=ttk.Frame(top);titles.pack(side="left",fill="x",expand=True)
-        self.page_title=ttk.Label(titles,text="Overview",style="PageTitle.TLabel")
+        self.page_title=ttk.Label(titles,text="Play",style="PageTitle.TLabel")
         self.page_title.pack(anchor="w")
         self.page_hint=ttk.Label(titles,text=self.PAGES[0][3],style="Muted.TLabel")
         self.page_hint.pack(anchor="w",pady=(4,0))
@@ -144,7 +144,7 @@ class CompanionView:
     def button(self,parent,key,label,action,icon=None,style="Secondary.TButton",side="left"):
         kwargs={"text":label,"style":style,"command":action}
         if icon:
-            kwargs.update(image=(self.graphics.icon(icon,18,"#1b201b" if style=="Primary.TButton" else TEXT),
+            kwargs.update(image=(self.graphics.icon(icon,18,"#1b2417" if style=="Primary.TButton" else TEXT),
                                  "disabled",self.graphics.icon(icon,18,"#667369")),compound="left")
         button=ttk.Button(parent,**kwargs)
         button.pack(side=side,padx=(0,9))
@@ -262,7 +262,7 @@ class CompanionView:
         self.button(row,"host","Host server",self.actions["host"],"play","Primary.TButton")
         self.button(row,"stop_host","Stop server",self.actions["stop_host"],"stop","Danger.TButton")
         _,inner=self.panel(body,"Player and host identities","The companion uses separate player and host identities under the same account.")
-        self.button(inner,"host_overview","Back to overview",lambda:self.show_page("overview"),"arrow","Quiet.TButton")
+        self.button(inner,"host_overview","Back to Play",lambda:self.show_page("overview"),"arrow","Quiet.TButton")
 
     def _connections(self):
         _,inner=self.panel(self.pages["connections"].body,"Discord desktop","Activity sharing uses the same Discord application as the UE5 version.")
@@ -281,7 +281,7 @@ class CompanionView:
         self.button(row,"check_update","Check for updates",self.actions["check_updates"],"sync")
         self.button(row,"install_update","Update and restart",self.actions["update"],"arrow","Primary.TButton")
         ttk.Label(inner,text="Close the game before installing an update. Downloaded files are verified, and character data and settings are preserved.",style="PanelMuted.TLabel",wraplength=700).pack(anchor="w",pady=(22,16))
-        self.button(inner,"release_notes","View release notes",self.actions["release_notes"],"external","Quiet.TButton")
+        self.button(inner,"release_notes","View website changelog",self.actions["release_notes"],"external","Quiet.TButton")
 
     def show_page(self,key):
         if key not in self.pages:
@@ -391,7 +391,7 @@ class CompanionView:
             u.GetParent.argtypes=[w.HWND];u.GetParent.restype=w.HWND
             dwm.DwmSetWindowAttribute.argtypes=[w.HWND,w.DWORD,c.c_void_p,w.DWORD]
             hwnd=u.GetParent(self.root.winfo_id())
-            for attribute,value in ((20,1),(35,0x00151611),(36,0x00e8f0f1)):
+            for attribute,value in ((20,1),(35,0x00131511),(36,0x00e8ede9)):
                 number=w.DWORD(value)
                 dwm.DwmSetWindowAttribute(hwnd,attribute,c.byref(number),c.sizeof(number))
         except (AttributeError,OSError):

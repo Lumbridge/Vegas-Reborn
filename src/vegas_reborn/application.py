@@ -20,7 +20,7 @@ from .retail_rank import RankSourceError, read_rank
 from .retail_sync import SyncConflict
 from .ui.view import CompanionView, UiValues
 from .updater import UpdateError, check_latest, record_check, prepare_update, launch_helper
-from .version import VERSION, REPOSITORY
+from .version import VERSION
 
 ROOT = Path(sys.executable).resolve().parent if getattr(sys,"frozen",False) else Path(__file__).resolve().parents[2]
 
@@ -65,7 +65,7 @@ class CompanionController:
                  "check_updates":self.check_updates,"update":self.update_and_restart,
                  "cloud":lambda:self.resolve(True),"local":lambda:self.resolve(False),
                  "get_discord":lambda:webbrowser.open("https://discord.com/download"),
-                 "release_notes":lambda:webbrowser.open("https://github.com/"+REPOSITORY+"/releases")}
+                 "release_notes":lambda:webbrowser.open("https://vegas.lumbridge.co.uk/changelog.html")}
         self.view=CompanionView(root,self.values,actions)
         try:
             self.launcher=RetailLauncher(args.config,notify=self.notify)

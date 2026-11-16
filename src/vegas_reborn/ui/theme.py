@@ -3,13 +3,13 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageDraw, ImageTk
 
-BG = "#111615"
-SIDEBAR = "#151b19"
-PANEL = "#1b2220"
-LINE = "#303a35"
-TEXT = "#f1f0e8"
-MUTED = "#a4b0a7"
-ACCENT = "#efbd73"
+BG = "#111513"
+SIDEBAR = "#161b18"
+PANEL = "#191e1b"
+LINE = "#303832"
+TEXT = "#e9ede8"
+MUTED = "#9ca79f"
+ACCENT = "#d6ed80"
 GREEN = "#8ebda5"
 
 
@@ -44,7 +44,7 @@ def apply_theme(root, graphics):
         references.append(photo)
         return photo
     for name,normal,hover,pressed,fg,outline in (
-        ("Primary",ACCENT,"#ffcf89","#dba55d","#1b201b",None),
+        ("Primary",ACCENT,"#e8ffa0","#bfd68f","#1b2417",None),
         ("Secondary","#263029","#333f36","#1c251f",TEXT,LINE),
         ("Quiet",PANEL,"#29342d","#202922",MUTED,None),
         ("Nav",SIDEBAR,"#202b24","#26342a",MUTED,None),
@@ -70,12 +70,12 @@ def apply_theme(root, graphics):
     for name in ("Nav","SelectedNav"):
         style.configure(name+".TButton",anchor="w",padding=(14,12),font=("Segoe UI",10))
     style.configure("Primary.TButton",padding=(24,13),font=("Segoe UI",11,"bold"))
-    style.configure("TEntry",fieldbackground="#111713",foreground=TEXT,insertcolor=TEXT,padding=11,
+    style.configure("TEntry",fieldbackground="#111513",foreground=TEXT,insertcolor=TEXT,padding=11,
                     bordercolor=LINE,lightcolor=LINE,darkcolor=LINE)
     style.map("TEntry",bordercolor=[("focus",ACCENT)],lightcolor=[("focus",ACCENT)],darkcolor=[("focus",ACCENT)])
-    style.configure("TCombobox",fieldbackground="#111713",background="#29352c",foreground=TEXT,padding=10,
+    style.configure("TCombobox",fieldbackground="#111513",background="#29352c",foreground=TEXT,padding=10,
                     bordercolor=LINE,arrowcolor=MUTED,lightcolor=LINE,darkcolor=LINE)
-    style.map("TCombobox",fieldbackground=[("readonly","#111713"),("disabled","#202822")],
+    style.map("TCombobox",fieldbackground=[("readonly","#111513"),("disabled","#202822")],
               foreground=[("disabled","#667369"),("readonly",TEXT)])
     switches=[]
     for on in (False,True):

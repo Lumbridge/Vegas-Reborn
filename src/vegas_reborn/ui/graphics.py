@@ -7,16 +7,10 @@ ASSETS = Path(__file__).resolve().parent / "assets"
 
 
 def mark_image(size=256):
-    scale = 4
-    image = Image.new("RGBA", (size*scale, size*scale))
-    draw = ImageDraw.Draw(image)
-    def points(values):
-        return [(x*size*scale/100, y*size*scale/100) for x, y in values]
-    draw.rounded_rectangle((0, 0, size*scale-1, size*scale-1), radius=size*scale*.22, fill="#171d1c")
-    draw.polygon(points([(16,23),(31,23),(48,64),(63,23),(78,23),(53,82),(42,82)]), fill="#efbd73")
-    draw.polygon(points([(70,56),(84,56),(73,82),(59,82)]), fill="#8ea89b")
-    draw.line(points([(18,91),(82,91)]), fill="#414c46", width=max(1, size*scale//120))
-    return image.resize((size,size), Image.Resampling.LANCZOS)
+    # The same VR monogram used by the website, packaged for offline use.
+    with Image.open(ASSETS / "vegas-reborn.png") as source:
+        return source.convert("RGBA").resize((size, size), Image.Resampling.LANCZOS)
+
 
 
 def icon_image(name, size=20, color="#b6c0b9"):
