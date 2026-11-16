@@ -1,0 +1,4 @@
+LIBRARY VegasSteamGate
+EXPORTS
+    StartGate
+    StopGate

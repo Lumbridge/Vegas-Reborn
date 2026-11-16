@@ -1,0 +1,16 @@
+local/
+.venv/
+__pycache__/
+*.py[cod]
+*.exe
+*.dll
+*.pyd
+*.obj
+*.lib
+*.exp
+*.pem
+*.key
+.updates/
+dist/
+build/
+*.egg-info/

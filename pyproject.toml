@@ -1,0 +1,9 @@
+[project]
+name = "vegas-reborn-companion"
+version = "0.3.0"
+description = "Windows companion for the original PC Rainbow Six Vegas"
+requires-python = ">=3.10"
+dependencies = ["cryptography==46.0.3"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
