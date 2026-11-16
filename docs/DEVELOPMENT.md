@@ -75,3 +75,15 @@ downgrades. Installation is transactional, with previous managed files under
 
 New signing keys require an intentional trust migration in an already-trusted
 release; replacing a GitHub manifest alone cannot rotate the key.
+
+Native startup readiness checks both plaintext signatures and executable page
+protection before creating hooks. A reported 0.4.3 Windowed launch matched all
+16383 signature bits but failed the unlock hook with MinHook status 7
+(MH_ERROR_NOT_EXECUTABLE). Readable plaintext is not sufficient evidence that
+Steam has finished preparing the code pages. Adapter 7 waits within the existing
+startup deadline, retries this transient hook failure before enabling the batch,
+and records executable readiness and unlock target/detour protections. Other
+hook errors remain fatal. The original five-byte unlock stub is exercised with
+the pinned MinHook library in native_readiness_test: read/write memory rejects
+hook creation, executable memory permits it, and removal restores the bytes.
+This synthetic reproduction does not establish a successful retail launch.

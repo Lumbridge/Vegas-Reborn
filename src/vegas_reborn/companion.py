@@ -112,6 +112,20 @@ def _private_write(path, data):
         temporary.unlink(missing_ok=True)
 
 
+def validate_compatibility(compatibility, *, claimed_name=None, display_mode="Game default"):
+    if not compatibility.get("ready"):
+        if compatibility.get("signatures") != 16383:
+            raise CompanionError("The game's native code does not match this compatibility module")
+        if compatibility.get("executablePagesReady") is False or any(
+                compatibility.get(key) == 7 for key in ("unlockHookStatus", "taskHookStatus", "prefillHookStatus")):
+            raise CompanionError("The game did not finish preparing its executable code. Close the game and retry launching.")
+        raise CompanionError("The game's code matched, but compatibility setup failed. Update the companion and retry.")
+    if claimed_name and not compatibility.get("claimedNameVerified"):
+        raise CompanionError("The game's player-name setup was not verified; update the companion and retry")
+    if display_mode == "Borderless" and not compatibility.get("displayStyleVerified"):
+        raise CompanionError("Borderless setup was not verified. Update the companion's native compatibility module, then retry.")
+
+
 def load_configuration(path):
     path = Path(path).resolve()
     value = json.loads(path.read_text(encoding="utf-8"))
@@ -277,7 +291,7 @@ class RetailLauncher:
                 time.sleep(.1)
             child = json.loads(child_file.read_text())
             _native([ROOT / "local/companion/bin/VegasInjector.exe", child["pid"], child["tid"],
-                     ROOT / "local/companion/bin/VegasCompanion-5.dll", account, game, Path(source).resolve()])
+                     ROOT / "local/companion/bin/VegasCompanion-7.dll", account, game, Path(source).resolve()])
             _native([control, "--stop-gate", steam_pid, gate["module"], gate_dll])
             gate = None
             deadline = time.monotonic() + 65
@@ -286,12 +300,7 @@ class RetailLauncher:
                     raise CompanionError("The game's compatibility module did not become ready")
                 time.sleep(.1)
             compatibility = json.loads(ready_file.read_text())
-            if not compatibility.get("ready"):
-                raise CompanionError("The game's native code does not match this compatibility module")
-            if session.claimed_name and not compatibility.get("claimedNameVerified"):
-                raise CompanionError("The game's player-name setup was not verified; update the companion and retry")
-            if display_mode == "Borderless" and not compatibility.get("displayStyleVerified"):
-                raise CompanionError("Borderless setup was not verified. Update the companion's native compatibility module, then retry.")
+            validate_compatibility(compatibility, claimed_name=session.claimed_name, display_mode=display_mode)
             started = True
             self.notify("Game running. Choose Multiplayer → Online and click Login. Sign-in is automatic.")
             on_started()
