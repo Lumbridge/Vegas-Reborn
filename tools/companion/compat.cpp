@@ -13,6 +13,7 @@
 #include "MinHook.h"
 #include "display_style.h"
 #include "claimed_name.h"
+#include "native_readiness.h"
 
 static std::wstring Output,ProfileDirectory,WorkingRoot,SourceRoot,RegisteredExecutable;
 static std::string RouteAddress;
@@ -274,7 +275,9 @@ static DWORD WINAPI NativeInitialize(LPVOID){
     const bool clientIdentity=dos->e_magic==IMAGE_DOS_SIGNATURE&&pe->Signature==IMAGE_NT_SIGNATURE&&
         pe->FileHeader.Machine==IMAGE_FILE_MACHINE_I386&&pe->FileHeader.TimeDateStamp==0x47106421&&
         pe->OptionalHeader.SizeOfImage==0x1f56000&&pe->OptionalHeader.ImageBase==0x10900000;
-    bool ready=false,unlockVerified=false,displayStyleVerified=false;unsigned signatures=0;int taskStatus=-1,prefillStatus=-1,unlockStatus=-1;
+    bool ready=false,unlockVerified=false,displayStyleVerified=false,executablePagesReady=false;
+    DWORD unlockTargetProtection=0,unlockDetourProtection=0;
+    unsigned signatures=0;int taskStatus=-1,prefillStatus=-1,unlockStatus=-1;
     const unsigned stubRva=Dedicated?0x565db0:0x566fe0;
     const unsigned getterRva=Dedicated?0x5650f0:0x566320;
     const unsigned loginRva=Dedicated?0xf5dd30:0xf5eba0;
@@ -298,6 +301,19 @@ static DWORD WINAPI NativeInitialize(LPVOID){
                 (clientIdentity?8192:0);
         }
         if(signatures==(Dedicated?31u:16383u)){
+            // Steam can expose plaintext before restoring executable page
+            // protection. Matching bytes alone is not hook readiness.
+            executablePagesReady=NativeReadiness::Executable(base+loginRva)&&
+                NativeReadiness::Executable(reinterpret_cast<const void*>(DiscordTaskStart));
+            if(!Dedicated){
+                const bool targetReady=NativeReadiness::Executable(base+0x563150,&unlockTargetProtection);
+                const bool detourReady=NativeReadiness::Executable(reinterpret_cast<const void*>(NativeUnlockEligibility),&unlockDetourProtection);
+                executablePagesReady=executablePagesReady&&targetReady&&detourReady&&
+                    NativeReadiness::Executable(base+0xb7230)&&
+                    NativeReadiness::Executable(reinterpret_cast<const void*>(DiscordLoginFields));
+            }
+            if(!executablePagesReady){Sleep(100);continue;}
+            taskStatus=prefillStatus=unlockStatus=-1;
             if(BorderlessRequested){
                 // Vegas reasserts its own style on every viewport resize.
                 // Keep its native windowed path, but use WS_VISIBLE|WS_POPUP.
@@ -311,11 +327,22 @@ static DWORD WINAPI NativeInitialize(LPVOID){
                 NativeGroupLookup=reinterpret_cast<GroupLookup>(base+0x56db30);
                 NativeGroupRequirements=reinterpret_cast<GroupRequirements>(base+0x5729d0);
                 unlockStatus=int(MH_CreateHook(base+0x563150,reinterpret_cast<void*>(NativeUnlockEligibility),&OriginalUnlockFacade));
+                if(unlockStatus==MH_ERROR_NOT_EXECUTABLE){executablePagesReady=false;Sleep(100);continue;}
                 if(unlockStatus!=MH_OK)break;
             }
             taskStatus=int(MH_CreateHook(base+loginRva,reinterpret_cast<void*>(DiscordTaskStart),reinterpret_cast<void**>(&OriginalTaskStart)));
             ready=taskStatus==MH_OK;
             if(ready&&!Dedicated){prefillStatus=int(MH_CreateHook(base+0xb7230,reinterpret_cast<void*>(DiscordLoginFields),reinterpret_cast<void**>(&OriginalLoadLogin)));ready=prefillStatus==MH_OK;}
+            if(!ready){
+                // No native hook in this batch is enabled yet. Remove only
+                // this batch before retrying a protection transition.
+                if(taskStatus==MH_OK)MH_RemoveHook(base+loginRva);
+                if(!Dedicated&&unlockStatus==MH_OK)MH_RemoveHook(base+0x563150);
+                if(taskStatus==MH_ERROR_NOT_EXECUTABLE||prefillStatus==MH_ERROR_NOT_EXECUTABLE){
+                    executablePagesReady=false;Sleep(100);continue;
+                }
+                break;
+            }
             if(ready)ready=MH_EnableHook(base+loginRva)==MH_OK;
             if(ready&&!Dedicated)ready=MH_EnableHook(base+0xb7230)==MH_OK;
             if(ready&&!Dedicated){
@@ -340,7 +367,7 @@ static DWORD WINAPI NativeInitialize(LPVOID){
         Sleep(100);
     }
     FILE* status=nullptr;_wfopen_s(&status,(Output+L"\\compat-status.tmp").c_str(),L"wb");
-    if(status){fprintf(status,"{\"ready\":%s,\"displayStyleVerified\":%s,\"claimedNameVerified\":%s,\"claimedNameInstalled\":%s,\"claimedNameStatus\":\"%s\",\"nativeVersion\":%u,\"signatures\":%u,\"taskHookStatus\":%d,\"prefillHookStatus\":%d,\"unlockHookStatus\":%d,\"unlockVerified\":%s,\"moduleBase\":%lu,\"progression\":\"%s\",\"unlockPolicy\":\"%s\"}\n",ready?"true":"false",displayStyleVerified?"true":"false",ClaimedName::Verified?"true":"false",ClaimedName::Installed?"true":"false",Dedicated?"notApplicable":ClaimedName::Error,Dedicated?2u:5u,signatures,taskStatus,prefillStatus,unlockStatus,unlockVerified?"true":"false",DWORD(reinterpret_cast<ULONG_PTR>(base)),Dedicated?"nativeDedicatedDefaults":"nativeRawXp",Dedicated?"nativeDedicatedDefaults":"nativeGroupRequirements");fclose(status);MoveFileExW((Output+L"\\compat-status.tmp").c_str(),(Output+L"\\compat-status.json").c_str(),MOVEFILE_REPLACE_EXISTING);}
+    if(status){fprintf(status,"{\"ready\":%s,\"executablePagesReady\":%s,\"unlockTargetProtection\":%lu,\"unlockDetourProtection\":%lu,\"displayStyleVerified\":%s,\"claimedNameVerified\":%s,\"claimedNameInstalled\":%s,\"claimedNameStatus\":\"%s\",\"nativeVersion\":%u,\"signatures\":%u,\"taskHookStatus\":%d,\"prefillHookStatus\":%d,\"unlockHookStatus\":%d,\"unlockVerified\":%s,\"moduleBase\":%lu,\"progression\":\"%s\",\"unlockPolicy\":\"%s\"}\n",ready?"true":"false",executablePagesReady?"true":"false",unlockTargetProtection,unlockDetourProtection,displayStyleVerified?"true":"false",ClaimedName::Verified?"true":"false",ClaimedName::Installed?"true":"false",Dedicated?"notApplicable":ClaimedName::Error,Dedicated?2u:7u,signatures,taskStatus,prefillStatus,unlockStatus,unlockVerified?"true":"false",DWORD(reinterpret_cast<ULONG_PTR>(base)),Dedicated?"nativeDedicatedDefaults":"nativeRawXp",Dedicated?"nativeDedicatedDefaults":"nativeGroupRequirements");fclose(status);MoveFileExW((Output+L"\\compat-status.tmp").c_str(),(Output+L"\\compat-status.json").c_str(),MOVEFILE_REPLACE_EXISTING);}
     return ready?1:0;
 }
 extern "C" DWORD WINAPI StartCompanion(LPVOID configuration){

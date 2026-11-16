@@ -50,7 +50,7 @@ def main():
         shutil.copy2(args.config_directory / name, config / name)
     native = config / "bin"
     native.mkdir()
-    for name in ("VegasCompanion.dll", "VegasCompanion-5.dll", "VegasDedicated.dll", "VegasInjector.exe", "VegasSteamGate.dll", "VegasSteamControl.exe", "build.json"):
+    for name in ("VegasCompanion.dll", "VegasCompanion-7.dll", "VegasDedicated.dll", "VegasInjector.exe", "VegasSteamGate.dll", "VegasSteamControl.exe", "build.json"):
         shutil.copy2(args.native_directory / name, native / name)
     shutil.copy2(ROOT / "third_party/MinHook-LICENSE.txt", app / "LICENSE-Minhook.txt")
     shutil.copy2(Path(sys.base_prefix) / "LICENSE.txt", app / "LICENSE-Python.txt")
