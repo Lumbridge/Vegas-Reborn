@@ -59,7 +59,8 @@ maximum per method.
 Installation checks the original PE machine, timestamp, image size and preferred
 base, each hook's instruction bytes, all six native vtable slots and the original
 CRT import. It rejects mismatches before creating hooks. Dedicated processes do
-not install this adapter. Client native11 has a new versioned DLL filename, and
+not install this adapter. The tested client native11 was rebased alongside 0.4.9 PEC defaults for release
+0.4.10 as client native12, with a new versioned DLL filename, and
 the companion requires `proceduralAnimationVerified` in its startup report.
 
 ## Validation and retail acceptance

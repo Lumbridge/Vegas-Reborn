@@ -126,12 +126,13 @@ def validate_compatibility(compatibility, *, claimed_name=None, display_mode="Ga
                 compatibility.get(key) == 7 for key in ("unlockHookStatus", "taskHookStatus", "prefillHookStatus")):
             raise CompanionError("The game did not finish preparing its executable code. Close the game and retry launching.")
         raise CompanionError("The game's code matched, but compatibility setup failed. Update the companion and retry.")
-    if (compatibility.get("nativeVersion") != 11
+    if (compatibility.get("nativeVersion") != 12
             or not compatibility.get("proceduralAnimationVerified")
             or not compatibility.get("nativeStatisticsVerified")
             or not compatibility.get("nativeRankedHostVerified")
             or not compatibility.get("nativeSoloHuntVerified")
             or not compatibility.get("nativeUnlockPolicyVerified")
+            or not compatibility.get("nativePecDefaultsVerified")
             or not compatibility.get("nativeRankVerified")
             or not compatibility.get("rankedAccessVerified")):
         raise CompanionError("Update the companion's online compatibility module before playing")
@@ -326,7 +327,7 @@ class RetailLauncher:
                 time.sleep(.1)
             child = json.loads(child_file.read_text())
             _native([ROOT / "local/companion/bin/VegasInjector.exe", child["pid"], child["tid"],
-                     ROOT / "local/companion/bin/VegasCompanion-11.dll", account, game, Path(source).resolve()])
+                     ROOT / "local/companion/bin/VegasCompanion-12.dll", account, game, Path(source).resolve()])
             _native([control, "--stop-gate", steam_pid, gate["module"], gate_dll])
             gate = None
             deadline = time.monotonic() + 65

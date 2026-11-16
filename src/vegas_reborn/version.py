@@ -1,2 +1,2 @@
-VERSION = "0.4.8"
+VERSION = "0.4.10"
 REPOSITORY = "Lumbridge/Vegas-Reborn"

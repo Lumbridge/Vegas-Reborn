@@ -23,6 +23,7 @@
 #include "native_solo_hunt.h"
 #include "native_procedural_animation.h"
 #include "native_unlock_policy.h"
+#include "native_pec_defaults.h"
 
 static std::wstring Output,ProfileDirectory,WorkingRoot,SourceRoot,RegisteredExecutable;
 static std::string RouteAddress;
@@ -326,6 +327,11 @@ static DWORD WINAPI NativeInitialize(LPVOID){
                 for(unsigned rva:NativeClaimedSessionName::Sites)
                     executablePagesReady=executablePagesReady&&NativeReadiness::Executable(base+rva);
                 executablePagesReady=executablePagesReady&&NativeReadiness::Executable(base+0xfc32e0);
+                const unsigned pecTargets[]{
+                    0x10ce4680,0x11175f90,0x109f6ee0,0x109d4e40,0x10ccfb60,0x10cd0da0,
+                    0x10e642d0,0x10e62d50,0x10ce44f0,0x10e62db0};
+                for(unsigned address:pecTargets)
+                    executablePagesReady=executablePagesReady&&NativeReadiness::Executable(base+NativeHostStatistics::Rva(address));
             }
             if(!executablePagesReady){Sleep(100);continue;}
             taskStatus=prefillStatus=unlockStatus=-1;
@@ -375,6 +381,7 @@ static DWORD WINAPI NativeInitialize(LPVOID){
             }
             if(ready&&!Dedicated)ready=ClaimedName::Install(base,Output);
             if(ready&&!Dedicated)ready=NativeClaimedSessionName::Install(base);
+            if(ready&&!Dedicated)ready=NativePecDefaults::Install(base,Output);
             if(ready&&!Dedicated)ready=LaunchOptions::InstallNative(base);
             if(ready&&!Dedicated)ready=NativeRank::Install(base);
             if(ready&&!Dedicated)ready=NativeRankedAccess::Install(base);
@@ -387,7 +394,7 @@ static DWORD WINAPI NativeInitialize(LPVOID){
         Sleep(100);
     }
     FILE* status=nullptr;_wfopen_s(&status,(Output+L"\\compat-status.tmp").c_str(),L"wb");
-    if(status){fprintf(status,"{\"ready\":%s,\"executablePagesReady\":%s,\"unlockTargetProtection\":%lu,\"unlockDetourProtection\":%lu,\"displayStyleVerified\":%s,\"claimedNameVerified\":%s,\"claimedNameInstalled\":%s,\"claimedNameStatus\":\"%s\",\"claimedSessionNameVerified\":%s,\"claimedSessionNameStatus\":\"%s\",\"nativeRankVerified\":%s,\"remotePipelineRecognized\":%s,\"nativeRankStatus\":\"%s\",\"rankedAccessVerified\":%s,\"rankedAccessStatus\":\"%s\",\"nativeSoloHuntVerified\":%s,\"nativeSoloHuntStatus\":\"%s\",\"nativeStatisticsVerified\":%s,\"nativeRankedHostVerified\":%s,\"nativeRankedHostStatus\":\"%s\",\"proceduralAnimationVerified\":%s,\"proceduralAnimationStatus\":\"%s\",\"nativeVersion\":%u,\"signatures\":%u,\"taskHookStatus\":%d,\"prefillHookStatus\":%d,\"unlockHookStatus\":%d,\"nativeUnlockPolicyVerified\":%s,\"nativeUnlockPolicyStatus\":\"%s\",\"unlockVerified\":%s,\"moduleBase\":%lu,\"progression\":\"%s\",\"unlockPolicy\":\"%s\"}\n",ready?"true":"false",executablePagesReady?"true":"false",unlockTargetProtection,unlockDetourProtection,displayStyleVerified?"true":"false",ClaimedName::Verified?"true":"false",ClaimedName::Installed?"true":"false",Dedicated?"notApplicable":ClaimedName::Error,NativeClaimedSessionName::Verified?"true":"false",Dedicated?"notApplicable":NativeClaimedSessionName::LastError(),NativeRank::Verified?"true":"false",NativeRank::RemotePipelineRecognized?"true":"false",Dedicated?"notApplicable":NativeRank::LastError(),NativeRankedAccess::Verified?"true":"false",Dedicated?"notApplicable":NativeRankedAccess::LastError(),NativeSoloHunt::Verified?"true":"false",NativeSoloHunt::LastError(),NativeHostStatistics::Verified?"true":"false",NativeRankedHost::Verified?"true":"false",NativeRankedHost::LastError(),NativeProceduralAnimation::Verified?"true":"false",Dedicated?"notApplicable":NativeProceduralAnimation::Error,Dedicated?4u:11u,signatures,taskStatus,prefillStatus,unlockStatus,NativeUnlockPolicy::Verified?"true":"false",Dedicated?"notApplicable":NativeUnlockPolicy::LastError(),unlockVerified?"true":"false",DWORD(reinterpret_cast<ULONG_PTR>(base)),Dedicated?"nativeDedicatedDefaults":"nativeRawXp",Dedicated?"nativeDedicatedDefaults":"nativeItemBundleAvailability");fclose(status);MoveFileExW((Output+L"\\compat-status.tmp").c_str(),(Output+L"\\compat-status.json").c_str(),MOVEFILE_REPLACE_EXISTING);}
+    if(status){fprintf(status,"{\"ready\":%s,\"executablePagesReady\":%s,\"unlockTargetProtection\":%lu,\"unlockDetourProtection\":%lu,\"displayStyleVerified\":%s,\"claimedNameVerified\":%s,\"claimedNameInstalled\":%s,\"claimedNameStatus\":\"%s\",\"claimedSessionNameVerified\":%s,\"claimedSessionNameStatus\":\"%s\",\"nativeRankVerified\":%s,\"remotePipelineRecognized\":%s,\"nativeRankStatus\":\"%s\",\"rankedAccessVerified\":%s,\"rankedAccessStatus\":\"%s\",\"nativeSoloHuntVerified\":%s,\"nativeSoloHuntStatus\":\"%s\",\"nativeStatisticsVerified\":%s,\"nativeRankedHostVerified\":%s,\"nativeRankedHostStatus\":\"%s\",\"nativePecDefaultsVerified\":%s,\"nativePecDefaultsStatus\":\"%s\",\"proceduralAnimationVerified\":%s,\"proceduralAnimationStatus\":\"%s\",\"nativeVersion\":%u,\"signatures\":%u,\"taskHookStatus\":%d,\"prefillHookStatus\":%d,\"unlockHookStatus\":%d,\"nativeUnlockPolicyVerified\":%s,\"nativeUnlockPolicyStatus\":\"%s\",\"unlockVerified\":%s,\"moduleBase\":%lu,\"progression\":\"%s\",\"unlockPolicy\":\"%s\"}\n",ready?"true":"false",executablePagesReady?"true":"false",unlockTargetProtection,unlockDetourProtection,displayStyleVerified?"true":"false",ClaimedName::Verified?"true":"false",ClaimedName::Installed?"true":"false",Dedicated?"notApplicable":ClaimedName::Error,NativeClaimedSessionName::Verified?"true":"false",Dedicated?"notApplicable":NativeClaimedSessionName::LastError(),NativeRank::Verified?"true":"false",NativeRank::RemotePipelineRecognized?"true":"false",Dedicated?"notApplicable":NativeRank::LastError(),NativeRankedAccess::Verified?"true":"false",Dedicated?"notApplicable":NativeRankedAccess::LastError(),NativeSoloHunt::Verified?"true":"false",NativeSoloHunt::LastError(),NativeHostStatistics::Verified?"true":"false",NativeRankedHost::Verified?"true":"false",NativeRankedHost::LastError(),NativePecDefaults::Verified?"true":"false",Dedicated?"notApplicable":NativePecDefaults::LastError(),NativeProceduralAnimation::Verified?"true":"false",Dedicated?"notApplicable":NativeProceduralAnimation::Error,Dedicated?4u:12u,signatures,taskStatus,prefillStatus,unlockStatus,NativeUnlockPolicy::Verified?"true":"false",Dedicated?"notApplicable":NativeUnlockPolicy::LastError(),unlockVerified?"true":"false",DWORD(reinterpret_cast<ULONG_PTR>(base)),Dedicated?"nativeDedicatedDefaults":"nativeRawXp",Dedicated?"nativeDedicatedDefaults":"nativeItemBundleAvailability");fclose(status);MoveFileExW((Output+L"\\compat-status.tmp").c_str(),(Output+L"\\compat-status.json").c_str(),MOVEFILE_REPLACE_EXISTING);}
     return ready?1:0;
 }
 extern "C" DWORD WINAPI StartCompanion(LPVOID configuration){
