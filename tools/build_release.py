@@ -50,7 +50,7 @@ def main():
         shutil.copy2(args.config_directory / name, config / name)
     native = config / "bin"
     native.mkdir()
-    for name in ("VegasCompanion.dll", "VegasCompanion-10.dll", "VegasDedicated.dll", "VegasInjector.exe", "VegasSteamGate.dll", "VegasSteamControl.exe", "build.json"):
+    for name in ("VegasCompanion.dll", "VegasCompanion-11.dll", "VegasDedicated.dll", "VegasInjector.exe", "VegasSteamGate.dll", "VegasSteamControl.exe", "build.json"):
         shutil.copy2(args.native_directory / name, native / name)
     # Existing 0.4.5 updaters accept the versioned runtime subtree, but not a
     # new VegasDedicated-N.dll name under local/companion/bin. Keep the fresh
