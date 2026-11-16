@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import stat
 import struct
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -184,6 +185,23 @@ class UpdateTests(unittest.TestCase):
         for url in ("http://github.com/unsafe", "https://example.com/payload", "https://user:pass@github.com/payload"):
             with self.subTest(url=url), self.assertRaises(u.UpdateError):
                 handler.redirect_request(request, None, 302, "Found", {}, url)
+
+    @unittest.skipUnless(os.name == "nt", "Windows process lifecycle required")
+    def test_exited_parent_with_open_creator_handle_is_already_safe(self):
+        child = subprocess.Popen([sys.executable, "-c", "pass"], creationflags=subprocess.CREATE_NO_WINDOW)
+        self.assertEqual(child.wait(timeout=10), 0)
+        # Keep child._handle alive, reproducing the real frozen-updater race.
+        u.wait_for_parent(child.pid, self.root / "installation")
+
+    @unittest.skipUnless(os.name == "nt", "Windows process lifecycle required")
+    def test_live_unrelated_parent_is_rejected_without_waiting(self):
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(20)"], creationflags=subprocess.CREATE_NO_WINDOW)
+        try:
+            with self.assertRaises(u.UpdateError):
+                u.wait_for_parent(child.pid, self.root / "installation")
+        finally:
+            child.terminate()
+            child.wait(timeout=10)
 
 
 if __name__ == "__main__":

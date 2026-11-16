@@ -363,7 +363,8 @@ def launch_helper(plan, parent_pid):
         raise UpdateError("Close the game and dedicated server before updating")
     executable = payload / "VegasReborn.exe"
     subprocess.Popen([str(executable), "--apply-update", str(plan), "--parent-pid", str(parent_pid)],
-                     cwd=payload, creationflags=subprocess.CREATE_NO_WINDOW)
+                     cwd=payload, creationflags=subprocess.CREATE_NO_WINDOW,
+                     env={**os.environ, "PYINSTALLER_RESET_ENVIRONMENT": "1"})
 
 
 def wait_for_parent(pid, root):
@@ -381,8 +382,17 @@ def wait_for_parent(pid, root):
             return
         raise UpdateError("Could not wait for the companion to close")
     try:
+        # A process object can remain open after exit while its creator still
+        # holds a handle. QueryFullProcessImageName may then fail even though
+        # OpenProcess succeeded. It is already safe to replace the exited app.
+        if kernel.WaitForSingleObject(handle, 0) == 0:
+            return
         size, buffer = wintypes.DWORD(32768), ctypes.create_unicode_buffer(32768)
-        if not kernel.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)) or Path(buffer.value).resolve() != Path(root) / "VegasReborn.exe":
+        if not kernel.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+            if kernel.WaitForSingleObject(handle, 0) == 0:
+                return
+            raise UpdateError("Could not identify the companion process before updating")
+        if Path(buffer.value).resolve() != Path(root).resolve() / "VegasReborn.exe":
             raise UpdateError("The updater parent is not this companion installation")
         if kernel.WaitForSingleObject(handle, 90000) != 0:
             raise UpdateError("The companion did not close. The update was not installed.")
@@ -411,5 +421,6 @@ def apply_update(plan, parent_pid):
         finally:
             owner.seek(0)
             msvcrt.locking(owner.fileno(), msvcrt.LK_UNLCK, 1)
-    child = subprocess.Popen([str(root / "VegasReborn.exe")], cwd=root, creationflags=subprocess.CREATE_NO_WINDOW)
+    child = subprocess.Popen([str(root / "VegasReborn.exe")], cwd=root, creationflags=subprocess.CREATE_NO_WINDOW,
+                             env={**os.environ, "PYINSTALLER_RESET_ENVIRONMENT": "1"})
     beneath(root, ".updates/last-update.json").write_text(json.dumps({"version": release.version, "status": "installed", "restartedPid": child.pid}), encoding="utf-8")
