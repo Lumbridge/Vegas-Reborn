@@ -220,11 +220,9 @@ def prepare_game(source=DEFAULT_RETAIL, *, destination=None, notify=lambda text:
 
 
 def _native(arguments):
-    response = subprocess.run([str(item) for item in arguments], capture_output=True, timeout=40,
-                              creationflags=subprocess.CREATE_NO_WINDOW)
-    if response.returncode:
-        raise CompanionError("Native launch setup failed; the installed game was preserved")
-    return json.loads(response.stdout)
+    from .native_launch import run_component,NativeLaunchError
+    try:return run_component(arguments)
+    except NativeLaunchError as error:raise CompanionError(str(error)) from None
 
 
 class RetailLauncher:
@@ -240,6 +238,9 @@ class RetailLauncher:
             raise CompanionError("The original retail client requires Windows")
         if retail_game_running():
             raise CompanionError("Close the running retail game before launching another")
+        from .native_launch import require_components,NativeLaunchError
+        try:require_components(ROOT/'local/companion/bin',13)
+        except NativeLaunchError as error:raise CompanionError(str(error)) from None
         self.running = True
         ipc, gate, child, mutex = None, None, None, None
         started = False

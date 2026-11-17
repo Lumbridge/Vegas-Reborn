@@ -1,5 +1,7 @@
 """Application coordination. Network workers never read or write Tk widgets."""
 from dataclasses import dataclass
+from datetime import datetime, timezone
+import json
 import os
 from pathlib import Path
 import queue
@@ -10,7 +12,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 import webbrowser
 
-from .companion import CompanionError, RetailLauncher
+from .companion import CompanionError, RetailLauncher, _private_write
 from .companion_settings import Preferences
 from .dedicated import run_dedicated
 from .discord_client import DiscordClient, DiscordClientError, load_session, save_session
@@ -139,10 +141,11 @@ class CompanionController:
                     "account_session_expired_or_revoked":"Your sign-in expired. Sign in with Discord again."}.get(str(error),"The account operation failed. Retry or sign in again.")
         return str(error) if isinstance(error,CompanionError) else "The operation failed. Your local character was preserved. Retry sign-in or synchronization."
 
-    def start_operation(self,operation):
+    def start_operation(self,operation,*,error_title=None):
         if self.state.busy or self.state.closing or self.state.updating:
             return
         self.state.busy=True
+        self.view.hide_error()
         self.refresh()
         def worker():
             try:
@@ -150,7 +153,10 @@ class CompanionController:
             except SyncConflict:
                 self.messages.put(("conflict",None))
             except Exception as error:
-                self.messages.put(("error",self._error_message(error)))
+                message=self._error_message(error)
+                if error_title and not isinstance(error,(CompanionError,DiscordClientError)):
+                    message="The game could not be launched. Your local character was preserved. Check the companion installation and retry."
+                self.messages.put(("launch_error" if error_title else "error",(error_title,message) if error_title else message))
             finally:
                 self.messages.put(("done",None))
         threading.Thread(target=worker,daemon=False,name="VegasAccountOperation").start()
@@ -224,7 +230,7 @@ class CompanionController:
         skip_intros=self.values.skip_intros.get()
         self.start_operation(lambda:self.launcher.play(session,source=source,display_mode=mode,monitor_device=device,
                               skip_intros=skip_intros,
-                              on_started=lambda:self.messages.put(("game_started",minimize))))
+                              on_started=lambda:self.messages.put(("game_started",minimize))),error_title="Game launch failed")
 
     def sync(self):
         session=self.state.session
@@ -412,6 +418,25 @@ class CompanionController:
                 self.update_rank()
                 if value.name_claims_enabled and value.claim_required:
                     self.view.focus_name()
+            elif kind=="launch_error":
+                title,message=value
+                s.launch_after_refresh=None
+                self.values.status.set(message)
+                self.view.show_error(message)
+                try:
+                    report=self.args.session_file.parent/"last-launch-error.json"
+                    _private_write(report,(json.dumps(dict(version=VERSION,time=datetime.now(timezone.utc).isoformat(),
+                                                         title=title,message=message),indent=2)+"\n").encode())
+                except OSError:
+                    pass
+                if self.root.state()=="iconic":
+                    self.root.deiconify()
+                if self.root.state()!="withdrawn":
+                    self.root.lift()
+                messagebox.showerror(title,message,parent=self.root)
+            elif kind=="error":
+                self.values.status.set(value)
+                self.view.show_error(value)
             elif kind=="done":
                 s.busy,s.playing,s.game_started_at=False,False,None
                 self.update_rank()

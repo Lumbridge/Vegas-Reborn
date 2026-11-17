@@ -1,5 +1,6 @@
 """Lifecycle regressions for the refactored controller; no retail launch."""
 from dataclasses import replace
+import json
 from pathlib import Path
 import threading
 from types import SimpleNamespace
@@ -8,9 +9,62 @@ from test_companion_claim_ui import ControllerFixture
 from vegas_reborn import application as app
 from vegas_reborn.discord_client import AccountSession
 from vegas_reborn.retail_sync import SyncConflict
+from vegas_reborn.companion import CompanionError
 
 
 class ApplicationFlowTests(ControllerFixture):
+    def test_missing_launch_helper_is_modal_persistent_and_retry_clears_banner(self):
+        controller=self.signed_in()
+        message="VegasSteamControl.exe is missing from the companion installation. Security software may have removed it."
+        self.launcher.play.side_effect=CompanionError(message)
+        controller.state.launch_after_refresh="play"
+        with patch.object(app.messagebox,"showerror") as dialog:
+            controller.play()
+            self.pump(lambda:not controller.state.busy)
+        dialog.assert_called_once_with("Game launch failed",message,parent=self.root)
+        self.assertIsNone(controller.state.launch_after_refresh)
+        self.launcher.play.assert_called_once()
+        self.assertTrue(controller.view.error_banner.winfo_manager())
+        self.assertEqual(controller.view.error_message.get(),message)
+        controller.view.show_page("display")
+        controller.notify("A later status update")
+        self.pump(lambda:controller.values.status.get()=="A later status update")
+        self.assertTrue(controller.view.error_banner.winfo_manager())
+        report=json.loads((self.directory/"last-launch-error.json").read_text())
+        self.assertEqual(set(report),{"version","time","title","message"})
+        self.assertEqual(report["message"],message)
+        self.launcher.play.side_effect=None
+        controller.play()
+        self.pump(lambda:not controller.state.busy)
+        self.assertFalse(controller.view.error_banner.winfo_manager())
+
+    def test_launch_error_restores_minimized_app_before_showing_dialog(self):
+        controller=self.signed_in()
+        self.launcher.play.side_effect=CompanionError("Synthetic missing component")
+        calls=[]
+        with patch.object(self.root,"state",return_value="iconic"), \
+             patch.object(self.root,"deiconify",side_effect=lambda:calls.append("restore")), \
+             patch.object(self.root,"lift",side_effect=lambda:calls.append("lift")), \
+             patch.object(app.messagebox,"showerror",side_effect=lambda *a,**kw:calls.append("dialog")):
+            controller.play()
+            self.pump(lambda:not controller.state.busy)
+        self.assertEqual(calls[:3],["restore","lift","dialog"])
+
+    def test_unexpected_launch_error_does_not_log_exception_secrets_or_offer_signin(self):
+        controller=self.signed_in()
+        secret="private-native-capability-must-not-leak"
+        self.launcher.play.side_effect=RuntimeError(secret)
+        with patch.object(app.messagebox,"showerror") as dialog:
+            controller.play()
+            self.pump(lambda:not controller.state.busy)
+        report=(self.directory/"last-launch-error.json").read_text()
+        message=dialog.call_args.args[1]
+        self.assertNotIn(secret,report)
+        self.assertNotIn(secret,message)
+        self.assertNotIn("sign-in",message)
+        self.assertEqual(json.loads(report)["message"],message)
+        self.assertIn("companion installation",message)
+
     def signed_in(self):
         session=AccountSession("199999999999999999","Operator","a"*64,"Operator",True,False)
         self.client.refresh_account.return_value=session

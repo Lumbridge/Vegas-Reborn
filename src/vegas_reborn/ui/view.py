@@ -124,6 +124,13 @@ class CompanionView:
         self.page_host.grid_propagate(False)
         self.page_host.rowconfigure(0,weight=1)
         self.page_host.columnconfigure(0,weight=1)
+        self.error_banner=tk.Frame(main,background="#3b2020",highlightbackground="#8f4545",highlightthickness=1)
+        self.error_message=tk.StringVar(root,value="")
+        error_label=ttk.Label(self.error_banner,textvariable=self.error_message,background="#3b2020",foreground="#ffe0df",
+                              font=("Segoe UI",10,"bold"),wraplength=600,padding=(14,10))
+        error_label.pack(side="left",fill="x",expand=True)
+        ttk.Button(self.error_banner,text="Dismiss",command=self.hide_error,style="Quiet.TButton").pack(side="right",padx=10)
+        self.error_banner.bind("<Configure>",lambda event:error_label.configure(wraplength=max(220,event.width-140)))
         for key,*_ in self.PAGES:
             self.pages[key]=ScrollPage(self.page_host)
         # The legacy --host path remains accessible for existing shortcuts,
@@ -289,6 +296,13 @@ class CompanionView:
         self.update_help=ttk.Label(inner,text="Updates can download while you play. Installation waits for games to close. Character data and settings are preserved.",style="PanelMuted.TLabel",wraplength=700)
         self.update_help.pack(anchor="w",pady=(22,16))
         self.button(inner,"release_notes","View website changelog",self.actions["release_notes"],"external","Quiet.TButton")
+
+    def show_error(self,message):
+        self.error_message.set(message)
+        self.error_banner.pack(fill="x",padx=28,pady=(0,12),before=self.page_host)
+
+    def hide_error(self):
+        self.error_banner.pack_forget()
 
     def show_page(self,key):
         if key not in self.pages:
