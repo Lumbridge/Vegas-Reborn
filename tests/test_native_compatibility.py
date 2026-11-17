@@ -33,15 +33,17 @@ class NativeCompatibilityTests(unittest.TestCase):
                 validate_compatibility(report)
 
     def test_success_still_requires_name_and_borderless_verification(self):
-        report={"ready":True,"signatures":16383,"nativeVersion":12,
+        report={"ready":True,"signatures":16383,"nativeVersion":13,
                 "proceduralAnimationVerified":True,"nativeStatisticsVerified":True,"nativeRankedHostVerified":True,
                 "nativeSoloHuntVerified":True,
                 "nativeUnlockPolicyVerified":True,
                 "nativePecDefaultsVerified":True,
-                "nativeRankVerified":True,"rankedAccessVerified":True}
+                "reportXpVerified":True,"nativeRankVerified":True,"rankedAccessVerified":True}
         validate_compatibility(report, display_mode="Windowed")
         with self.assertRaisesRegex(CompanionError,"compatibility module"):
             validate_compatibility({**report,"proceduralAnimationVerified":False})
+        with self.assertRaisesRegex(CompanionError,"compatibility module"):
+            validate_compatibility({**report,"reportXpVerified":False})
         with self.assertRaisesRegex(CompanionError,"compatibility module"):
             validate_compatibility({**report,"nativeVersion":10})
         with self.assertRaisesRegex(CompanionError,"player-name"):
