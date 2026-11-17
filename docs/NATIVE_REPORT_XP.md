@@ -62,5 +62,5 @@ The ignored research exports are in the separate backend workspace under
 Rendered layout, natural match completion and host/remote-player reports still
 require a live retail check. The current retail harness states that private
 audio is unverified and requires normal-audio authorization. No automated
-retail process was launched, and this candidate has not replaced the installed
-companion or been published as a signed release.
+retail process was launched, and live acceptance remains open. Signed release publication and installation
+are recorded separately from these implementation checks.
