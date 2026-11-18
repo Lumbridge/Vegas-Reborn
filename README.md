@@ -4,7 +4,7 @@ Companion app for the **original PC Rainbow Six Vegas**, with account sign-in,
 character synchronization, display settings, Discord activity and game launching.
 The account and matchmaking backend are maintained separately.
 
-**[Download for Windows](https://github.com/Lumbridge/Vegas-Reborn/releases/latest)**
+**[First-time Windows download](https://github.com/Lumbridge/Vegas-Reborn/releases/download/v0.4.13/VegasReborn-0.4.13-win64.zip)**
 
 Vegas Reborn is experimental. Sign-in, character creation, customization and
 save/reload have been demonstrated with the original game, along with server
@@ -26,10 +26,9 @@ specific original PC build used in testing; other game versions are unverified.
 
 ## Get started
 
-1. Download the Windows ZIP from the
-   [latest release](https://github.com/Lumbridge/Vegas-Reborn/releases/latest).
+1. Download the [full 0.4.13 Windows ZIP](https://github.com/Lumbridge/Vegas-Reborn/releases/download/v0.4.13/VegasReborn-0.4.13-win64.zip).
 2. Extract the entire `VegasReborn` folder to a writable location, then open
-   `VegasReborn.exe`.
+   `VegasReborn.exe`. Choose **Updates** to install 0.4.14.
 3. Open **Display & game** and use **Browse** to select your installed game folder.
 4. Open **Account**, choose **Sign in with Discord**, and complete sign-in in your browser. Claim
    your player name if prompted.

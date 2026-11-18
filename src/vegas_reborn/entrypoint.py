@@ -30,6 +30,25 @@ def main():
     if args.install_staged_update:
         launch_helper(args.install_staged_update,os.getpid())
         return 0
+    # A first-time visitor may have downloaded the updater ZIP from the website.
+    # Handle that case before asking for an account or creating local game data.
+    if (ROOT/"runtime-0.4.14/updater-only").is_file() and not any(
+        (ROOT/"local/companion/bin"/name).exists()
+        for name in ("VegasInjector.exe", "VegasSteamGate.dll", "VegasSteamControl.exe")
+    ):
+        root=tk.Tk()
+        root.withdraw()
+        try:
+            open_download=messagebox.askyesno("Install Vegas Reborn",
+                "For first-time setup, extract the full 0.4.13 Windows download into a new folder. "
+                "Open that Companion and choose Updates to install 0.4.14.\n\nOpen the full download page?",
+                parent=root)
+            if open_download:
+                import webbrowser
+                webbrowser.open("https://github.com/Lumbridge/Vegas-Reborn/releases/tag/v0.4.13")
+        finally:
+            root.destroy()
+        return 0
     # Importing the full UI is unnecessary for help or update-helper runs.
     from .application import CompanionController, CompanionSetupError
     root=tk.Tk()

@@ -366,6 +366,13 @@ def install_payload(root, payload, release, *, active=game_processes_running, pr
     root, payload = Path(root).resolve(), Path(payload).resolve()
     verify_tree(payload, release)
     installed = root / "version.json"
+    if release.version == "0.4.14":
+        listed = {entry["path"] for entry in release.files}
+        for name in ("VegasInjector.exe", "VegasSteamGate.dll", "VegasSteamControl.exe"):
+            relative = "local/companion/bin/" + name
+            if relative not in listed and not beneath(root, relative).is_file():
+                raise UpdateError(f"The 0.4.14 update needs the existing {name}. "
+                                  "Use a complete 0.4.13 installation before updating.")
     if installed.exists():
         try:
             current = json.loads(installed.read_text(encoding="utf-8-sig"))["version"]

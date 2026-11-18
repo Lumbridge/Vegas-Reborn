@@ -23,6 +23,8 @@ def main():
     parser.add_argument("--native-directory", type=Path, default=ROOT / "local/companion/bin")
     parser.add_argument("--config-directory", type=Path, default=ROOT / "local/companion")
     parser.add_argument("--signing-key", type=Path, default=ROOT / "local/release/signing-key.pem")
+    parser.add_argument("--updater-only", action="store_true",
+                        help="Reuse the installed Steam gate and launch helpers")
     args = parser.parse_args()
     if subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT).strip():
         raise RuntimeError("Commit the reviewed companion sources before building a public release")
@@ -50,7 +52,10 @@ def main():
         shutil.copy2(args.config_directory / name, config / name)
     native = config / "bin"
     native.mkdir()
-    for name in ("VegasCompanion.dll", "VegasCompanion-13.dll", "VegasDedicated.dll", "VegasInjector.exe", "VegasSteamGate.dll", "VegasSteamControl.exe", "build.json"):
+    native_names = ["VegasCompanion.dll", "VegasCompanion-13.dll", "VegasDedicated.dll", "build.json"]
+    if not args.updater_only:
+        native_names.extend(("VegasInjector.exe", "VegasSteamGate.dll", "VegasSteamControl.exe"))
+    for name in native_names:
         shutil.copy2(args.native_directory / name, native / name)
     # Existing 0.4.5 updaters accept the versioned runtime subtree, but not a
     # new VegasDedicated-N.dll name under local/companion/bin. Keep the fresh
@@ -69,7 +74,12 @@ def main():
                 if path.is_file():
                     notices.append(f"{package}: {item.name}\n\n" + path.read_text(encoding="utf-8"))
     (app / "THIRD-PARTY-NOTICES.txt").write_text("\n\n".join(notices), encoding="utf-8")
-    (app / "README.txt").write_text((ROOT / "docs/PLAYER-README.txt").read_text(encoding="utf-8"), encoding="utf-8")
+    instructions = (ROOT / "docs/PLAYER-README.txt").read_text(encoding="utf-8")
+    if args.updater_only:
+        instructions = ("This package updates an existing Vegas Reborn installation. For first-time setup, "
+                        "install the full 0.4.13 Windows ZIP and choose Updates in the Companion.\n\n" + instructions)
+        (app / ("runtime-" + VERSION) / "updater-only").touch()
+    (app / "README.txt").write_text(instructions, encoding="utf-8")
     (app / "version.json").write_text(json.dumps({"version": VERSION, "repository": REPOSITORY}) + "\n", encoding="utf-8")
     files = []
     for path in sorted(app.rglob("*")):
@@ -94,7 +104,7 @@ def main():
     (output / "update.json").write_bytes(data)
     (output / "update.sig").write_bytes(signature)
     (output / "build-receipt.json").write_text(json.dumps({"version": VERSION, "sourceCommit": commit,
-        "sourceDirty": False, "archiveSha256": manifest["sha256"], "gameFilesIncluded": False,
+        "updaterOnly": args.updater_only, "sourceDirty": False, "archiveSha256": manifest["sha256"], "gameFilesIncluded": False,
         "accountFilesIncluded": False, "backendIncluded": False}, indent=2), encoding="utf-8")
     print(json.dumps({"archive": str(archive), "sha256": manifest["sha256"], "sourceCommit": commit}))
 
