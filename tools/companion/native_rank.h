@@ -16,6 +16,7 @@ static BYTE* Image=nullptr;
 static bool Installed=false,Verified=false;
 static bool RemotePipelineRecognized=false;
 static volatile LONG RowsAdded=0,Opened=0,ErrorCode=0;
+static constexpr BYTE StockOnlineRows=6;
 static constexpr uintptr_t Preferred=0x10900000;
 static constexpr unsigned PopulateRva=0x9d170,SelectionRva=0x9d350;
 struct FString {const wchar_t* data;int length;int capacity;};
@@ -84,6 +85,9 @@ static void __fastcall Populate(void* self,void*){
     if(label.data&&label.length>1&&label.length<256){
         // Native initializer clears then appends its six original rows. The
         // append routine deep-copies before the original string destructor.
+        // The Online list initializer caps the viewport at six rows.
+        // Append recalculates both layout and hit bounds using this field.
+        if(list[0x10]==StockOnlineRows)list[0x10]=StockOnlineRows+1;
         Append(list,label.data,0);InterlockedIncrement(&RowsAdded);
     }
     Release(&label);
@@ -94,7 +98,7 @@ static bool __fastcall Selection(void* subobject,void*,void* event){
     if(HasTable(owner,0x15bb5bc)&&Readable(event,8)&&
        *reinterpret_cast<uint32_t*>(static_cast<BYTE*>(event)+4)==SelectionId){
         BYTE* list=Pointer(owner+0xe4);
-        if(Readable(list,0xae)&&*reinterpret_cast<short*>(list+0xac)==6){
+        if(Readable(list,0xae)&&*reinterpret_cast<short*>(list+0xac)==StockOnlineRows){
             BYTE* trophy=TrophyFor(Pointer(owner+4));
             if(trophy){
                 // Exact original virtual Show(1) path used for modal panels.
@@ -133,12 +137,13 @@ static bool Install(BYTE* base){
     DWORD handler=DWORD(reinterpret_cast<uintptr_t>(base+0x1473de0));memcpy(populate+9,&handler,4);
     handler=DWORD(reinterpret_cast<uintptr_t>(base+0x1473e00));memcpy(selection+9,&handler,4);
     const BYTE menuList[]{0x8b,0x8f,0xe4,0,0,0};
+    const BYTE visibleRows[]{0xc6,0x40,0x10,StockOnlineRows};
     const BYTE originalCases[]{0x83,0xf8,0x05};
     const BYTE showPrefix[]{0x56,0x8b,0xf1,0x83,0x7e,0x0c,0x00};
     const BYTE rawGetter[]{0x8b,0x41,0x10,0xc3};
     if(memcmp(base+PopulateRva,populate,sizeof(populate))||memcmp(base+SelectionRva,selection,sizeof(selection))||
        memcmp(base+0x9d18c,menuList,sizeof(menuList))||memcmp(base+0x9d408,originalCases,sizeof(originalCases))||
-       memcmp(base+0xc19a0,showPrefix,sizeof(showPrefix))){InterlockedExchange(&ErrorCode,2);return false;}
+       memcmp(base+0x9df2e,visibleRows,sizeof(visibleRows))||memcmp(base+0xc19a0,showPrefix,sizeof(showPrefix))){InterlockedExchange(&ErrorCode,2);return false;}
     if(memcmp(base+0x566320,rawGetter,sizeof(rawGetter))||!IsJumpTo(base+0x566fe0,base+0x566320)){
         InterlockedExchange(&ErrorCode,3);return false;
     }
