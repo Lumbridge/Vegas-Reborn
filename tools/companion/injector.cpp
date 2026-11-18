@@ -83,7 +83,10 @@ int wmain(int argc,wchar_t** argv){
     DWORD ready=Call(process,function,configuration);
     if(configuration)VirtualFreeEx(process,configuration,0,MEM_RELEASE);
     if(ready!=1){fprintf(stderr,"Setup rejected: %lu\n",ready);CloseHandle(process);return 6;}
-    if(stop){Call(process,SystemFunction(pid,"FreeLibrary"),reinterpret_cast<LPVOID>(module));}
+    if(stop && !Call(process,SystemFunction(pid,"FreeLibrary"),reinterpret_cast<LPVOID>(module))){
+        fprintf(stderr,"Steam gate unload was not confirmed\n");
+        CloseHandle(process);return 6;
+    }
     DWORD previous=0;
     if(!configure&&!stop){
         HANDLE thread=OpenThread(THREAD_SUSPEND_RESUME,FALSE,wcstoul(argv[2],nullptr,10));if(!thread){CloseHandle(process);return 7;}

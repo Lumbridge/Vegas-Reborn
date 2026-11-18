@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import stat
 import struct
 import subprocess
@@ -16,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives import serialization
 from vegas_reborn import updater as u
+from vegas_reborn.native_launch import runtime_gate
 
 
 class UpdateTests(unittest.TestCase):
@@ -124,6 +126,28 @@ class UpdateTests(unittest.TestCase):
         for name, data in sentinels.items():
             self.assertEqual((root/name).read_bytes(), data)
         self.assertTrue(list((root/".updates/backups").rglob("VegasReborn.exe")))
+
+    def test_install_and_delete_while_previous_runtime_gate_is_open(self):
+        gate_path = "local/companion/bin/VegasSteamGate.dll"
+        self.contents[gate_path] = b"updated gate"
+        payload, release = self.payload()
+        root, _ = self.install_root()
+        installed = root / gate_path
+        installed.parent.mkdir()
+        installed.write_bytes(b"old gate")
+        cache = self.root / "launch-cache"
+        runtime = runtime_gate(installed, cache)
+        with runtime.open("rb") as held:
+            if os.name == "nt":
+                with self.assertRaises(PermissionError):
+                    runtime.unlink()
+            self.assertEqual(runtime_gate(installed, cache), runtime)
+            u.install_payload(root, payload, release, active=lambda: False)
+            updated = runtime_gate(installed, cache)
+            self.assertNotEqual(updated, runtime)
+            self.assertEqual(updated.read_bytes(), b"updated gate")
+            shutil.rmtree(root)
+            self.assertEqual(held.read(), b"old gate")
 
     def test_active_game_blocks_all_install_changes(self):
         payload, release = self.payload()

@@ -238,14 +238,13 @@ class RetailLauncher:
             raise CompanionError("The original retail client requires Windows")
         if retail_game_running():
             raise CompanionError("Close the running retail game before launching another")
-        from .native_launch import require_components,NativeLaunchError
+        from .native_launch import require_components, runtime_gate, NativeLaunchError
         try:require_components(ROOT/'local/companion/bin',13)
         except NativeLaunchError as error:raise CompanionError(str(error)) from None
         self.running = True
         ipc, gate, child, mutex = None, None, None, None
         started = False
         control = ROOT / "local/companion/bin/VegasSteamControl.exe"
-        gate_dll = ROOT / "local/companion/bin/VegasSteamGate.dll"
         try:
             from ctypes import wintypes
             kernel = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -319,6 +318,11 @@ class RetailLauncher:
             launch_config = account / "launch.utf16"
             _private_write(launch_config, (str(Path(source).resolve() / "Binaries/R6Vegas_Game.exe") + "\n"
                 + str(game / "Binaries") + "\nwinsta0\\Default\n" + str(account)).encode("utf-16-le"))
+            try:
+                gate_dll = runtime_gate(ROOT / "local/companion/bin/VegasSteamGate.dll",
+                                        Path(os.environ["LOCALAPPDATA"]) / "VegasReborn" / "LaunchCache")
+            except NativeLaunchError as error:
+                raise CompanionError(str(error)) from None
             gate = _native([control, "--configure", steam_pid, gate_dll, "StartGate", launch_config])
             subprocess.Popen(["C:/Program Files (x86)/Steam/steam.exe", "-applaunch", "13540",
                               "Menu?GAME=R6Game.R6MenuGameInfo?PB=0", "-NoHomeDir"], creationflags=subprocess.CREATE_NO_WINDOW)
@@ -330,8 +334,10 @@ class RetailLauncher:
             child = json.loads(child_file.read_text())
             _native([ROOT / "local/companion/bin/VegasInjector.exe", child["pid"], child["tid"],
                      ROOT / "local/companion/bin/VegasCompanion-13.dll", account, game, Path(source).resolve()])
-            _native([control, "--stop-gate", steam_pid, gate["module"], gate_dll])
+            # A timeout can arrive after the unload ran. Never retry a stale module handle.
+            module = gate["module"]
             gate = None
+            _native([control, "--stop-gate", steam_pid, module, gate_dll])
             deadline = time.monotonic() + 65
             while not ready_file.exists():
                 if time.monotonic() > deadline:

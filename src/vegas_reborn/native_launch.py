@@ -1,6 +1,9 @@
 """Actionable failures for required native launch components; no secrets logged."""
 from pathlib import Path
+import hashlib
 import json
+import os
+import tempfile
 import subprocess
 
 
@@ -34,6 +37,32 @@ def require_components(directory,native_version=13):
                     raise NativeLaunchError(f'Required launch component is empty: {name}. Reinstall a complete official release. Your local character was preserved.')
         except OSError as error:
             raise NativeLaunchError(component_error(name,error)) from None
+
+
+def runtime_gate(source, cache):
+    """Keep Steam's mapped image outside the replaceable installation tree."""
+    try:
+        contents = source.read_bytes()
+        directory = cache / hashlib.sha256(contents).hexdigest()
+        target = directory / source.name
+        try:
+            if target.read_bytes() == contents:
+                return target
+        except FileNotFoundError:
+            pass
+        directory.mkdir(parents=True, exist_ok=True)
+        # The launcher mutex serializes publication across Companion installs.
+        fd, name = tempfile.mkstemp(dir=directory)
+        temporary = Path(name)
+        try:
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(contents)
+            os.replace(temporary, target)
+        finally:
+            temporary.unlink(missing_ok=True)
+        return target
+    except OSError as error:
+        raise NativeLaunchError(component_error(source.name, error)) from None
 
 
 def run_component(arguments):
