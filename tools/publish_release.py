@@ -6,7 +6,9 @@ import sys
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"src"))
-from vegas_reborn.version import VERSION, REPOSITORY
+sys.path.insert(0,str(ROOT/"tools"))
+from vegas_reborn.version import REPOSITORY
+from release_version import VERSION
 from vegas_reborn.updater import verify_manifest, digest_file
 from release_coordination import check_release_source
 

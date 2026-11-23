@@ -20,6 +20,8 @@ static BOOL WINAPI GateForeground(HWND window){return OwnedWindow(window)?FALSE:
 static BOOL WINAPI GateBring(HWND window){return OwnedWindow(window)?FALSE:OriginalBring(window);}
 static void WINAPI GateSwitch(HWND window,BOOL alt){if(!OwnedWindow(window))OriginalSwitch(window,alt);}
 
+// The copied executable keeps the configured installed executable's file name.
+static std::wstring ExecutableName(){size_t slash=Expected.find_last_of(L"\\/");return slash==std::wstring::npos?Expected:Expected.substr(slash+1);}
 static std::wstring FirstToken(const std::wstring& command){if(command.empty())return {};if(command[0]==L'"')return command.substr(1,command.find(L'"',1)-1);return command.substr(0,command.find(L' '));}
 static bool Match(LPCWSTR application,LPCWSTR command){std::wstring path=application?application:FirstToken(command?command:L"");for(auto& c:path)if(c==L'/')c=L'\\';return !_wcsicmp(path.c_str(),Expected.c_str());}
 static void Created(const PROCESS_INFORMATION* info){
@@ -32,7 +34,7 @@ static BOOL WINAPI GateW(LPCWSTR application,LPWSTR command,LPSECURITY_ATTRIBUTE
     if(OwnedPid){SetLastError(ERROR_BUSY);return FALSE;}
     LPWSTR oldDesktop=startup->lpDesktop;DWORD oldFlags=startup->dwFlags;WORD oldShow=startup->wShowWindow;
     startup->lpDesktop=const_cast<LPWSTR>(Desktop.c_str());
-    std::wstring copied=Working+L"\\R6Vegas_Game.exe";
+    std::wstring copied=Working+L"\\"+ExecutableName();
     std::wstring copiedCommand=L"\""+copied+L"\"";
     std::wstring originalCommand=command?command:L"";
     auto first=FirstToken(originalCommand);
@@ -51,7 +53,7 @@ static BOOL WINAPI GateA(LPCSTR application,LPSTR command,LPSECURITY_ATTRIBUTES 
     auto desktop=Narrow(Desktop),working=Narrow(Working);
     LPSTR oldDesktop=startup->lpDesktop;DWORD oldFlags=startup->dwFlags;WORD oldShow=startup->wShowWindow;
     startup->lpDesktop=desktop.data();
-    auto copied=Narrow(Working+L"\\R6Vegas_Game.exe");
+    auto copied=Narrow(Working+L"\\"+ExecutableName());
     std::string originalCommand=command?command:"";
     auto first=FirstToken(cmd);
     size_t consumed=Narrow(first).size()+(originalCommand.size()&&originalCommand[0]=='"'?2:0);

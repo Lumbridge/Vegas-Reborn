@@ -1,15 +1,20 @@
 Vegas Reborn Companion
 
 Extract the entire VegasReborn folder into a writable location and run
-VegasReborn.exe. Python and build tools are not required on the playing PC.
-You must own and install the original PC Rainbow Six Vegas and run Steam.
+VegasReborn.exe. The .NET runtime it needs is included; nothing else has to
+be installed on the playing PC. You must own and install the original PC
+Rainbow Six Vegas or Rainbow Six Vegas 2 and run Steam.
 
-Choose the installed game folder, sign in, claim your player name if prompted,
+Choose the game in Play, choose its installed folder, sign in, claim your player name if prompted,
 and choose Launch game in Play. In-game, choose Multiplayer > Online > Login. The
 companion supplies a short-lived native credential. Never enter your Discord
 password in the game. Keep the companion open until the game closes so your
 character can synchronize. Use Create Match in the game for normal hosting.
-Dedicated hosting is available separately through the operator tool.
+Dedicated hosting is not included in this version.
+
+Rainbow Six Vegas 2 uses the same sign-in and claimed player name. Unranked
+multiplayer matches can be started with one player, and match XP is awarded
+in full whatever the player count or team balance.
 
 The interface has Play, Account, Display & Game, Connections and Updates
 pages. Switching pages preserves the selected window size and position.
