@@ -73,6 +73,8 @@ public sealed class Vegas1MatchFixesTests
 
         MissionPlayerLimits.Apply(copy, install, extendModes: true);
         Assert.Equal(MapModeExtension.Extend(MexicoStory, 30), File.ReadAllText(mexico));
+        MissionPlayerLimits.Apply(copy, install, extendModes: true);
+        Assert.Equal(MapModeExtension.Extend(MexicoStory, 30), File.ReadAllText(mexico));
         Assert.Equal(MissionPlayerLimits.Raise(Shipped), File.ReadAllText(casino));
 
         MissionPlayerLimits.Apply(copy, install, extendModes: false);
@@ -102,10 +104,13 @@ public sealed class Vegas1MatchFixesTests
         var packTarget = root.File($"game/{pack}PAK_A/PAK_A_01.ini", Shipped);
         root.File($"install/{Maps}MP_Casino/MP_Casino_01.ini", Shipped);
         var mapsTarget = root.File($"game/{Maps}MP_Casino/MP_Casino_01.ini", Shipped);
+        root.File($"install/{pack}01_Mexico/01_Mexico_04.ini", MexicoStory);
+        var listedTarget = root.File($"game/{pack}01_Mexico/01_Mexico_04.ini", MexicoStory);
 
         MissionPlayerLimits.Apply(Path.Combine(root.Path, "game"), Path.Combine(root.Path, "install"), extendModes: true, pack.TrimEnd('/'));
 
         Assert.Equal(MissionPlayerLimits.Raise(Shipped), File.ReadAllText(packTarget));
+        Assert.Equal(MexicoStory, File.ReadAllText(listedTarget));
         Assert.Equal(Shipped, File.ReadAllText(mapsTarget));
     }
 
