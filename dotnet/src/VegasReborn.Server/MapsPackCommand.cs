@@ -54,9 +54,19 @@ internal static class MapsPackCommand
                             output.WriteLine($"Downloading the Maps Pack: {percent}%");
                         }
                     });
-                    await installer.InstallAsync(progress, cancellationToken).ConfigureAwait(false);
-                    MapsPackRecord.CheckQuick(paths, out var installed);
-                    output.WriteLine($"Maps Pack installed (version {installed?.Version}). It is used the next time the server starts.");
+                    try
+                    {
+                        await installer.InstallAsync(progress, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        error.WriteLine("Cancelled.");
+                        return 1;
+                    }
+                    var state = MapsPackRecord.CheckQuick(paths, out var installed);
+                    output.WriteLine(state == MapsPackState.Installed
+                        ? $"Maps Pack {Describe(state, installed)}. It is used the next time the server starts."
+                        : $"Maps Pack: {Describe(state, installed)}");
                     return 0;
                 }
             default:

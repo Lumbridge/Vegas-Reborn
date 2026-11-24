@@ -102,6 +102,21 @@ public sealed class MapsPackCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task CancellingAnInstallPrintsCancelledAndReleasesTheLock()
+    {
+        var error = new StringWriter();
+        var held = new Lock();
+        var paths = new AppPaths(_root);
+        using var cancel = new CancellationTokenSource();
+        cancel.Cancel();
+        var code = await MapsPackCommand.RunAsync("install", paths, () => held,
+            () => new MapsPackInstaller(paths, new CancellingDownloader()), new StringWriter(), error, cancel.Token);
+        Assert.Equal(1, code);
+        Assert.Equal("Cancelled.", error.ToString().Trim());
+        Assert.True(held.Disposed);
+    }
+
+    [Fact]
     public void DescribesEachState()
     {
         Assert.Equal("Not installed", MapsPackCommand.Describe(MapsPackState.NotInstalled, null));
@@ -117,6 +132,16 @@ public sealed class MapsPackCommandTests : IDisposable
     [InlineData(300, 200, 100)]
     public void ComputesPercent(long bytes, long total, int expected) =>
         Assert.Equal(expected, MapsPackCommand.Percent(new MapsPackProgress(bytes, total)));
+
+    private sealed class CancellingDownloader : IReleaseDownloader
+    {
+        public Task<byte[]> DownloadBytesAsync(Uri url, long limit, CancellationToken cancellationToken = default) =>
+            throw new OperationCanceledException(cancellationToken);
+
+        public Task<long> DownloadFileAsync(Uri url, long limit, string destination, IProgress<long>? progress = null,
+            CancellationToken cancellationToken = default) =>
+            throw new OperationCanceledException(cancellationToken);
+    }
 
     private sealed class Lock : IDisposable
     {
