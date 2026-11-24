@@ -120,7 +120,7 @@ public static class ContentManifest
         name.Length is > 0 and <= 128 && name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
         && name.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-' or '.') && !name.StartsWith('.');
 
-    private static bool IsAllowedPath(string path)
+    internal static bool IsAllowedPath(string path)
     {
         if (path.Length is 0 or > 260 || path.Contains('\\') || path.Contains(':') || path.StartsWith('/')
             || path.Any(char.IsControl))

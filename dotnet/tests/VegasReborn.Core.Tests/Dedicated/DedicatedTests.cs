@@ -1,8 +1,10 @@
 using System.Net;
 using System.Text;
 using System.Text.Json.Nodes;
+using VegasReborn.Core.Content;
 using VegasReborn.Core.Dedicated;
 using VegasReborn.Core.Launch;
+using VegasReborn.Core.Tests.Content;
 using VegasReborn.Core.Tests.Launch;
 using VegasReborn.Core.Titles;
 
@@ -217,6 +219,35 @@ public sealed class DedicatedHostTests : IDisposable
             File.ReadAllText(Path.Combine(result.RunDirectory, "profile/Ubisoft/R6Vegas/PlayerProfile.ini")));
         Assert.Contains(_paths.RootPublicKey.Replace('\\', '/'),
             File.ReadAllText(Path.Combine(_paths.Local, "dedicated/vegas1/game/KellerGame/Config/PC/AgoraConfig.lua")));
+    }
+
+    [Fact]
+    public async Task DedicatedCopyGetsPackAndModes()
+    {
+        const string story = "[GameMode0]\r\nm_eGameMode=GAMEMODE_STORY\r\nm_iMaxPlayers=4\r\nm_iMissionOrderId=2\r\n";
+        _directory.File("Rainbow Six Vegas/" + MissionPlayerLimits.MapsFolder + "/01_Mexico/01_Mexico_04.ini", story);
+        MapsPackFixture.Install(_paths, MapsPackFixture.Default());
+
+        await Host().RunAsync(Request(null));
+
+        var game = Path.Combine(_paths.Local, "dedicated/vegas1/game");
+        Assert.Equal("map data", File.ReadAllText(Path.Combine(game, MapsPackFixture.Map)));
+        Assert.Equal(MissionPlayerLimits.Raise(MapsPackFixture.ShippedIni), File.ReadAllText(Path.Combine(game, MapsPackFixture.MapIni)));
+        var mission = File.ReadAllText(Path.Combine(game, MissionPlayerLimits.MapsFolder, "01_Mexico/01_Mexico_04.ini"));
+        Assert.Contains("m_eGameMode=GAMEMODE_DEATHMATCH", mission);
+        Assert.Equal(story, File.ReadAllText(Path.Combine(_source, MissionPlayerLimits.MapsFolder, "01_Mexico/01_Mexico_04.ini")));
+    }
+
+    [Fact]
+    public async Task DamagedPackStopsTheServerBeforeStarting()
+    {
+        MapsPackFixture.Install(_paths, MapsPackFixture.Default());
+        File.WriteAllText(Path.Combine(_paths.MapsPack, "files", MapsPackFixture.Map), "map date");
+
+        var error = await Assert.ThrowsAsync<DedicatedException>(() => Host().RunAsync(Request(null)));
+
+        Assert.Equal("The Maps Pack is damaged. Download it again or remove it.", error.Message);
+        Assert.Null(_system.Started);
     }
 
     [Fact]

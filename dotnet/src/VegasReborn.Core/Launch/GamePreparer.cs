@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using VegasReborn.Core.Content;
 using VegasReborn.Core.Titles;
 
 namespace VegasReborn.Core.Launch;
@@ -70,9 +71,11 @@ internal static partial class GamePreparer
         {
             throw new LaunchException("The launcher's game copy failed its integrity check");
         }
+        var pack = title.Key == TitleCatalog.Vegas1.Key
+            && await Task.Run(() => MapsPackLink.Apply(paths, destination), cancellationToken).ConfigureAwait(false);
         if (title.Fix(TitleCatalog.SixteenPlayers) is not null)
         {
-            await Task.Run(() => MissionPlayerLimits.Apply(destination, source, extendModes: false), cancellationToken).ConfigureAwait(false);
+            await Task.Run(() => MissionPlayerLimits.Apply(destination, source, extendModes: pack), cancellationToken).ConfigureAwait(false);
         }
         foreach (var (relative, expected) in profile.PinnedFiles)
         {

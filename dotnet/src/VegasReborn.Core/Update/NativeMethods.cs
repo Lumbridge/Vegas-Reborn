@@ -70,6 +70,41 @@ internal static class NativeMethods
         }
     }
 
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "CreateHardLinkW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool CreateHardLink(string fileName, string existingFileName, nint securityAttributes);
+
+    // BY_HANDLE_FILE_INFORMATION: FILETIME members are two DWORDs, so 4-byte packing keeps the 52-byte layout.
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
+    private struct FileInformation
+    {
+        public uint Attributes;
+        public ulong CreationTime;
+        public ulong LastAccessTime;
+        public ulong LastWriteTime;
+        public uint VolumeSerialNumber;
+        public uint SizeHigh;
+        public uint SizeLow;
+        public uint Links;
+        public uint IndexHigh;
+        public uint IndexLow;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetFileInformationByHandle(SafeFileHandle file, out FileInformation information);
+
+    /// <summary>Volume serial number and file index of an existing file (equal for hard links), or null.</summary>
+    public static (uint Volume, ulong Index)? FileIdentity(string path)
+    {
+        using var handle = CreateFile(path, 0, FileShareAll, 0, OpenExisting, FileFlagBackupSemantics, 0);
+        if (handle.IsInvalid || !GetFileInformationByHandle(handle, out var information))
+        {
+            return null;
+        }
+        return (information.VolumeSerialNumber, ((ulong)information.IndexHigh << 32) | information.IndexLow);
+    }
+
     /// <summary>Full image path of a process handle, or null.</summary>
     public static string? ProcessImage(nint process)
     {

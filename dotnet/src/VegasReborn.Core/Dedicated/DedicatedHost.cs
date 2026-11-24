@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using VegasReborn.Core.Content;
 using VegasReborn.Core.Launch;
 using VegasReborn.Core.Titles;
 
@@ -147,6 +148,10 @@ public sealed class DedicatedHost
 
         progress?.Report("Checking the original dedicated server files...");
         var game = await PrepareCopyAsync(adapter, source, root, progress, cancellationToken).ConfigureAwait(false);
+        if (title.Key == TitleCatalog.Vegas1.Key)
+        {
+            await Task.Run(() => LinkMapsPack(game, source), cancellationToken).ConfigureAwait(false);
+        }
         var profile = TitleLaunchProfile.For(title);
         if (!request.LocalTest)
         {
@@ -296,6 +301,22 @@ public sealed class DedicatedHost
     /// <summary>Asks a running server for this title to stop (used by service wrappers and containers).</summary>
     public static void RequestStop(AppPaths paths, GameTitle title) =>
         PrivateFile.WriteText(Path.Combine(Root(paths, title), StopFileName), "stop\n");
+
+    /// <summary>Links the installed Maps Pack into the server copy and adds the story-mission versus modes.</summary>
+    private void LinkMapsPack(string game, string source)
+    {
+        try
+        {
+            if (MapsPackLink.Apply(_paths, game))
+            {
+                MissionPlayerLimits.Apply(game, source, extendModes: true);
+            }
+        }
+        catch (LaunchException error)
+        {
+            throw new DedicatedException(error.Message, error);
+        }
+    }
 
     private static async Task<string> PrepareCopyAsync(IDedicatedAdapter adapter, string source, string root, IProgress<string>? progress, CancellationToken cancellationToken)
     {
