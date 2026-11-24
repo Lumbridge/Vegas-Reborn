@@ -176,7 +176,9 @@
 
                         <!-- Game folder -->
                         <DockPanel Margin="0,8,0,24">
-                            <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Content="Browse" Margin="12,0,0,0" Command="{Binding BrowseCommand}" />
+                            <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Content="Browse" Margin="8,0,0,0" Command="{Binding BrowseCommand}" />
+                            <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Content="Search" Margin="12,0,0,0" Command="{Binding SearchCommand}"
+                                    ToolTip="Look for the game in Steam, Ubisoft Connect, GOG, Epic, installed programs and this PC's drives" />
                             <StackPanel>
                                 <TextBlock Text="Game folder" FontWeight="SemiBold" />
                                 <TextBlock Text="{Binding GameFolder}" Style="{StaticResource MutedText}" FontSize="13" TextTrimming="CharacterEllipsis" />

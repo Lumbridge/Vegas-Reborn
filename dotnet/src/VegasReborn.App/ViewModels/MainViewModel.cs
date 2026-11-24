@@ -31,10 +31,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private GameLauncher? launcher;
     private DiscordPresence? presence;
     private IReadOnlyList<MonitorChoice> monitors = [];
+    private readonly GameInstallLocator installLocator;
+    private readonly CancellationTokenSource searchCancel = new();
+    private bool isSearching;
 
     public MainViewModel(AppPaths paths)
     {
         this.paths = paths;
+        // The launcher's own game copies are never offered as the installed game.
+        installLocator = new GameInstallLocator([paths.Local]);
         Preferences = Preferences.Load(paths);
         CompanionAccount = new CompanionAccount(paths);
         Updates = new UpdateCoordinator(new UpdateOperations(paths, new ReleaseDownloader()), Activity, IsPackaged(paths));
@@ -152,6 +157,116 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     public bool IsPlaying => Games.Any(game => game.IsPlaying);
+
+    /// <summary>True while looking for game installations.</summary>
+    public bool IsSearching
+    {
+        get => isSearching;
+        private set
+        {
+            if (Set(ref isSearching, value))
+            {
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Fills in the folder of each game whose folder has no game executable. Installations
+    /// recorded by Steam, Ubisoft Connect, GOG, Epic or Windows installers are used first; when
+    /// none of the missing games is recorded anywhere, the PC's drives are searched.
+    /// </summary>
+    public Task DetectInstallsAsync()
+    {
+        var missing = Games.Where(game => !game.FolderFound).ToList();
+        return missing.Count == 0 ? Task.CompletedTask : FindInstallsAsync(missing, announce: false);
+    }
+
+    /// <summary>Looks for one game's installation and reports the result.</summary>
+    public Task FindInstallAsync(GameViewModel game) => FindInstallsAsync([game], announce: true);
+
+    /// <summary>Looks for a game inside a folder the player chose, a few levels deep.</summary>
+    public async Task<InstallCandidate?> FindInstallInAsync(GameViewModel game, string folder)
+    {
+        IsSearching = true;
+        try
+        {
+            Message = $"Searching {folder} for {game.Name}...";
+            var found = await Task.Run(() => installLocator.Search([game.Title], [folder], maxDepth: 4, cancellationToken: searchCancel.Token));
+            Message = "";
+            return found[game.Title].FirstOrDefault();
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        finally
+        {
+            IsSearching = false;
+        }
+    }
+
+    private async Task FindInstallsAsync(IReadOnlyList<GameViewModel> games, bool announce)
+    {
+        if (IsSearching)
+        {
+            return;
+        }
+        IsSearching = true;
+        try
+        {
+            var titles = games.Select(game => game.Title).ToList();
+            var results = await Task.Run(() => titles.ToDictionary(title => title, installLocator.FindRecorded));
+            var unrecorded = titles.Where(title => results[title].Count == 0).ToList();
+            if (unrecorded.Count > 0 && (announce || unrecorded.Count == titles.Count))
+            {
+                var names = string.Join(" and ", games.Where(game => unrecorded.Contains(game.Title)).Select(game => game.Name));
+                Message = $"Searching this PC's drives for {names}...";
+                var progress = new Progress<string>(folder => Message = $"Searching this PC's drives for {names}: {folder}");
+                var searched = await Task.Run(() => installLocator.Search(unrecorded, progress: progress, cancellationToken: searchCancel.Token));
+                foreach (var (title, candidates) in searched)
+                {
+                    results[title] = candidates;
+                }
+                Message = "";
+            }
+            var lines = new List<string>();
+            foreach (var game in games)
+            {
+                var best = results[game.Title].FirstOrDefault();
+                if (best is null)
+                {
+                    if (announce)
+                    {
+                        lines.Add($"{game.Name} was not found on this PC. Use Browse to choose its folder.");
+                    }
+                    continue;
+                }
+                if (!announce && game.FolderFound)
+                {
+                    continue;
+                }
+                game.GameFolder = best.Folder;
+                lines.Add(InstallMessage(game, best));
+            }
+            if (lines.Count > 0)
+            {
+                Message = string.Join(" ", lines);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            IsSearching = false;
+        }
+    }
+
+    /// <summary>Result text for a folder chosen from an installation search.</summary>
+    public static string InstallMessage(GameViewModel game, InstallCandidate found) => found.Supported
+        ? $"Found {game.Name} ({found.SourceName}): {found.Folder}"
+        : $"Found {game.Name} ({found.SourceName}): {found.Folder}. This version of the game is not supported yet. The launcher currently supports the Steam version.";
 
     public void ShowMessage(string text) => Message = text;
 
@@ -305,6 +420,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        searchCancel.Cancel();
         presence?.Dispose();
         CompanionAccount.Dispose();
     }

@@ -131,7 +131,8 @@ public sealed class GameViewModel : ObservableObject
             MapsPack = new MapsPackViewModel(owner, owner.Paths);
         }
         LaunchCommand = new RelayCommand(() => owner.PlayAsync(this), () => !owner.IsBusy);
-        BrowseCommand = new RelayCommand(BrowseAsync, () => !owner.IsBusy);
+        BrowseCommand = new RelayCommand(BrowseAsync, () => !owner.IsBusy && !owner.IsSearching);
+        SearchCommand = new RelayCommand(() => owner.FindInstallAsync(this), () => !owner.IsBusy && !owner.IsSearching);
         RefreshStatus();
     }
 
@@ -154,6 +155,7 @@ public sealed class GameViewModel : ObservableObject
     public MapsPackViewModel? MapsPack { get; }
     public ICommand LaunchCommand { get; }
     public ICommand BrowseCommand { get; }
+    public ICommand SearchCommand { get; }
 
     public string Status
     {
@@ -277,25 +279,32 @@ public sealed class GameViewModel : ObservableObject
             : "Ready";
     }
 
-    private Task BrowseAsync()
+    private async Task BrowseAsync()
     {
         var dialog = new OpenFolderDialog
         {
             Title = $"Choose the {Name} folder",
             InitialDirectory = Directory.Exists(GameFolder) ? GameFolder : "",
         };
-        if (dialog.ShowDialog() == true)
+        if (dialog.ShowDialog() != true)
         {
-            var chosen = dialog.FolderName;
-            if (!File.Exists(Path.Combine(chosen, Title.ClientExecutable)))
-            {
-                owner.ShowMessage($"That folder does not contain {Title.ClientExecutable.Replace('/', '\\')}. Choose the folder {Name} is installed in.");
-                return Task.CompletedTask;
-            }
+            return;
+        }
+        var chosen = dialog.FolderName;
+        if (GameInstallLocator.ContainsClient(chosen, Title))
+        {
             GameFolder = chosen;
             owner.ShowMessage("");
+            return;
         }
-        return Task.CompletedTask;
+        // A parent folder such as a game library: look for the game inside it.
+        if (await owner.FindInstallInAsync(this, chosen) is { } found)
+        {
+            GameFolder = found.Folder;
+            owner.ShowMessage(MainViewModel.InstallMessage(this, found));
+            return;
+        }
+        owner.ShowMessage($"{Name} was not found in that folder. Choose the folder that contains {Title.ClientExecutable.Replace('/', '\\')}.");
     }
 
     // Accessible name for the game list item.

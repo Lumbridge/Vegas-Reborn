@@ -43,6 +43,7 @@ public partial class App : Application
         ShutdownMode = ShutdownMode.OnMainWindowClose;
         model.Updates.ShutdownRequested += (_, _) => Dispatcher.BeginInvoke(() => Shutdown(0));
         window.Show();
+        _ = model.DetectInstallsAsync();
 
         await model.Account.RefreshFromServiceAsync();
         if (model.Preferences.CheckUpdates)
