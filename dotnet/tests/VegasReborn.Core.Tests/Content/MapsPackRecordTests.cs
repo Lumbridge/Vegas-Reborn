@@ -46,6 +46,10 @@ public sealed class MapsPackRecordTests : IDisposable
     [InlineData("{\"Version\":1,\"Files\":[{\"Path\":\"/abs/file.usdx\",\"Bytes\":1,\"Sha256\":\"a\",\"Archive\":\"x\"}]}")]
     [InlineData("{\"Version\":1,\"Files\":[{\"Path\":\"C:/abs/file.usdx\",\"Bytes\":1,\"Sha256\":\"a\",\"Archive\":\"x\"}]}")]
     [InlineData("{\"Version\":1,\"Files\":[{\"Path\":\"a/../../b.usdx\",\"Bytes\":1,\"Sha256\":\"a\",\"Archive\":\"x\"}]}")]
+    [InlineData("{\"Version\":1,\"Files\":[]}")]
+    [InlineData("{\"Version\":1,\"Files\":[{\"Path\":\"a/b.usdx:stream\",\"Bytes\":1,\"Sha256\":\"a\",\"Archive\":\"x\"}]}")]
+    [InlineData("{\"Version\":1,\"Files\":[{\"Path\":\"a/b./c.usdx\",\"Bytes\":1,\"Sha256\":\"a\",\"Archive\":\"x\"}]}")]
+    [InlineData("{\"Version\":1,\"Files\":[{\"Path\":\"a/b /c.usdx\",\"Bytes\":1,\"Sha256\":\"a\",\"Archive\":\"x\"}]}")]
     [InlineData("{\"Version\":1,\"Files\":[{\"Path\":\"a\\\\b.usdx\",\"Bytes\":1,\"Sha256\":\"a\",\"Archive\":\"x\"}]}")]
     public void MalformedRecordReadsAsNull(string json)
     {

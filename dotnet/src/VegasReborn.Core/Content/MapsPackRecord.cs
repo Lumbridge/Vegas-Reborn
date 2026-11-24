@@ -21,7 +21,7 @@ public sealed record MapsPackRecord(int Version, IReadOnlyList<ContentFile> File
         try
         {
             var record = JsonSerializer.Deserialize<MapsPackRecord>(File.ReadAllText(path), Options);
-            if (record?.Files is null || record.Files.Any(file => file is null || !IsSafe(file.Path)))
+            if (record?.Files is null || record.Files.Count == 0 || record.Files.Any(file => file is null || !IsSafe(file.Path)))
             {
                 return null;
             }
@@ -71,6 +71,6 @@ public sealed record MapsPackRecord(int Version, IReadOnlyList<ContentFile> File
         !string.IsNullOrEmpty(path)
         && !path.Contains('\\')
         && !path.StartsWith('/')
-        && !(path.Length >= 2 && path[1] == ':')
-        && !path.Split('/').Any(part => part is ".." or "." or "");
+        && !path.Contains(':')
+        && !path.Split('/').Any(part => part is ".." or "." or "" || part.EndsWith('.') || part.EndsWith(' '));
 }
