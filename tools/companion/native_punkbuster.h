@@ -51,10 +51,22 @@
 // After init, the adapter drops the trailing PunkBuster entry from the shown
 // filters. Its load sets the value to Any and saves that with the original
 // save routine instead of reading the saved value.
+//
+// Column: the match list's PunkBuster column.
+// - The match browser init (0xa6c80) requires the list columns named in the
+//   table at 0x122e7514 (0xa6cfa); the last, I_PunkBuster, is column 8. It
+//   loads the ic_PunkBuster image from MP_RSMenus.mgb into menu +0xa0.
+// - The row fill sets column 8 to that image when the match reports
+//   PunkBuster, or to none (0xa880a), with the list's set-cell-image routine
+//   0xcf2540 (thiscall list, row, column, image; ret 0xc).
+// The adapter passes no image from that call, so the column stays empty.
 #include <windows.h>
+#include <intrin.h>
 #include <cstdint>
 #include <cstring>
 #include "MinHook.h"
+
+#pragma intrinsic(_ReturnAddress)
 
 namespace NativePunkBuster {
 static_assert(sizeof(void*)==4,"Original retail client is x86");
@@ -113,7 +125,17 @@ static constexpr BYTE FilterVtableStore[]{0xc7,0x06,0xf0,0x3b,0x09,0x12};
 static constexpr BYTE FilterLastAppend[]{0x8b,0x6e,0x18,0x8b,0x3f,0x8d,0x4d,0x01,0x83,0xc7,0x18};
 static constexpr unsigned FilterShownMode=1,FilterShownList=0x14,FilterShownCount=0x18,FilterValue=8;
 
-static constexpr unsigned HookCount=SetupCount+1+ClientMenuCount+1+2;
+static constexpr unsigned CellImageRva=0xcf2540,PunkBusterCellRva=0xa880a,PunkBusterCellReturnRva=0xa8829;
+static constexpr unsigned ColumnCheckRva=0xa6cfa,PunkBusterColumnNameRva=0x19e7534,PunkBusterImageNameRva=0x19e7510;
+static constexpr BYTE CellImageCode[]{0x0f,0xbf,0x44,0x24,0x04,0x53,0x56,0x57,0x8d,0x3c,0x80,0x8b,0xf1,0x8b,0x46,0x74};
+// cmp [match+0x18],0 / push the image at menu +0xa0 or 0 / push 8 / push row / call.
+static constexpr BYTE PunkBusterCellCode[]{0x83,0x79,0x18,0x00,0x8b,0xce,0x74,0x0d,0x8b,0x54,0x24,0x10,0x8b,0x82,0xa0,0x00,0x00,0x00,
+    0x50,0xeb,0x02,0x6a,0x00,0x6a,0x08,0x57,0xe8,0x17,0x9d,0xc4,0x00};
+// The init's loop over the required columns, ending after I_PunkBuster.
+static constexpr BYTE ColumnCheckCode[]{0xbe,0x14,0x75,0x2e,0x12,0x90,0x8b,0x16,0x8b,0x4d,0x00,0x52,0xe8,0x95,0xa3,0xc4,0x00,
+    0x85,0xc0,0x0f,0x8c,0x9d,0x00,0x00,0x00,0x83,0xc6,0x04,0x81,0xfe,0x38,0x75,0x2e,0x12,0x7c,0xe2};
+
+static constexpr unsigned HookCount=SetupCount+1+ClientMenuCount+1+2+1;
 
 static BYTE* Image=nullptr;
 static bool Verified=false;
@@ -131,6 +153,8 @@ using FilterInitFn=void(__thiscall*)(void*,int);
 using FilterFn=void(__thiscall*)(void*);
 static FilterInitFn OriginalFilterInit=nullptr;
 static FilterFn OriginalFilterLoad=nullptr;
+using CellImageFn=void(__thiscall*)(void*,int,int,void*);
+static CellImageFn OriginalCellImage=nullptr;
 
 static const char* LastError(){
     switch(Error){case 0:return "none";case 1:return "nativeSignatureMismatch";
@@ -180,6 +204,10 @@ static void __fastcall LoadPunkBusterFilter(void* option,void*){
     *reinterpret_cast<int*>(static_cast<BYTE*>(option)+FilterValue)=0;
     reinterpret_cast<FilterFn>(Image+FilterSaveRva)(option);
 }
+static void __fastcall SetCellImage(void* list,void*,int row,int column,void* image){
+    if(_ReturnAddress()==Image+PunkBusterCellReturnRva)image=nullptr;
+    OriginalCellImage(list,row,column,image);
+}
 
 static bool NameIs(BYTE* base,unsigned rva,const char* name){
     if(!Readable(base+rva,4))return false;
@@ -207,6 +235,10 @@ static bool Matches(BYTE* base){
     void* const* const filterTable=reinterpret_cast<void* const*>(base+FilterVtableRva);
     if(!Readable(filterTable,(FilterLoadSlot+1)*4)||filterTable[FilterSaveSlot]!=base+FilterSaveRva||
        filterTable[FilterLoadSlot]!=base+FilterLoadRva)return false;
+    if(memcmp(base+CellImageRva,CellImageCode,sizeof(CellImageCode))||
+       memcmp(base+PunkBusterCellRva,PunkBusterCellCode,sizeof(PunkBusterCellCode))||
+       memcmp(base+ColumnCheckRva,ColumnCheckCode,sizeof(ColumnCheckCode))||
+       !NameIs(base,PunkBusterColumnNameRva,"I_PunkBuster")||!NameIs(base,PunkBusterImageNameRva,"ic_PunkBuster"))return false;
     static constexpr BYTE QueryCommand[]{0x6a,0x71},OnCommand[]{0x6a,0x75},OffCommand[]{0x6a,0x76};
     return !memcmp(base+ClientQueryRva,ClientQueryCode,sizeof(ClientQueryCode))&&
         !memcmp(base+ClientOnRva,ClientToggleCode,sizeof(ClientToggleCode))&&
@@ -219,23 +251,24 @@ static bool Install(BYTE* base){
     Image=base;
     if(!Matches(base)){Error=1;return false;}
     void* const targets[HookCount]{base+SetupRvas[0],base+SetupRvas[1],base+SetupRvas[2],base+StartRva,
-        base+ClientShowRvas[0],base+ClientShowRvas[1],base+ClientOnRva,base+FilterLoadRva,base+FilterInitRva};
+        base+ClientShowRvas[0],base+ClientShowRvas[1],base+ClientOnRva,base+FilterLoadRva,base+FilterInitRva,
+        base+CellImageRva};
     void* const detours[HookCount]{reinterpret_cast<void*>(&Setup<0>),reinterpret_cast<void*>(&Setup<1>),
         reinterpret_cast<void*>(&Setup<2>),reinterpret_cast<void*>(&KeepServerOff),
         reinterpret_cast<void*>(&ShowClientMenu<0>),reinterpret_cast<void*>(&ShowClientMenu<1>),
         reinterpret_cast<void*>(&KeepClientOff),reinterpret_cast<void*>(&LoadPunkBusterFilter),
-        reinterpret_cast<void*>(&InitFilters)};
+        reinterpret_cast<void*>(&InitFilters),reinterpret_cast<void*>(&SetCellImage)};
     void** const originals[HookCount]{reinterpret_cast<void**>(&OriginalSetups[0]),reinterpret_cast<void**>(&OriginalSetups[1]),
         reinterpret_cast<void**>(&OriginalSetups[2]),reinterpret_cast<void**>(&OriginalStart),
         reinterpret_cast<void**>(&OriginalClientShows[0]),reinterpret_cast<void**>(&OriginalClientShows[1]),
         reinterpret_cast<void**>(&OriginalClientOn),reinterpret_cast<void**>(&OriginalFilterLoad),
-        reinterpret_cast<void**>(&OriginalFilterInit)};
+        reinterpret_cast<void**>(&OriginalFilterInit),reinterpret_cast<void**>(&OriginalCellImage)};
     unsigned created=0;
     for(;created<HookCount;++created)if(MH_CreateHook(targets[created],detours[created],originals[created])!=MH_OK)break;
     if(created<HookCount){while(created)MH_RemoveHook(targets[--created]);Error=2;return false;}
     // The on routine first, so a menu shown meanwhile cannot turn the client
     // on; the filter load before init, so shown filters are never filtering.
-    static constexpr unsigned Order[HookCount]{6,3,0,1,2,4,5,7,8};
+    static constexpr unsigned Order[HookCount]{6,3,0,1,2,4,5,7,8,9};
     for(unsigned i=0;i<HookCount;++i){
         if(MH_EnableHook(targets[Order[i]])!=MH_OK){
             for(unsigned j=0;j<HookCount;++j){MH_DisableHook(targets[j]);MH_RemoveHook(targets[j]);}

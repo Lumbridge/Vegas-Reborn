@@ -2,8 +2,8 @@
 
 PunkBuster's service no longer exists. The Vegas 2 adapter removes the
 "ENABLE PUNKBUSTER SERVER" and "ENABLE PUNKBUSTER CLIENT" rows, the
-PunkBuster match filter and the server browser's PunkBuster sort button, and
-keeps PunkBuster off.
+PunkBuster match filter and the server browser's PunkBuster sort button and
+column, and keeps PunkBuster off.
 Implementation: `tools/companion/native_punkbuster_vegas2.h`.
 
 ## Original evidence
@@ -57,9 +57,17 @@ Implementation: `tools/companion/native_punkbuster_vegas2.h`.
   table at `0x121bce0c` in order; `B_Link07` (entry 16) lands at menu `+0xa0`.
 - Its show method (slot 19, `0x114c6020`) runs each time the menu is shown and
   hides two unused elements by clearing bit 0 of element `+0x18`.
-- After the show method, the adapter hides `B_Link07` the same way. The
-  PunkBuster column in the match list shows what each server reports and is
-  left as is.
+- After the show method, the adapter hides `B_Link07` the same way.
+
+## Server list column
+
+- The row fill (`0x114c5030`) writes Yes or No to column 4 of
+  `Lst_SelectMatchPC` from the match's PunkBuster flag (`0x11ac09f0`), then
+  shows that cell with the list's set-cell-shown routine (`0x11563670`).
+- The list's sort compares the same flag for id `0x29` (`0x11ac0efa`), and the
+  join prompt for PunkBuster servers checks it.
+- The adapter passes 0 from that one call, so the cell stays hidden. The
+  column's space in the list stays empty; the other columns do not move.
 
 The adapter reports `punkBusterRemovedVerified`; the launcher requires it.
 

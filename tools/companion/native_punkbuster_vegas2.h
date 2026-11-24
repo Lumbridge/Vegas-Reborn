@@ -56,6 +56,15 @@
 // - Show (slot 19, 0x114c6020) runs each time the menu is shown and hides
 //   two unused elements (+0x74, +0x7c) by clearing bit 0 of element +0x18.
 // After Show, the adapter hides B_Link07 the same way.
+//
+// The server list's PunkBuster column (Lst_SelectMatchPC, menu +0x5c):
+// - The row fill (0x114c5030) writes Yes or No to column 4 from the match's
+//   PunkBuster flag (0x11ac09f0, at 0x114c5273), then shows that cell with the
+//   list's set-cell-shown routine 0x11563670 (thiscall list, row, column,
+//   flag; ret 0xc), returning to 0x114c5320.
+// - The same flag is what the list's sort compares for id 0x29
+//   (0x11ac0efa) and what the join prompt for PunkBuster servers checks.
+// The adapter passes 0 from that call, so the cell stays hidden.
 #include <windows.h>
 #include <intrin.h>
 #include <cstring>
@@ -71,7 +80,7 @@ constexpr unsigned ClientOn = 0x11594960, ClientOff = 0x115949a0;
 // push 2 / push 0x11ef1f9c / call AddRow, returning to 0x114cca5c; then
 // push 3 / push 0x11ef1fa0 / call AddRow, returning to 0x114cca6b.
 constexpr unsigned RowCall = 0x114cca50, ServerRowReturn = 0x114cca5c, ClientRowReturn = 0x114cca6b;
-constexpr unsigned ListOffset = 0x70, ServerRow = 2, ClientRow = 3, HookCount = 8;
+constexpr unsigned ListOffset = 0x70, ServerRow = 2, ClientRow = 3, HookCount = 9;
 constexpr unsigned char OpenPrologue[] = {0x56,0x8b,0xf1,0x83,0x7e,0x0c,0x00,0x0f,0x84,0xf2,0x01,0x00,0x00};
 constexpr unsigned char RefreshPrologue[] = {0x64,0xa1,0,0,0,0,0x6a,0xff,0x68,0x88,0x45,0xc0,0x11,0x50};
 constexpr unsigned char AddRowPrologue[] = {0x6a,0xff,0x68,0x58,0xd1,0xc0,0x11,0x64,0xa1,0,0,0,0,0x50};
@@ -110,6 +119,17 @@ constexpr unsigned char MatchBindStoreCode[] = {0xbb,0x0c,0xce,0x1b,0x12,0x8d,0x
 constexpr unsigned char SortClickCode[] = {0x8b,0x0d,0x4c,0xce,0x1b,0x12,0x8b,0x28,0x51,0x8d,0x54,0x24,0x14,0x52,0xe8,0x96,0xc8,0x07,0x00,
     0x83,0xc4,0x08,0x3b,0x28,0x75,0x38,0x8b,0x07,0x8b,0x50,0x08,0x8d,0x4e,0x50,0xbb,0x0b,0x00,0x00,0x00,0x39,0x9e,0x00,0x01,0x00,0x00,
     0x51,0x8b,0xcf,0x74,0x0e,0x6a,0x01,0x6a,0x29};
+constexpr unsigned SetCellShown = 0x11563670, PunkBusterCell = 0x114c5269, PunkBusterCellShow = 0x114c5309;
+constexpr unsigned PunkBusterCellReturn = 0x114c5320, PunkBusterSort = 0x11ac0efa;
+constexpr unsigned char SetCellShownCode[] = {0x53,0x55,0x8b,0x2d,0x90,0x56,0xc8,0x11,0x56,0x0f,0xbf,0x74,0x24,0x10,0x57};
+// call the PunkBuster flag / ... / push "Yes".
+constexpr unsigned char PunkBusterCellCode[] = {0x8b,0xcd,0xc6,0x84,0x24,0x9c,0x00,0x00,0x00,0x08,0xe8,0x78,0xb7,0x5f,0x00,
+    0x85,0xc0,0x53,0x53,0x74,0x37,0x68,0x40,0x09,0xef,0x11};
+// Set column 4's text, then show column 4.
+constexpr unsigned char PunkBusterCellShowCode[] = {0x50,0x6a,0x04,0x57,0x8b,0xce,0xe8,0x2c,0x4d,0x0a,0x00,0x6a,0x01,0x6a,0x04,
+    0x57,0x8b,0xce,0xe8,0x50,0xe3,0x09,0x00};
+// cmp sort id,0x29 / ... / call the PunkBuster flag.
+constexpr unsigned char PunkBusterSortCode[] = {0x83,0xf9,0x29,0x8b,0x70,0x20,0x75,0x26,0x8b,0x4c,0x24,0x0c,0xe8,0xe5,0xfa,0xff,0xff};
 constexpr unsigned char RowCallCode[] = {0x6a,0x02,0x68,0x9c,0x1f,0xef,0x11,0xe8,0x84,0xf8,0x09,0x00,
     0x8b,0x4e,0x70,0x6a,0x03,0x68,0xa0,0x1f,0xef,0x11,0xe8,0x75,0xf8,0x09,0x00};
 
@@ -132,6 +152,8 @@ inline BuildFiltersFn OriginalBuildFilters = nullptr;
 inline FilterFn OriginalFilterLoad = nullptr;
 using ShowFn = void(__thiscall*)(void*);
 inline ShowFn OriginalMatchShow = nullptr;
+using SetCellShownFn = void(__thiscall*)(void*,int,int,int);
+inline SetCellShownFn OriginalSetCellShown = nullptr;
 inline bool Verified = false;
 inline const char* Error = "notInstalled";
 // The settings list while its Refresh runs on the game thread.
@@ -180,6 +202,10 @@ inline void __fastcall ShowMatchList(void* menu, void*) {
     // Hidden the way Show hides the menu's other unused elements.
     unsigned char* const button = *reinterpret_cast<unsigned char**>(static_cast<unsigned char*>(menu)+SortButtonOffset);
     if (button) button[ElementFlags] &= 0xfe;
+}
+inline void __fastcall ShowCell(void* list, void*, int row, int column, int shown) {
+    if (_ReturnAddress() == At(PunkBusterCellReturn)) shown = 0;
+    OriginalSetCellShown(list,row,column,shown);
 }
 inline void __fastcall RefreshSettings(void* menu, void*) {
     void* const list = *reinterpret_cast<void**>(static_cast<unsigned char*>(menu)+ListOffset);
@@ -240,21 +266,26 @@ inline bool CodeReady(unsigned char* base) {
            !memcmp(At(MatchBindStore),MatchBindStoreCode,sizeof(MatchBindStoreCode)) &&
            !memcmp(At(SortClick),SortClickCode,sizeof(SortClickCode)) &&
            SortButtonReady() &&
+           !memcmp(At(SetCellShown),SetCellShownCode,sizeof(SetCellShownCode)) &&
+           !memcmp(At(PunkBusterCell),PunkBusterCellCode,sizeof(PunkBusterCellCode)) &&
+           !memcmp(At(PunkBusterCellShow),PunkBusterCellShowCode,sizeof(PunkBusterCellShowCode)) &&
+           !memcmp(At(PunkBusterSort),PunkBusterSortCode,sizeof(PunkBusterSortCode)) &&
            !memcmp(At(RowCall),RowCallCode,sizeof(RowCallCode));
 }
 
 inline bool Install(unsigned char* base) {
     if (!CodeReady(base)) { Error = "codeMismatch"; return false; }
     void* const targets[HookCount] = {At(AddRow),At(Refresh),At(SetRowText),At(SetRowEnabled),At(ClientOn),
-        At(FilterLoad),At(BuildFilters),At(MatchShow)};
+        At(FilterLoad),At(BuildFilters),At(MatchShow),At(SetCellShown)};
     void* const detours[HookCount] = {reinterpret_cast<void*>(SkipPunkBusterRows),reinterpret_cast<void*>(RefreshSettings),
         reinterpret_cast<void*>(SetText),reinterpret_cast<void*>(SetEnabled),reinterpret_cast<void*>(KeepClientOff),
         reinterpret_cast<void*>(LoadPunkBusterFilter),reinterpret_cast<void*>(BuildShownFilters),
-        reinterpret_cast<void*>(ShowMatchList)};
+        reinterpret_cast<void*>(ShowMatchList),reinterpret_cast<void*>(ShowCell)};
     void** const originals[HookCount] = {reinterpret_cast<void**>(&OriginalAddRow),reinterpret_cast<void**>(&OriginalRefresh),
         reinterpret_cast<void**>(&OriginalSetRowText),reinterpret_cast<void**>(&OriginalSetRowEnabled),
         reinterpret_cast<void**>(&OriginalClientOn),reinterpret_cast<void**>(&OriginalFilterLoad),
-        reinterpret_cast<void**>(&OriginalBuildFilters),reinterpret_cast<void**>(&OriginalMatchShow)};
+        reinterpret_cast<void**>(&OriginalBuildFilters),reinterpret_cast<void**>(&OriginalMatchShow),
+        reinterpret_cast<void**>(&OriginalSetCellShown)};
     unsigned created = 0;
     for (; created < HookCount; ++created) {
         if (MH_CreateHook(targets[created],detours[created],originals[created]) != MH_OK) break;
@@ -265,7 +296,7 @@ inline bool Install(unsigned char* base) {
     }
     // Refresh and the list calls first, so an open menu never sees a
     // four-row list filled by six-row positions.
-    const unsigned order[HookCount] = {4,5,6,7,1,2,3,0};
+    const unsigned order[HookCount] = {4,5,6,7,8,1,2,3,0};
     for (unsigned i = 0; i < HookCount; ++i) {
         if (MH_EnableHook(targets[order[i]]) != MH_OK) {
             for (unsigned j = 0; j < HookCount; ++j) { MH_DisableHook(targets[j]); MH_RemoveHook(targets[j]); }
