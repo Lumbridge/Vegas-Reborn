@@ -63,8 +63,19 @@ Use **Sync now** on the **Account** page to sync without starting the game.
 
 **Settings** has **Minimise while playing**, **Discord activity** and
 **Check for updates at startup**. Discord activity is optional and separate
-from signing in with your Discord account. Discord join invites are not
-available.
+from signing in with your Discord account. While it is on, your Discord status
+shows a **Get Vegas Reborn** button that opens the launcher's download page.
+Discord join invites are not available.
+
+## Maps Pack
+
+The Rainbow Six Vegas page has a **Maps Pack** section. **Download Maps Pack**
+downloads Ubisoft's official Maps Pack (about 727 MB), verifies it and adds it
+to the launcher's game copy. The installed game is not changed. With the pack
+installed, story missions can also be played as Terrorist Hunt, Deathmatch,
+Team Deathmatch and Attack & Defend for up to 16 players. Everyone in a match
+needs the pack. **Remove** takes it out again. Dedicated servers use
+`VegasServer.exe maps-pack install`; see [docs/HOSTING.md](docs/HOSTING.md).
 
 ## Hosting
 

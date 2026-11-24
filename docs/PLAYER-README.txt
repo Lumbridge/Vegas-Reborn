@@ -24,7 +24,14 @@ pages. Switching pages preserves the selected window size and position.
 
 Borderless is the default display mode and fills the selected monitor without keeping the game always on
 top. Display settings apply on the next game launch. Discord desktop activity
-sharing is optional; retail Discord join invites are not available yet.
+sharing is optional. While it is on, your Discord status shows a Get Vegas
+Reborn button that opens the launcher's download page. Retail Discord join
+invites are not available yet.
+Download Maps Pack in the Maps Pack section of the Rainbow Six Vegas page adds
+Ubisoft's official Maps Pack (about 727 MB) to the companion's game copy and
+lets story missions be played as Terrorist Hunt, Deathmatch, Team Deathmatch
+and Attack & Defend for up to 16 players. Everyone in a match needs the pack.
+Remove takes it out again.
 Skip intro movies is enabled by default on each game's page to bypass the startup logo and splash
 sequence and continue to the menu without its intro-length waits.
 Existing saved preferences are respected. Turning it off restores the original setting
