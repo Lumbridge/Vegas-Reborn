@@ -23,6 +23,7 @@ public static class TitleCatalog
     public const string SixteenPlayers = "sixteen-players";
     public const string LargeAddressAware = "large-address-aware";
     public const string FireSoundLoop = "fire-sound-loop";
+    public const string Controller = "controller";
 
     public static GameTitle Vegas1 { get; } = new()
     {
@@ -83,6 +84,10 @@ public static class TitleCatalog
             new(RankedAccess, "Ranked match option",
                 "Restore the Ranked choice in online menus.",
                 "Reconnects the original Ranked option and filter to the menus. Matchmaking messages are unchanged.",
+                FixSection.GameFixes, FixKind.AlwaysOn),
+            new(Controller, "Controller support",
+                "Use current Xbox controllers and Steam Input controllers.",
+                "The original game uses its XInput controller support only for the wired Xbox 360 controller's device ID. This identifies every XInput controller as that controller and uses the first connected one.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             new(OcclusionQueries, "Lobby travel hang",
                 "Avoid a freeze when moving between lobby and match.",
@@ -164,6 +169,11 @@ public static class TitleCatalog
             new(FullXp, "Full match XP",
                 "Earn full XP online whatever the player count or team balance.",
                 "Online, the original game cuts XP when there are few players or the teams are uneven, down to 1%, and shows the cut as XP MODIFIER in the lobby. This keeps both factors at 100%.",
+                FixSection.GameFixes, FixKind.AlwaysOn),
+            // Same Joysticks.ini table as Vegas 1; the adapter reports gamepadVerified.
+            new(Controller, "Controller support",
+                "Use current Xbox controllers and Steam Input controllers.",
+                "The original game uses its XInput controller support only for the wired Xbox 360 controller's device ID. This identifies every XInput controller as that controller and uses the first connected one.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             // Same engine switch and section as Vegas 1 (PCKellerEngine.ini, DefaultEngine.ini;
             // read by the client as DisableOcclusion).

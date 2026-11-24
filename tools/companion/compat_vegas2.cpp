@@ -3,7 +3,8 @@
 // configured realm and, once Steam has unpacked the client, installs the
 // grounded game hooks: fixed-rate head and face animation, Discord sign-in,
 // the claimed player name, one-player multiplayer matches, full online XP and
-// the startup intro sequence, and the Windowed and Borderless display modes.
+// the startup intro sequence, the Windowed and Borderless display modes, and
+// controller identification and slot order.
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -27,6 +28,7 @@
 #include "native_xp_modifier_vegas2.h"
 #include "native_skip_intros_vegas2.h"
 #include "native_display_vegas2.h"
+#include "native_gamepad.h"
 
 static bool RedirectedHost(const char* name){
     // Static: RainbowSixVegas2_SADS.exe bootstrap host (file offset 0x1664f10)
@@ -164,6 +166,7 @@ static void WriteStatus(bool ready,unsigned gameHooks){
         "\"soloMatchVerified\":%s,\"soloMatchStatus\":\"%s\","
         "\"fullXpVerified\":%s,\"fullXpStatus\":\"%s\","
         "\"skipIntrosRequested\":%s,\"skipIntrosVerified\":%s,\"skipIntrosStatus\":\"%s\","
+        "\"gamepadVerified\":%s,\"gamepadStatus\":\"%s\","
         "\"windowedRequested\":%s,\"borderlessRequested\":%s,\"displayViewportVerified\":%s,\"displayStyleVerified\":%s,\"displayStatus\":\"%s\"}\n",
         ready?"true":"false",gameHooks,
         NativeProceduralAnimationVegas2::Verified?"true":"false",NativeProceduralAnimationVegas2::Error,
@@ -172,6 +175,7 @@ static void WriteStatus(bool ready,unsigned gameHooks){
         NativeSoloMatchVegas2::Verified?"true":"false",NativeSoloMatchVegas2::Error,
         NativeXpModifierVegas2::Verified?"true":"false",NativeXpModifierVegas2::Error,
         NativeSkipIntrosVegas2::Requested?"true":"false",NativeSkipIntrosVegas2::Verified?"true":"false",NativeSkipIntrosVegas2::Error,
+        NativeGamepad::Verified?"true":"false",NativeGamepad::Error,
         NativeDisplayVegas2::Windowed?"true":"false",NativeDisplayVegas2::Borderless?"true":"false",
         NativeDisplayVegas2::ViewportArmed?"true":"false",NativeDisplayVegas2::StyleVerified?"true":"false",NativeDisplayVegas2::Error);
     fclose(status);
@@ -251,6 +255,8 @@ extern "C" DWORD WINAPI StartCompanion(LPVOID configuration){
 #undef HOOK
     // A failed display setup is reported with the game hooks, as for the others.
     NativeDisplayVegas2::Arm(Output);
+    // A controller setup failure keeps the original input and does not stop the launch.
+    NativeGamepad::Arm();
     if(!ready||MH_EnableHook(MH_ALL_HOOKS)!=MH_OK){MH_Uninitialize();WriteStatus(false,0);return 0;}
     Trace("adapter ready; route %s:%u",RouteAddress.c_str(),RouteTcpPort);
     HANDLE thread=CreateThread(nullptr,0,NativeInitialize,nullptr,0,nullptr);
