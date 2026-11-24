@@ -68,6 +68,8 @@ Implementation: `tools/companion/native_punkbuster_vegas2.h`.
   join prompt for PunkBuster servers checks it.
 - The adapter passes 0 from that one call, so the cell stays hidden. The
   column's space in the list stays empty; the other columns do not move.
+- The match details list (`0x114c4220`) has no PunkBuster entry: the flag's
+  only callers are the row fill, the sort and the join prompt.
 
 The adapter reports `punkBusterRemovedVerified`; the launcher requires it.
 

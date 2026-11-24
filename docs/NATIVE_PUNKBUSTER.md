@@ -3,7 +3,8 @@
 PunkBuster's service no longer exists. The Vegas 1 adapter hides the
 "ENABLE PUNKBUSTER SERVER" checkbox in Create Match and the PunkBuster client
 checkbox in the match browser and Quick Match, removes the PunkBuster match
-filter and the match list's PunkBuster column, and keeps PunkBuster off.
+filter, the match list's PunkBuster column and the PunkBuster entry in match
+details, and keeps PunkBuster off.
 Implementation: `tools/companion/native_punkbuster.h`. Vegas 2 is covered
 separately in `NATIVE_PUNKBUSTER_VEGAS2.md`.
 
@@ -66,10 +67,14 @@ separately in `NATIVE_PUNKBUSTER_VEGAS2.md`.
   column's space stays; the other columns do not move. The list's column
   headers have no PunkBuster label in code or `R6Menus.int`.
 
-### Left as is
+### Match details
 
-- The PunkBuster row in a match's details shows what a server reports; it is
-  not a setting.
+- The details refresh (0xac020) fills the details list at menu +0x54: three
+  rows, each with a label/value pair in columns 0-1 and another in 2-3.
+- The third row's columns 0 and 1 get `[ServerOptions] PunkBusterLabel` and
+  Yes or No (0xac42c), through the list's set-cell-text routine 0xcf2e40.
+- The adapter passes the game's empty string from those two calls, so that
+  pair is blank. The third row's other pair is unchanged.
 - Vegas 1 has no PunkBuster sort button: its match browser's `B_Link03` to
   `B_Link07` switch list tabs (0xa8980-0xa8ab6), and `R6Menus.int` has no
   `PunkBusterSortBtn` key.

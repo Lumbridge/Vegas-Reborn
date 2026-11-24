@@ -83,8 +83,8 @@ public static class TitleCatalog
                 FixSection.GameFixes, FixKind.AlwaysOn),
             // The adapter reports punkBusterRemovedVerified (Create Match CB_PBServer).
             new(PunkBusterRemoved, "PunkBuster settings removed",
-                "Remove the PunkBuster options, match filter and match list column and keep PunkBuster off.",
-                "PunkBuster's online service no longer exists. This hides the Enable PunkBuster Server checkbox in Create Match (as the game already does in one of its own match screens), the PunkBuster client checkbox in the match browser and Quick Match, the PunkBuster match filter, and the PunkBuster icons in the match list. It stops the game from starting PunkBuster, turns the client off if it was on, and sets the filter to Any.",
+                "Remove the PunkBuster options, match filter, match list column and match details entry and keep PunkBuster off.",
+                "PunkBuster's online service no longer exists. This hides the Enable PunkBuster Server checkbox in Create Match (as the game already does in one of its own match screens), the PunkBuster client checkbox in the match browser and Quick Match, the PunkBuster match filter, the PunkBuster icons in the match list, and the PunkBuster entry in match details. It stops the game from starting PunkBuster, turns the client off if it was on, and sets the filter to Any.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             new(ReportXp, "Match XP report",
                 "Show the XP earned at the end of a match.",

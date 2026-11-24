@@ -60,6 +60,15 @@
 //   PunkBuster, or to none (0xa880a), with the list's set-cell-image routine
 //   0xcf2540 (thiscall list, row, column, image; ret 0xc).
 // The adapter passes no image from that call, so the column stays empty.
+//
+// Details: the PunkBuster entry in the selected match's details.
+// - The details refresh (0xac020) fills the details list at menu +0x54: three
+//   rows, each with a label/value pair in columns 0-1 and another in 2-3. The
+//   third row's columns 0 and 1 get [ServerOptions] PunkBusterLabel and Yes
+//   or No (0xac42c), through the list's set-cell-text routine 0xcf2e40
+//   (thiscall list, row, column, text; ret 0xc), returning to 0xac470 and
+//   0xac499.
+// The adapter passes the game's empty string from those two calls instead.
 #include <windows.h>
 #include <intrin.h>
 #include <cstdint>
@@ -134,8 +143,17 @@ static constexpr BYTE PunkBusterCellCode[]{0x83,0x79,0x18,0x00,0x8b,0xce,0x74,0x
 // The init's loop over the required columns, ending after I_PunkBuster.
 static constexpr BYTE ColumnCheckCode[]{0xbe,0x14,0x75,0x2e,0x12,0x90,0x8b,0x16,0x8b,0x4d,0x00,0x52,0xe8,0x95,0xa3,0xc4,0x00,
     0x85,0xc0,0x0f,0x8c,0x9d,0x00,0x00,0x00,0x83,0xc6,0x04,0x81,0xfe,0x38,0x75,0x2e,0x12,0x7c,0xe2};
+static constexpr unsigned CellTextRva=0xcf2e40,DetailsRva=0xac42c,DetailsLabelReturnRva=0xac470,DetailsValueReturnRva=0xac499;
+static constexpr unsigned DetailsLabelNameRva=0x19e75b8,EmptyTextRva=0x15a09a0;
+static constexpr BYTE CellTextCode[]{0x6a,0xff,0x68,0x38,0xa9,0xe0,0x11,0x64,0xa1,0x00,0x00,0x00,0x00,0x50,0x64,0x89};
+// Load [ServerOptions] PunkBusterLabel, set column 0; set the Yes/No text in column 1.
+static constexpr BYTE DetailsCode[]{0xa1,0x48,0x75,0x2e,0x12,0x8b,0x0d,0xb8,0x75,0x2e,0x12,0x8b,0x15,0xb4,0x75,0x2e,0x12,
+    0x6a,0x00,0x6a,0x00,0x50,0x51,0x52,0x8d,0x44,0x24,0x40,0x50,0xe8,0xf2,0x61,0x44,0x00,0x83,0xc4,0x18,0x83,0x78,0x04,0x00,
+    0xc6,0x44,0x24,0x40,0x0d,0x74,0x04,0x8b,0x00,0xeb,0x05,0xb8,0xa0,0x09,0xea,0x11,0x50,0x6a,0x00,0x55,0x8b,0xce,
+    0xe8,0xd0,0x69,0xc4,0x00,0x8d,0x4c,0x24,0x2c,0xc6,0x44,0x24,0x40,0x0b,0xe8,0xa2,0x6c,0xf5,0xff,0x83,0x7c,0x24,0x18,0x00,
+    0x8b,0x44,0x24,0x14,0x75,0x05,0xb8,0xa0,0x09,0xea,0x11,0x50,0x6a,0x01,0x55,0x8b,0xce,0xe8,0xa7,0x69,0xc4,0x00};
 
-static constexpr unsigned HookCount=SetupCount+1+ClientMenuCount+1+2+1;
+static constexpr unsigned HookCount=SetupCount+1+ClientMenuCount+1+2+1+1;
 
 static BYTE* Image=nullptr;
 static bool Verified=false;
@@ -155,6 +173,8 @@ static FilterInitFn OriginalFilterInit=nullptr;
 static FilterFn OriginalFilterLoad=nullptr;
 using CellImageFn=void(__thiscall*)(void*,int,int,void*);
 static CellImageFn OriginalCellImage=nullptr;
+using CellTextFn=void(__thiscall*)(void*,int,int,const wchar_t*);
+static CellTextFn OriginalCellText=nullptr;
 
 static const char* LastError(){
     switch(Error){case 0:return "none";case 1:return "nativeSignatureMismatch";
@@ -208,6 +228,12 @@ static void __fastcall SetCellImage(void* list,void*,int row,int column,void* im
     if(_ReturnAddress()==Image+PunkBusterCellReturnRva)image=nullptr;
     OriginalCellImage(list,row,column,image);
 }
+static void __fastcall SetCellText(void* list,void*,int row,int column,const wchar_t* text){
+    void* const caller=_ReturnAddress();
+    if(caller==Image+DetailsLabelReturnRva||caller==Image+DetailsValueReturnRva)
+        text=reinterpret_cast<const wchar_t*>(Image+EmptyTextRva);
+    OriginalCellText(list,row,column,text);
+}
 
 static bool NameIs(BYTE* base,unsigned rva,const char* name){
     if(!Readable(base+rva,4))return false;
@@ -239,6 +265,12 @@ static bool Matches(BYTE* base){
        memcmp(base+PunkBusterCellRva,PunkBusterCellCode,sizeof(PunkBusterCellCode))||
        memcmp(base+ColumnCheckRva,ColumnCheckCode,sizeof(ColumnCheckCode))||
        !NameIs(base,PunkBusterColumnNameRva,"I_PunkBuster")||!NameIs(base,PunkBusterImageNameRva,"ic_PunkBuster"))return false;
+    static constexpr wchar_t DetailsLabel[]=L"PunkBusterLabel";
+    if(memcmp(base+CellTextRva,CellTextCode,sizeof(CellTextCode))||memcmp(base+DetailsRva,DetailsCode,sizeof(DetailsCode))||
+       !Readable(base+EmptyTextRva,2)||*reinterpret_cast<const wchar_t*>(base+EmptyTextRva)!=0||
+       !Readable(base+DetailsLabelNameRva,4))return false;
+    const wchar_t* const detailsLabel=*reinterpret_cast<const wchar_t* const*>(base+DetailsLabelNameRva);
+    if(!Readable(detailsLabel,sizeof(DetailsLabel))||memcmp(detailsLabel,DetailsLabel,sizeof(DetailsLabel)))return false;
     static constexpr BYTE QueryCommand[]{0x6a,0x71},OnCommand[]{0x6a,0x75},OffCommand[]{0x6a,0x76};
     return !memcmp(base+ClientQueryRva,ClientQueryCode,sizeof(ClientQueryCode))&&
         !memcmp(base+ClientOnRva,ClientToggleCode,sizeof(ClientToggleCode))&&
@@ -252,23 +284,25 @@ static bool Install(BYTE* base){
     if(!Matches(base)){Error=1;return false;}
     void* const targets[HookCount]{base+SetupRvas[0],base+SetupRvas[1],base+SetupRvas[2],base+StartRva,
         base+ClientShowRvas[0],base+ClientShowRvas[1],base+ClientOnRva,base+FilterLoadRva,base+FilterInitRva,
-        base+CellImageRva};
+        base+CellImageRva,base+CellTextRva};
     void* const detours[HookCount]{reinterpret_cast<void*>(&Setup<0>),reinterpret_cast<void*>(&Setup<1>),
         reinterpret_cast<void*>(&Setup<2>),reinterpret_cast<void*>(&KeepServerOff),
         reinterpret_cast<void*>(&ShowClientMenu<0>),reinterpret_cast<void*>(&ShowClientMenu<1>),
         reinterpret_cast<void*>(&KeepClientOff),reinterpret_cast<void*>(&LoadPunkBusterFilter),
-        reinterpret_cast<void*>(&InitFilters),reinterpret_cast<void*>(&SetCellImage)};
+        reinterpret_cast<void*>(&InitFilters),reinterpret_cast<void*>(&SetCellImage),
+        reinterpret_cast<void*>(&SetCellText)};
     void** const originals[HookCount]{reinterpret_cast<void**>(&OriginalSetups[0]),reinterpret_cast<void**>(&OriginalSetups[1]),
         reinterpret_cast<void**>(&OriginalSetups[2]),reinterpret_cast<void**>(&OriginalStart),
         reinterpret_cast<void**>(&OriginalClientShows[0]),reinterpret_cast<void**>(&OriginalClientShows[1]),
         reinterpret_cast<void**>(&OriginalClientOn),reinterpret_cast<void**>(&OriginalFilterLoad),
-        reinterpret_cast<void**>(&OriginalFilterInit),reinterpret_cast<void**>(&OriginalCellImage)};
+        reinterpret_cast<void**>(&OriginalFilterInit),reinterpret_cast<void**>(&OriginalCellImage),
+        reinterpret_cast<void**>(&OriginalCellText)};
     unsigned created=0;
     for(;created<HookCount;++created)if(MH_CreateHook(targets[created],detours[created],originals[created])!=MH_OK)break;
     if(created<HookCount){while(created)MH_RemoveHook(targets[--created]);Error=2;return false;}
     // The on routine first, so a menu shown meanwhile cannot turn the client
     // on; the filter load before init, so shown filters are never filtering.
-    static constexpr unsigned Order[HookCount]{6,3,0,1,2,4,5,7,8,9};
+    static constexpr unsigned Order[HookCount]{6,3,0,1,2,4,5,7,8,9,10};
     for(unsigned i=0;i<HookCount;++i){
         if(MH_EnableHook(targets[Order[i]])!=MH_OK){
             for(unsigned j=0;j<HookCount;++j){MH_DisableHook(targets[j]);MH_RemoveHook(targets[j]);}
