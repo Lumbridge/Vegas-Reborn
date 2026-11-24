@@ -4,6 +4,7 @@ using System.Text.Json;
 using VegasReborn.Core.Content;
 using VegasReborn.Core.Launch;
 using VegasReborn.Core.Tests.Launch;
+using VegasReborn.Core.Titles;
 using Xunit;
 
 namespace VegasReborn.Core.Tests.Content;
@@ -157,7 +158,7 @@ public sealed class MapsPackLinkTests : IDisposable
     public void DamagedStoreRefusesToLink()
     {
         MapsPackFixture.Install(_paths, MapsPackFixture.Default());
-        File.WriteAllText(Store(MapsPackFixture.Map), "map date");
+        File.WriteAllText(Store(MapsPackFixture.Map), "map data!");
 
         var error = Assert.Throws<LaunchException>(() => MapsPackLink.Apply(_paths, _copy));
 
@@ -222,5 +223,58 @@ public sealed class MapsPackLinkTests : IDisposable
             tree[Path.GetRelativePath(root, file)] = Convert.ToHexString(File.ReadAllBytes(file));
         }
         return tree;
+    }
+}
+
+/// <summary>The Vegas 1 branch of GamePreparer.PrepareAsync (the full prepare needs the retail executable).</summary>
+public sealed class GamePreparerMapsPackTests : IDisposable
+{
+    private const string Story = "KellerGame/Content/CookedPc/Maps/02_Casino/02_Casino_06.ini";
+    private const string StoryText = "[GameMode0]\r\nm_eGameMode=GAMEMODE_STORY\r\nm_iMaxPlayers=4\r\nm_iMissionOrderId=2\r\n";
+
+    private readonly TestDirectory _dir = new();
+    private readonly AppPaths _paths;
+    private readonly string _source;
+    private readonly string _copy;
+
+    public GamePreparerMapsPackTests()
+    {
+        _paths = new AppPaths(Path.Combine(_dir.Path, "install"));
+        _source = Path.Combine(_dir.Path, "source");
+        _copy = Path.Combine(_dir.Path, "game");
+        _dir.File("source/" + Story, StoryText);
+        _dir.File("game/" + Story, StoryText);
+    }
+
+    public void Dispose() => _dir.Dispose();
+
+    [Fact]
+    public void PackExtendsStoryMissionsUntilItIsRemoved()
+    {
+        MapsPackFixture.Install(_paths, MapsPackFixture.Default());
+
+        GamePreparer.ApplyMissionContent(_paths, TitleCatalog.Vegas1, _copy, _source);
+
+        Assert.Contains("m_eGameMode=GAMEMODE_DEATHMATCH", File.ReadAllText(Path.Combine(_copy, Story)));
+        Assert.True(MapsPackLink.SameFile(Path.Combine(_copy, MapsPackFixture.Map),
+            Path.Combine(_paths.MapsPack, "files", MapsPackFixture.Map)));
+
+        MapsPackFixture.Remove(_paths);
+        GamePreparer.ApplyMissionContent(_paths, TitleCatalog.Vegas1, _copy, _source);
+
+        Assert.Equal(MissionPlayerLimits.Raise(StoryText) ?? StoryText, File.ReadAllText(Path.Combine(_copy, Story)));
+        Assert.False(File.Exists(Path.Combine(_copy, MapsPackFixture.Map)));
+        Assert.False(File.Exists(Path.Combine(_copy, MapsPackLink.LinkedList)));
+    }
+
+    [Fact]
+    public void Vegas2CopiesNeverGetThePack()
+    {
+        MapsPackFixture.Install(_paths, MapsPackFixture.Default());
+
+        GamePreparer.ApplyMissionContent(_paths, TitleCatalog.Vegas2, _copy, _source);
+
+        Assert.False(File.Exists(Path.Combine(_copy, MapsPackFixture.Map)));
+        Assert.Equal(StoryText, File.ReadAllText(Path.Combine(_copy, Story)));
     }
 }

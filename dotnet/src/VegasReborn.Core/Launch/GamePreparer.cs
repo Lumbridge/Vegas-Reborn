@@ -71,12 +71,7 @@ internal static partial class GamePreparer
         {
             throw new LaunchException("The launcher's game copy failed its integrity check");
         }
-        var pack = title.Key == TitleCatalog.Vegas1.Key
-            && await Task.Run(() => MapsPackLink.Apply(paths, destination), cancellationToken).ConfigureAwait(false);
-        if (title.Fix(TitleCatalog.SixteenPlayers) is not null)
-        {
-            await Task.Run(() => MissionPlayerLimits.Apply(destination, source, extendModes: pack), cancellationToken).ConfigureAwait(false);
-        }
+        await Task.Run(() => ApplyMissionContent(paths, title, destination, source), cancellationToken).ConfigureAwait(false);
         foreach (var (relative, expected) in profile.PinnedFiles)
         {
             if (PrivateFile.Sha256(Path.Combine(destination, relative)) != expected)
@@ -95,6 +90,19 @@ internal static partial class GamePreparer
             }
         }
         return destination;
+    }
+
+    /// <summary>
+    /// Vegas 1: links or unlinks the Maps Pack. Then, with the 16-player fix, rebuilds the mission
+    /// inis from the originals, adding the story-mission versus modes only while the pack is installed.
+    /// </summary>
+    internal static void ApplyMissionContent(AppPaths paths, GameTitle title, string destination, string source)
+    {
+        var pack = title.Key == TitleCatalog.Vegas1.Key && MapsPackLink.Apply(paths, destination);
+        if (title.Fix(TitleCatalog.SixteenPlayers) is not null)
+        {
+            MissionPlayerLimits.Apply(destination, source, extendModes: pack);
+        }
     }
 
     private static bool Ignored(string name)

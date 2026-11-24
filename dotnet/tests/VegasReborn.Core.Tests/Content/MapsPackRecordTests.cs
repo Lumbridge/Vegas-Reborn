@@ -87,6 +87,36 @@ public sealed class MapsPackRecordTests : IDisposable
     }
 
     [Fact]
+    public void QuickCheckFindsAMissingFile()
+    {
+        var (_, file) = Install();
+        File.Delete(file);
+        Assert.Equal(MapsPackState.Damaged, MapsPackRecord.CheckQuick(Paths, out _));
+    }
+
+    [Fact]
+    public void QuickCheckFindsAChangedSize()
+    {
+        var (_, file) = Install();
+        File.WriteAllBytes(file, Encoding.UTF8.GetBytes("map data!"));
+        Assert.Equal(MapsPackState.Damaged, MapsPackRecord.CheckQuick(Paths, out _));
+    }
+
+    [Fact]
+    public void QuickCheckDoesNotHashContents()
+    {
+        var (_, file) = Install();
+        File.WriteAllBytes(file, Encoding.UTF8.GetBytes("map date"));
+        Assert.Equal(MapsPackState.Installed, MapsPackRecord.CheckQuick(Paths, out var record));
+        Assert.NotNull(record);
+        Assert.Equal(MapsPackState.Damaged, MapsPackRecord.Check(Paths, out _));
+    }
+
+    [Fact]
+    public void QuickCheckWithoutARecordIsNotInstalled() =>
+        Assert.Equal(MapsPackState.NotInstalled, MapsPackRecord.CheckQuick(Paths, out _));
+
+    [Fact]
     public void NoRecordIsNotInstalled()
     {
         var file = Path.Combine(Paths.MapsPack, "files", GamePath);

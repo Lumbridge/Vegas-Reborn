@@ -24,7 +24,8 @@ internal static class MapsPackLink
     /// <exception cref="LaunchException">The store no longer matches its record.</exception>
     public static bool Apply(AppPaths paths, string copy)
     {
-        var state = MapsPackRecord.Check(paths, out var record);
+        // Every launch: sizes only. The full hash check is too slow to run per prepare.
+        var state = MapsPackRecord.CheckQuick(paths, out var record);
         if (state == MapsPackState.Damaged)
         {
             throw new LaunchException("The Maps Pack is damaged. Download it again or remove it.");
@@ -90,7 +91,7 @@ internal static class MapsPackLink
     /// <summary>
     /// Whether the copy already has the recorded file. Hashing the whole pack on every
     /// launch is too slow, so the size is checked first, then a hard link to the store file
-    /// (which <see cref="MapsPackRecord.Check"/> just verified), then an unchanged last-write
+    /// (the same data, whatever it holds), then an unchanged last-write
     /// time (File.Copy keeps it). Only a same-size file with neither is hashed.
     /// </summary>
     private static bool Current(string target, string origin, ContentFile file)

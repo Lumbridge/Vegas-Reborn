@@ -302,7 +302,10 @@ public sealed class DedicatedHost
     public static void RequestStop(AppPaths paths, GameTitle title) =>
         PrivateFile.WriteText(Path.Combine(Root(paths, title), StopFileName), "stop\n");
 
-    /// <summary>Links the installed Maps Pack into the server copy and adds the story-mission versus modes.</summary>
+    /// <summary>
+    /// Links the installed Maps Pack into the server copy and adds the story-mission versus modes;
+    /// without the pack, unlinks it and restores those story missions to the originals.
+    /// </summary>
     private void LinkMapsPack(string game, string source)
     {
         try
@@ -310,6 +313,10 @@ public sealed class DedicatedHost
             if (MapsPackLink.Apply(_paths, game))
             {
                 MissionPlayerLimits.Apply(game, source, extendModes: true);
+            }
+            else
+            {
+                MissionPlayerLimits.RestoreStoryModes(game, source);
             }
         }
         catch (LaunchException error)

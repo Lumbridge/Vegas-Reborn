@@ -39,7 +39,15 @@ public sealed record MapsPackRecord(int Version, IReadOnlyList<ContentFile> File
     /// Not installed without a record; damaged when any recorded file is missing or its
     /// size or SHA-256 differs.
     /// </summary>
-    public static MapsPackState Check(AppPaths paths, out MapsPackRecord? record)
+    public static MapsPackState Check(AppPaths paths, out MapsPackRecord? record) => Check(paths, out record, verifyHashes: true);
+
+    /// <summary>
+    /// The per-launch check: not installed without a record; damaged when any recorded file is
+    /// missing or its size differs. File contents are not hashed.
+    /// </summary>
+    public static MapsPackState CheckQuick(AppPaths paths, out MapsPackRecord? record) => Check(paths, out record, verifyHashes: false);
+
+    private static MapsPackState Check(AppPaths paths, out MapsPackRecord? record, bool verifyHashes)
     {
         record = Read(Path.Combine(paths.MapsPack, "record.json"));
         if (record is null)
@@ -54,7 +62,7 @@ public sealed record MapsPackRecord(int Version, IReadOnlyList<ContentFile> File
             {
                 if (!File.Exists(path)
                     || new FileInfo(path).Length != file.Bytes
-                    || !string.Equals(PrivateFile.Sha256(path), file.Sha256, StringComparison.OrdinalIgnoreCase))
+                    || (verifyHashes && !string.Equals(PrivateFile.Sha256(path), file.Sha256, StringComparison.OrdinalIgnoreCase)))
                 {
                     return MapsPackState.Damaged;
                 }

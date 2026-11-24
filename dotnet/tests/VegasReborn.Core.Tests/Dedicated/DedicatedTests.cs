@@ -239,10 +239,37 @@ public sealed class DedicatedHostTests : IDisposable
     }
 
     [Fact]
+    public async Task RemovedPackRestoresTheServerStoryMissions()
+    {
+        var originals = new Dictionary<string, string>();
+        foreach (var key in MapModeExtension.OrderIds.Keys)
+        {
+            var text = "[GameMode0]\r\nm_eGameMode=GAMEMODE_STORY\r\nm_iMaxPlayers=4\r\nm_iMissionOrderId=2\r\n; " + key + "\r\n";
+            originals[key] = text;
+            _directory.File("Rainbow Six Vegas/" + MissionPlayerLimits.MapsFolder + "/" + key, text);
+        }
+        var game = Path.Combine(_paths.Local, "dedicated/vegas1/game");
+        string Story(string key) => File.ReadAllText(Path.Combine(game, MissionPlayerLimits.MapsFolder, key));
+        MapsPackFixture.Install(_paths, MapsPackFixture.Default());
+        await Host().RunAsync(Request(null));
+        Assert.All(originals.Keys, key => Assert.Contains("GAMEMODE_DEATHMATCH", Story(key)));
+
+        MapsPackFixture.Remove(_paths);
+        await Host().RunAsync(Request(null));
+
+        Assert.Equal(18, originals.Count);
+        Assert.All(originals, pair => Assert.Equal(
+            File.ReadAllBytes(Path.Combine(_source, MissionPlayerLimits.MapsFolder, pair.Key)),
+            File.ReadAllBytes(Path.Combine(game, MissionPlayerLimits.MapsFolder, pair.Key))));
+        Assert.False(File.Exists(Path.Combine(game, MapsPackFixture.Map)));
+        Assert.False(Directory.Exists(Path.Combine(game, MapsPackLink.PackFolder)));
+    }
+
+    [Fact]
     public async Task DamagedPackStopsTheServerBeforeStarting()
     {
         MapsPackFixture.Install(_paths, MapsPackFixture.Default());
-        File.WriteAllText(Path.Combine(_paths.MapsPack, "files", MapsPackFixture.Map), "map date");
+        File.WriteAllText(Path.Combine(_paths.MapsPack, "files", MapsPackFixture.Map), "map data!");
 
         var error = await Assert.ThrowsAsync<DedicatedException>(() => Host().RunAsync(Request(null)));
 

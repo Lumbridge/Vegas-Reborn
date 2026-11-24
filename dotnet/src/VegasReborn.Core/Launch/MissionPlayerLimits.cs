@@ -49,6 +49,30 @@ internal static class MissionPlayerLimits
         }
     }
 
+    /// <summary>
+    /// Puts each story-mission ini listed in <see cref="MapModeExtension.OrderIds"/> back to the
+    /// installed original, unchanged, where the copy has it and it differs. Used by the server
+    /// copy when the Maps Pack is not installed.
+    /// </summary>
+    public static void RestoreStoryModes(string copy, string source)
+    {
+        foreach (var key in MapModeExtension.OrderIds.Keys)
+        {
+            var relative = Path.Combine(MapsFolder, key);
+            var original = Path.Combine(source, relative);
+            var target = Path.Combine(copy, relative);
+            if (!File.Exists(original) || !File.Exists(target) || !PrivateFile.IsWithin(target, copy))
+            {
+                continue;
+            }
+            var bytes = File.ReadAllBytes(original);
+            if (!File.ReadAllBytes(target).AsSpan().SequenceEqual(bytes))
+            {
+                PrivateFile.Write(target, bytes);
+            }
+        }
+    }
+
     /// <summary>The raised text, or null when the file has no game mode limits to change.</summary>
     internal static string? Raise(string text)
     {
