@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Windows.Input;
 using VegasReborn.Core.Account;
 using VegasReborn.Core.Profiles;
@@ -23,7 +24,7 @@ public sealed class AccountViewModel : ObservableObject
         SignInCommand = new RelayCommand(SignInAsync, () => !owner.IsBusy && !IsSignedIn);
         CancelSignInCommand = new RelayCommand(() => { signIn?.Cancel(); return Task.CompletedTask; }, () => IsSigningIn);
         SignOutCommand = new RelayCommand(() => { account.SignOut(); Status = ""; return Task.CompletedTask; }, () => !owner.IsBusy && IsSignedIn);
-        ClaimNameCommand = new RelayCommand(ClaimNameAsync, () => !owner.IsBusy && IsSignedIn && !string.IsNullOrWhiteSpace(NameInput));
+        ClaimNameCommand = new RelayCommand(ClaimNameAsync, () => !owner.IsBusy && CanClaimName && !string.IsNullOrWhiteSpace(NameInput));
         SyncCommand = new RelayCommand(SyncAsync, () => !owner.IsBusy && IsSignedIn && SyncAvailable);
         KeepCloudCommand = new RelayCommand(() => ResolveAsync(ConflictChoice.KeepCloud), () => !owner.IsBusy && HasConflict);
         KeepLocalCommand = new RelayCommand(() => ResolveAsync(ConflictChoice.KeepLocal), () => !owner.IsBusy && HasConflict);
@@ -43,10 +44,13 @@ public sealed class AccountViewModel : ObservableObject
     public string PlayerName => account.Session?.PlayerName ?? "";
     public string DiscordName => account.Session is { } session ? "Discord: " + session.DisplayName : "";
     public bool NeedsNameClaim => account.Session?.NeedsNameClaim == true;
-    public bool CanClaimName => account.Session is { NameClaimsEnabled: true } session && !session.RenameOnCooldown;
+    public bool ShowNameSection => account.Session?.NameClaimsEnabled == true;
+    public bool CanClaimName => ShowNameSection && account.Session?.NextNameChange(DateTimeOffset.UtcNow) is null;
     public string NameHelp => NeedsNameClaim
         ? AccountMessages.ChooseName
-        : "Shown in game and in sessions. Names can change every 30 days.";
+        : account.Session?.NextNameChange(DateTimeOffset.UtcNow) is { } next
+            ? AccountMessages.NextNameChange(next, TimeZoneInfo.Local, CultureInfo.CurrentCulture)
+            : "Shown in game and in sessions. Names can change every 30 days.";
 
     public string SyncTitle => owner.SelectedGame?.Name ?? "";
     public bool SyncAvailable => owner.SelectedGame?.Title.SaveSlots.Count > 0;
@@ -82,7 +86,7 @@ public sealed class AccountViewModel : ObservableObject
         foreach (var name in new[]
         {
             nameof(IsSignedIn), nameof(IsSigningIn), nameof(PlayerName), nameof(DiscordName), nameof(NeedsNameClaim),
-            nameof(CanClaimName), nameof(NameHelp), nameof(SyncTitle), nameof(SyncAvailable), nameof(SyncHelp),
+            nameof(ShowNameSection), nameof(CanClaimName), nameof(NameHelp), nameof(SyncTitle), nameof(SyncAvailable), nameof(SyncHelp),
             nameof(HasConflict), nameof(ConflictText),
         })
         {

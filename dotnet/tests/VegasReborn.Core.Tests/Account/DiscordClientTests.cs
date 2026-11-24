@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using VegasReborn.Core.Account;
@@ -210,6 +211,24 @@ public sealed class DiscordClientTests : IDisposable
         Assert.Equal("https://vegas.example.invalid/link/ABCD12", opened);
         Assert.Equal([AccountMessages.ApproveInBrowser], messages);
         Assert.Equal(Session, session);
+    }
+
+    [Fact]
+    public void NextNameChangeReportsCooldownEndInLocalTime()
+    {
+        var renamed = Session with { ClaimedName = "Test_Name", NameClaimsEnabled = true, NameChangeAllowed = "2026-12-16T09:30:00+00:00" };
+        var before = DateTimeOffset.Parse("2026-12-01T00:00:00Z", CultureInfo.InvariantCulture);
+        var after = DateTimeOffset.Parse("2026-12-17T00:00:00Z", CultureInfo.InvariantCulture);
+
+        Assert.Equal(DateTimeOffset.Parse("2026-12-16T09:30:00Z", CultureInfo.InvariantCulture), renamed.NextNameChange(before));
+        Assert.Null(renamed.NextNameChange(after));
+        Assert.Null((renamed with { ClaimRequired = true }).NextNameChange(before));
+        Assert.Null((renamed with { NameChangeAllowed = "not a time" }).NextNameChange(before));
+
+        var zone = TimeZoneInfo.CreateCustomTimeZone("Test+2", TimeSpan.FromHours(2), "Test+2", "Test+2");
+        Assert.Equal(
+            "You can change your name again on Wednesday, 16 December 2026 11:30. Names can change every 30 days.",
+            AccountMessages.NextNameChange(renamed.NextNameChange(before)!.Value, zone, CultureInfo.GetCultureInfo("en-GB")));
     }
 
     [Fact]
