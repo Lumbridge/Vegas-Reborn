@@ -2,7 +2,8 @@
 
 PunkBuster's service no longer exists. The Vegas 1 adapter hides the
 "ENABLE PUNKBUSTER SERVER" checkbox in Create Match and the PunkBuster client
-checkbox in the match browser and Quick Match, and keeps PunkBuster off.
+checkbox in the match browser and Quick Match, removes the PunkBuster match
+filter, and keeps PunkBuster off.
 Implementation: `tools/companion/native_punkbuster.h`. Vegas 2 is covered
 separately in `NATIVE_PUNKBUSTER_VEGAS2.md`.
 
@@ -40,10 +41,24 @@ separately in `NATIVE_PUNKBUSTER_VEGAS2.md`.
   as the server checkbox and, as unticking it would, turns the client off if
   the query says it is on. The on routine does nothing.
 
+### Match filter
+
+- The filters manager init (0x952960, thiscall with a mode) creates eight
+  filter options; the PunkBuster option (`[ServerOptions] PunkBusterLabel`,
+  vtable 0x12093bf0) is element 6. In mode 1 it then builds the list of
+  filters shown on the page (array +0x14, count +0x18), appending element 6
+  last (0x952efd).
+- The option's value maps through 0x120935ec to -1 (Any), 0 or 1. Its own
+  load (vtable slot 14, 0x951760) reads the saved value from the profile; its
+  save (slot 13, 0x951730) writes it back. The search reads the option.
+- After init, the adapter drops the trailing PunkBuster entry from the shown
+  filters. Its load sets the value to Any and saves that with the original
+  save routine.
+
 ### Left as is
 
-- The other "PUNKBUSTER" text in Vegas 1 (`PunkBusterLabel`) is a server
-  browser match filter (Any/Yes/No), not a setting that turns PunkBuster on.
+- The PunkBuster icon in the match list and the PunkBuster row in a match's
+  details show what a server reports; they are not settings.
 
 ## Reading the client code
 

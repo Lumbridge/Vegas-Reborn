@@ -77,8 +77,8 @@ public static class TitleCatalog
                 FixSection.GameFixes, FixKind.AlwaysOn),
             // The adapter reports punkBusterRemovedVerified (Create Match CB_PBServer).
             new(PunkBusterRemoved, "PunkBuster settings removed",
-                "Remove the PunkBuster server and client options and keep PunkBuster off.",
-                "PunkBuster's online service no longer exists. This hides the Enable PunkBuster Server checkbox in Create Match, as the game already does in one of its own match screens, and the PunkBuster client checkbox in the match browser and Quick Match. It stops the game from starting PunkBuster and turns the client off if it was on.",
+                "Remove the PunkBuster options and match filter and keep PunkBuster off.",
+                "PunkBuster's online service no longer exists. This hides the Enable PunkBuster Server checkbox in Create Match (as the game already does in one of its own match screens), the PunkBuster client checkbox in the match browser and Quick Match, and the PunkBuster match filter. It stops the game from starting PunkBuster, turns the client off if it was on, and sets the filter to Any.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             new(ReportXp, "Match XP report",
                 "Show the XP earned at the end of a match.",
@@ -183,8 +183,8 @@ public static class TitleCatalog
                 FixSection.GameFixes, FixKind.AlwaysOn),
             // The adapter reports punkBusterRemovedVerified (settings menu row 2).
             new(PunkBusterRemoved, "PunkBuster settings removed",
-                "Remove the PunkBuster server and client options and keep PunkBuster off.",
-                "PunkBuster's online service no longer exists. This removes the Enable PunkBuster Server and Enable PunkBuster Client rows from the settings menu, runs the game's own routines to turn them off each time the menu opens, and stops the game from turning the client on.",
+                "Remove the PunkBuster options and match filter and keep PunkBuster off.",
+                "PunkBuster's online service no longer exists. This removes the Enable PunkBuster Server and Enable PunkBuster Client rows from the settings menu, runs the game's own routines to turn them off each time the menu opens, and stops the game from turning the client on. It also hides the PunkBuster match filter and sets it to Any.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             // Same Joysticks.ini table as Vegas 1; the adapter reports gamepadVerified.
             new(Controller, "Controller support",

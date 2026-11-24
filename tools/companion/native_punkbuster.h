@@ -37,6 +37,20 @@
 // as the server checkbox and, as unticking it would, turns the client off if
 // the query says it is on. The on routine does nothing, so the menus save
 // m_bPunkBusterCl=False.
+//
+// Filter: the PUNKBUSTER match filter (Any/Yes/No).
+// - The filters manager (R6MatchFiltersManager) init 0x952960 (thiscall,
+//   mode) creates eight options in its array at +8; the PunkBuster option
+//   (vtable 0x12093bf0, constructor 0x951670 at 0x952b8c) is element 6. In
+//   mode 1 it then appends the filters shown on the page to the array at
+//   +0x14 (count +0x18); element 6 is appended last (0x952efd).
+// - The option's value +8 maps through 0x120935ec to -1 (Any), 0 or 1. Its
+//   own load (vtable slot 14, 0x951760) reads the saved value from the
+//   profile ([+0x38]+0x50); its save (slot 13, 0x951730) writes it back. The
+//   search reads the value from the option.
+// After init, the adapter drops the trailing PunkBuster entry from the shown
+// filters. Its load sets the value to Any and saves that with the original
+// save routine instead of reading the saved value.
 #include <windows.h>
 #include <cstdint>
 #include <cstring>
@@ -84,7 +98,22 @@ static constexpr BYTE ClientToggleCode[]{0xa1,0x10,0x9f,0x5a,0x12,0x85,0xc0,0x74
 // push 0x71/0x75/0x76: the PunkBuster command each client routine sends.
 static constexpr unsigned ClientCommandOffset=0x43,ClientQueryCommandOffset=0x47;
 
-static constexpr unsigned HookCount=SetupCount+1+ClientMenuCount+1;
+static constexpr unsigned FilterInitRva=0x952960,FilterLoadRva=0x951760,FilterSaveRva=0x951730;
+static constexpr unsigned FilterVtableRva=0x1793bf0,FilterSaveSlot=13,FilterLoadSlot=14;
+static constexpr BYTE FilterInitCode[]{0x6a,0xff,0x64,0xa1,0x00,0x00,0x00,0x00,0x68,0x78,0xaa,0xde,0x11,0x50};
+static constexpr BYTE FilterLoadCode[]{0x56,0x8b,0xf1,0x8b,0x4e,0x04,0x85,0xc9,0x74,0x21,0xe8,0xd1,0x09,0x00,0x00};
+static constexpr BYTE FilterSaveCode[]{0x56,0x8b,0xf1,0x8b,0x4e,0x04,0x85,0xc9,0x74,0x1a,0xe8,0x01,0x0a,0x00,0x00};
+// mov eax,[eax+0x38] / mov ecx,[esi+8] / mov [eax+0x50],ecx: the saved value.
+static constexpr unsigned FilterSaveStoreRva=0x95174b;
+static constexpr BYTE FilterSaveStore[]{0x8b,0x40,0x38,0x8b,0x4e,0x08,0x89,0x48,0x50};
+// call constructor (element 6); mov [esi],vtable; the last append reads element 6 (+0x18).
+static constexpr unsigned FilterCreateRva=0x952b8c,FilterVtableStoreRva=0x95169d,FilterLastAppendRva=0x952efd;
+static constexpr BYTE FilterCreate[]{0xe8,0xdf,0xea,0xff,0xff};
+static constexpr BYTE FilterVtableStore[]{0xc7,0x06,0xf0,0x3b,0x09,0x12};
+static constexpr BYTE FilterLastAppend[]{0x8b,0x6e,0x18,0x8b,0x3f,0x8d,0x4d,0x01,0x83,0xc7,0x18};
+static constexpr unsigned FilterShownMode=1,FilterShownList=0x14,FilterShownCount=0x18,FilterValue=8;
+
+static constexpr unsigned HookCount=SetupCount+1+ClientMenuCount+1+2;
 
 static BYTE* Image=nullptr;
 static bool Verified=false;
@@ -98,6 +127,10 @@ static SetupFn OriginalSetups[SetupCount]{};
 static StartFn OriginalStart=nullptr;
 static ClientShowFn OriginalClientShows[ClientMenuCount]{};
 static ClientFn OriginalClientOn=nullptr;
+using FilterInitFn=void(__thiscall*)(void*,int);
+using FilterFn=void(__thiscall*)(void*);
+static FilterInitFn OriginalFilterInit=nullptr;
+static FilterFn OriginalFilterLoad=nullptr;
 
 static const char* LastError(){
     switch(Error){case 0:return "none";case 1:return "nativeSignatureMismatch";
@@ -131,6 +164,22 @@ template<unsigned Index> static void __fastcall ShowClientMenu(void* menu,void*,
     if(reinterpret_cast<ClientFn>(Image+ClientQueryRva)())reinterpret_cast<ClientFn>(Image+ClientOffRva)();
 }
 static int __cdecl KeepClientOff(){return 0;}
+static void __fastcall InitFilters(void* manager,void*,int mode){
+    OriginalFilterInit(manager,mode);
+    if(mode!=int(FilterShownMode))return;
+    BYTE* const fields=static_cast<BYTE*>(manager);
+    if(!Readable(fields+FilterShownList,8))return;
+    void** const shown=*reinterpret_cast<void***>(fields+FilterShownList);
+    int& count=*reinterpret_cast<int*>(fields+FilterShownCount);
+    if(count<=0||!Readable(shown+count-1,4))return;
+    void* const last=shown[count-1];
+    if(Readable(last,4)&&*static_cast<void**>(last)==Image+FilterVtableRva)--count;
+}
+static void __fastcall LoadPunkBusterFilter(void* option,void*){
+    // Any, saved back with the original save in place of the saved value.
+    *reinterpret_cast<int*>(static_cast<BYTE*>(option)+FilterValue)=0;
+    reinterpret_cast<FilterFn>(Image+FilterSaveRva)(option);
+}
 
 static bool NameIs(BYTE* base,unsigned rva,const char* name){
     if(!Readable(base+rva,4))return false;
@@ -148,6 +197,16 @@ static bool Matches(BYTE* base){
            memcmp(base+ClientBindEndRvas[i],ClientBindEnds[i],sizeof(ClientBindEnds[i]))||
            !NameIs(base,ClientNameRvas[i],ClientNames[i]))return false;
     }
+    if(memcmp(base+FilterInitRva,FilterInitCode,sizeof(FilterInitCode))||
+       memcmp(base+FilterLoadRva,FilterLoadCode,sizeof(FilterLoadCode))||
+       memcmp(base+FilterSaveRva,FilterSaveCode,sizeof(FilterSaveCode))||
+       memcmp(base+FilterSaveStoreRva,FilterSaveStore,sizeof(FilterSaveStore))||
+       memcmp(base+FilterCreateRva,FilterCreate,sizeof(FilterCreate))||
+       memcmp(base+FilterVtableStoreRva,FilterVtableStore,sizeof(FilterVtableStore))||
+       memcmp(base+FilterLastAppendRva,FilterLastAppend,sizeof(FilterLastAppend)))return false;
+    void* const* const filterTable=reinterpret_cast<void* const*>(base+FilterVtableRva);
+    if(!Readable(filterTable,(FilterLoadSlot+1)*4)||filterTable[FilterSaveSlot]!=base+FilterSaveRva||
+       filterTable[FilterLoadSlot]!=base+FilterLoadRva)return false;
     static constexpr BYTE QueryCommand[]{0x6a,0x71},OnCommand[]{0x6a,0x75},OffCommand[]{0x6a,0x76};
     return !memcmp(base+ClientQueryRva,ClientQueryCode,sizeof(ClientQueryCode))&&
         !memcmp(base+ClientOnRva,ClientToggleCode,sizeof(ClientToggleCode))&&
@@ -160,20 +219,23 @@ static bool Install(BYTE* base){
     Image=base;
     if(!Matches(base)){Error=1;return false;}
     void* const targets[HookCount]{base+SetupRvas[0],base+SetupRvas[1],base+SetupRvas[2],base+StartRva,
-        base+ClientShowRvas[0],base+ClientShowRvas[1],base+ClientOnRva};
+        base+ClientShowRvas[0],base+ClientShowRvas[1],base+ClientOnRva,base+FilterLoadRva,base+FilterInitRva};
     void* const detours[HookCount]{reinterpret_cast<void*>(&Setup<0>),reinterpret_cast<void*>(&Setup<1>),
         reinterpret_cast<void*>(&Setup<2>),reinterpret_cast<void*>(&KeepServerOff),
         reinterpret_cast<void*>(&ShowClientMenu<0>),reinterpret_cast<void*>(&ShowClientMenu<1>),
-        reinterpret_cast<void*>(&KeepClientOff)};
+        reinterpret_cast<void*>(&KeepClientOff),reinterpret_cast<void*>(&LoadPunkBusterFilter),
+        reinterpret_cast<void*>(&InitFilters)};
     void** const originals[HookCount]{reinterpret_cast<void**>(&OriginalSetups[0]),reinterpret_cast<void**>(&OriginalSetups[1]),
         reinterpret_cast<void**>(&OriginalSetups[2]),reinterpret_cast<void**>(&OriginalStart),
         reinterpret_cast<void**>(&OriginalClientShows[0]),reinterpret_cast<void**>(&OriginalClientShows[1]),
-        reinterpret_cast<void**>(&OriginalClientOn)};
+        reinterpret_cast<void**>(&OriginalClientOn),reinterpret_cast<void**>(&OriginalFilterLoad),
+        reinterpret_cast<void**>(&OriginalFilterInit)};
     unsigned created=0;
     for(;created<HookCount;++created)if(MH_CreateHook(targets[created],detours[created],originals[created])!=MH_OK)break;
     if(created<HookCount){while(created)MH_RemoveHook(targets[--created]);Error=2;return false;}
-    // The on routine first, so a menu shown meanwhile cannot turn the client on.
-    static constexpr unsigned Order[HookCount]{6,3,0,1,2,4,5};
+    // The on routine first, so a menu shown meanwhile cannot turn the client
+    // on; the filter load before init, so shown filters are never filtering.
+    static constexpr unsigned Order[HookCount]{6,3,0,1,2,4,5,7,8};
     for(unsigned i=0;i<HookCount;++i){
         if(MH_EnableHook(targets[Order[i]])!=MH_OK){
             for(unsigned j=0;j<HookCount;++j){MH_DisableHook(targets[j]);MH_RemoveHook(targets[j]);}

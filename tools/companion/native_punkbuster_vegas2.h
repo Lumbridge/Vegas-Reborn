@@ -30,6 +30,20 @@
 // past the removed rows and their calls are dropped. Each time the menu
 // opens the original off routines run, and the client on routine does
 // nothing, so neither setting can stay on.
+//
+// The PunkBuster match filter (R6MatchFilterPunkBuster, vtable 0x11f93f8c,
+// id 0x29 from slot 1):
+// - The filters manager builds the shown filters with 0x11ab8940
+//   (thiscall, category), adding each option found by id (0x11ab7ef0) unless
+//   its +0x10 flag is set; the game sets that flag itself to hide filters that
+//   do not apply (0x11ab83ac, 0x11ab8453). The PunkBuster option is checked
+//   last (0x11ab8ba9).
+// - The option's value +8 maps through 0x11f92b8c to -1 (Any), 0 or 1. Its
+//   own load (slot 19, 0x11ac3a10) reads the saved value from the profile
+//   ([+0x34]+0x4c); its save (slot 18, 0x11ac39e0) writes it back.
+// Before each build, the adapter sets the PunkBuster option's +0x10 flag. Its
+// load sets the value to Any and saves that with the original save routine
+// instead of reading the saved value.
 #include <windows.h>
 #include <intrin.h>
 #include <cstring>
@@ -45,7 +59,7 @@ constexpr unsigned ClientOn = 0x11594960, ClientOff = 0x115949a0;
 // push 2 / push 0x11ef1f9c / call AddRow, returning to 0x114cca5c; then
 // push 3 / push 0x11ef1fa0 / call AddRow, returning to 0x114cca6b.
 constexpr unsigned RowCall = 0x114cca50, ServerRowReturn = 0x114cca5c, ClientRowReturn = 0x114cca6b;
-constexpr unsigned ListOffset = 0x70, ServerRow = 2, ClientRow = 3, HookCount = 5;
+constexpr unsigned ListOffset = 0x70, ServerRow = 2, ClientRow = 3, HookCount = 7;
 constexpr unsigned char OpenPrologue[] = {0x56,0x8b,0xf1,0x83,0x7e,0x0c,0x00,0x0f,0x84,0xf2,0x01,0x00,0x00};
 constexpr unsigned char RefreshPrologue[] = {0x64,0xa1,0,0,0,0,0x6a,0xff,0x68,0x88,0x45,0xc0,0x11,0x50};
 constexpr unsigned char AddRowPrologue[] = {0x6a,0xff,0x68,0x58,0xd1,0xc0,0x11,0x64,0xa1,0,0,0,0,0x50};
@@ -54,6 +68,22 @@ constexpr unsigned char SetRowEnabledPrologue[] = {0x53,0x55,0x8b,0x6c,0x24,0x0c
 constexpr unsigned char ServerOffCode[] = {0xe8,0x5b,0xed,0xff,0xff,0x85,0xc0,0x74,0x05,0xe8,0x12,0xee,0xff,0xff};
 constexpr unsigned char ClientOnCode[] = {0xe8,0xbb,0xe0,0xff,0xff,0x85,0xc0,0x75,0x05,0xe8,0x72,0xe1,0xff,0xff};
 constexpr unsigned char ClientOffCode[] = {0xe8,0x7b,0xe0,0xff,0xff,0x85,0xc0,0x74,0x05,0xe8,0x82,0xe1,0xff,0xff};
+constexpr unsigned BuildFilters = 0x11ab8940, FindFilter = 0x11ab7ef0, FilterBuildCheck = 0x11ab8ba9;
+constexpr unsigned FilterLoad = 0x11ac3a10, FilterSave = 0x11ac39e0, FilterSaveStore = 0x11ac39fb;
+constexpr unsigned FilterVtable = 0x11f93f8c, FilterId = 0x11ac3a50, FilterVtableStore = 0x11ac3990;
+constexpr unsigned FilterIdSlot = 1, FilterSaveSlot = 18, FilterLoadSlot = 19;
+constexpr unsigned FilterPunkBuster = 0x29, FilterHidden = 0x10, FilterValue = 8;
+constexpr unsigned char BuildFiltersCode[] = {0x53,0x55,0x56,0x57,0x8b,0xf9,0x8d,0x77,0x14,0x33,0xc0,0x39,0x46,0x08};
+constexpr unsigned char FindFilterCode[] = {0x53,0x56,0x57,0x8b,0xf9,0x33,0xf6,0x39,0x77,0x0c,0x7e,0x1d};
+// push 0x29 / find / ... / cmp byte ptr [edi+0x10],0: the build skips a hidden option.
+constexpr unsigned char FilterBuildCheckCode[] = {0x6a,0x29,0x8b,0xcf,0xe8,0x3e,0xf3,0xff,0xff,0x8b,0xf8,0x8b,0x17,0x8b,0x42,0x44,
+    0x8b,0xcf,0xff,0xd0,0x3b,0xc5,0x75,0x1c,0x80,0x7f,0x10,0x00};
+constexpr unsigned char FilterLoadCode[] = {0x56,0x8b,0xf1,0x8b,0x4e,0x04,0x85,0xc9,0x74,0x23,0xe8,0x11,0x43,0xff,0xff};
+constexpr unsigned char FilterSaveCode[] = {0x56,0x8b,0xf1,0x8b,0x4e,0x04,0x85,0xc9,0x74,0x1a,0xe8,0x41,0x43,0xff,0xff};
+// mov eax,[eax+0x34] / mov ecx,[esi+8] / mov [eax+0x4c],ecx: the saved value.
+constexpr unsigned char FilterSaveStoreCode[] = {0x8b,0x40,0x34,0x8b,0x4e,0x08,0x89,0x48,0x4c};
+constexpr unsigned char FilterIdCode[] = {0xb8,0x29,0x00,0x00,0x00,0xc3};
+constexpr unsigned char FilterVtableStoreCode[] = {0xc7,0x06,0x8c,0x3f,0xf9,0x11};
 constexpr unsigned char RowCallCode[] = {0x6a,0x02,0x68,0x9c,0x1f,0xef,0x11,0xe8,0x84,0xf8,0x09,0x00,
     0x8b,0x4e,0x70,0x6a,0x03,0x68,0xa0,0x1f,0xef,0x11,0xe8,0x75,0xf8,0x09,0x00};
 
@@ -69,6 +99,11 @@ inline RefreshFn OriginalRefresh = nullptr;
 inline SetRowTextFn OriginalSetRowText = nullptr;
 inline SetRowEnabledFn OriginalSetRowEnabled = nullptr;
 inline ToggleFn OriginalClientOn = nullptr;
+using BuildFiltersFn = void(__thiscall*)(void*,int);
+using FindFilterFn = void*(__thiscall*)(void*,int);
+using FilterFn = void(__thiscall*)(void*);
+inline BuildFiltersFn OriginalBuildFilters = nullptr;
+inline FilterFn OriginalFilterLoad = nullptr;
 inline bool Verified = false;
 inline const char* Error = "notInstalled";
 // The settings list while its Refresh runs on the game thread.
@@ -100,6 +135,18 @@ inline int __fastcall SkipPunkBusterRows(void* list, void*, const char* name, in
     return OriginalAddRow(list,name,id);
 }
 inline int __cdecl KeepClientOff() { return 0; }
+inline void __fastcall BuildShownFilters(void* manager, void*, int category) {
+    // Hidden the way the game hides filters that do not apply.
+    void* const option = reinterpret_cast<FindFilterFn>(At(FindFilter))(manager,int(FilterPunkBuster));
+    if (option && *static_cast<void**>(option) == At(FilterVtable))
+        static_cast<unsigned char*>(option)[FilterHidden] = 1;
+    OriginalBuildFilters(manager,category);
+}
+inline void __fastcall LoadPunkBusterFilter(void* option, void*) {
+    // Any, saved back with the original save in place of the saved value.
+    *reinterpret_cast<int*>(static_cast<unsigned char*>(option)+FilterValue) = 0;
+    reinterpret_cast<FilterFn>(At(FilterSave))(option);
+}
 inline void __fastcall RefreshSettings(void* menu, void*) {
     void* const list = *reinterpret_cast<void**>(static_cast<unsigned char*>(menu)+ListOffset);
     void* const previousList = ActiveList;
@@ -125,6 +172,11 @@ inline int __fastcall SetEnabled(void* list, void*, int position, int flag) {
     return OriginalSetRowEnabled(list,position,flag);
 }
 
+inline bool FilterTableReady() {
+    void* const* const table = reinterpret_cast<void* const*>(At(FilterVtable));
+    return table[FilterIdSlot] == At(FilterId) && table[FilterSaveSlot] == At(FilterSave) &&
+           table[FilterLoadSlot] == At(FilterLoad);
+}
 inline bool CodeReady(unsigned char* base) {
     Base = base;
     return !memcmp(At(Open),OpenPrologue,sizeof(OpenPrologue)) &&
@@ -135,17 +187,29 @@ inline bool CodeReady(unsigned char* base) {
            !memcmp(At(ServerOff),ServerOffCode,sizeof(ServerOffCode)) &&
            !memcmp(At(ClientOn),ClientOnCode,sizeof(ClientOnCode)) &&
            !memcmp(At(ClientOff),ClientOffCode,sizeof(ClientOffCode)) &&
+           !memcmp(At(BuildFilters),BuildFiltersCode,sizeof(BuildFiltersCode)) &&
+           !memcmp(At(FindFilter),FindFilterCode,sizeof(FindFilterCode)) &&
+           !memcmp(At(FilterBuildCheck),FilterBuildCheckCode,sizeof(FilterBuildCheckCode)) &&
+           !memcmp(At(FilterLoad),FilterLoadCode,sizeof(FilterLoadCode)) &&
+           !memcmp(At(FilterSave),FilterSaveCode,sizeof(FilterSaveCode)) &&
+           !memcmp(At(FilterSaveStore),FilterSaveStoreCode,sizeof(FilterSaveStoreCode)) &&
+           !memcmp(At(FilterId),FilterIdCode,sizeof(FilterIdCode)) &&
+           !memcmp(At(FilterVtableStore),FilterVtableStoreCode,sizeof(FilterVtableStoreCode)) &&
+           FilterTableReady() &&
            !memcmp(At(RowCall),RowCallCode,sizeof(RowCallCode));
 }
 
 inline bool Install(unsigned char* base) {
     if (!CodeReady(base)) { Error = "codeMismatch"; return false; }
-    void* const targets[HookCount] = {At(AddRow),At(Refresh),At(SetRowText),At(SetRowEnabled),At(ClientOn)};
+    void* const targets[HookCount] = {At(AddRow),At(Refresh),At(SetRowText),At(SetRowEnabled),At(ClientOn),
+        At(FilterLoad),At(BuildFilters)};
     void* const detours[HookCount] = {reinterpret_cast<void*>(SkipPunkBusterRows),reinterpret_cast<void*>(RefreshSettings),
-        reinterpret_cast<void*>(SetText),reinterpret_cast<void*>(SetEnabled),reinterpret_cast<void*>(KeepClientOff)};
+        reinterpret_cast<void*>(SetText),reinterpret_cast<void*>(SetEnabled),reinterpret_cast<void*>(KeepClientOff),
+        reinterpret_cast<void*>(LoadPunkBusterFilter),reinterpret_cast<void*>(BuildShownFilters)};
     void** const originals[HookCount] = {reinterpret_cast<void**>(&OriginalAddRow),reinterpret_cast<void**>(&OriginalRefresh),
         reinterpret_cast<void**>(&OriginalSetRowText),reinterpret_cast<void**>(&OriginalSetRowEnabled),
-        reinterpret_cast<void**>(&OriginalClientOn)};
+        reinterpret_cast<void**>(&OriginalClientOn),reinterpret_cast<void**>(&OriginalFilterLoad),
+        reinterpret_cast<void**>(&OriginalBuildFilters)};
     unsigned created = 0;
     for (; created < HookCount; ++created) {
         if (MH_CreateHook(targets[created],detours[created],originals[created]) != MH_OK) break;
@@ -156,7 +220,7 @@ inline bool Install(unsigned char* base) {
     }
     // Refresh and the list calls first, so an open menu never sees a
     // four-row list filled by six-row positions.
-    const unsigned order[HookCount] = {4,1,2,3,0};
+    const unsigned order[HookCount] = {4,5,6,1,2,3,0};
     for (unsigned i = 0; i < HookCount; ++i) {
         if (MH_EnableHook(targets[order[i]]) != MH_OK) {
             for (unsigned j = 0; j < HookCount; ++j) { MH_DisableHook(targets[j]); MH_RemoveHook(targets[j]); }

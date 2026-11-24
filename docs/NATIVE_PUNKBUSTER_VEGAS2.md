@@ -1,8 +1,8 @@
 # Vegas 2 PunkBuster settings
 
 PunkBuster's service no longer exists. The Vegas 2 adapter removes the
-"ENABLE PUNKBUSTER SERVER" and "ENABLE PUNKBUSTER CLIENT" rows and keeps
-PunkBuster off.
+"ENABLE PUNKBUSTER SERVER" and "ENABLE PUNKBUSTER CLIENT" rows and the
+PunkBuster match filter, and keeps PunkBuster off.
 Implementation: `tools/companion/native_punkbuster_vegas2.h`.
 
 ## Original evidence
@@ -32,6 +32,19 @@ Implementation: `tools/companion/native_punkbuster_vegas2.h`.
   removed rows and their text and lock calls are dropped.
 - Each time the menu opens, the original server and client off routines run.
 - The client on routine does nothing.
+
+## Match filter
+
+- `R6MatchFilterPunkBuster` (vtable `0x11f93f8c`, id `0x29`) is one of the
+  filters manager's options. The shown filters are built by `0x11ab8940`,
+  which skips an option whose `+0x10` flag is set; the game sets that flag
+  itself to hide filters that do not apply.
+- The option's value maps through `0x11f92b8c` to -1 (Any), 0 or 1. Its own
+  load (`0x11ac3a10`) reads the saved value from the profile; its save
+  (`0x11ac39e0`) writes it back.
+- Before each build the adapter sets the PunkBuster option's `+0x10` flag.
+  Its load sets the value to Any and saves that with the original save
+  routine.
 - The adapter reports `punkBusterRemovedVerified`; the launcher requires it.
 
 ## Reading the client code
