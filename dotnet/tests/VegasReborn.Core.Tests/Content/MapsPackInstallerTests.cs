@@ -106,6 +106,7 @@ public sealed class MapsPackInstallerTests : IDisposable
         Assert.All(reports, r => Assert.Equal(total, r.TotalBytes));
         Assert.Equal(total, reports[^1].Bytes);
         Assert.Equal(reports.Select(r => r.Bytes).Order(), reports.Select(r => r.Bytes));
+        Assert.True(reports.Count >= 8);
     }
 
     [Fact]
@@ -272,6 +273,16 @@ public sealed class MapsPackInstallerTests : IDisposable
     }
 
     [Fact]
+    public async Task OrphanedFilesWithoutRecordAreReplaced()
+    {
+        Publish(1, Archive("a.zip", KitchenPath, "kitchen"));
+        _dir.File("local/content/vegas1-maps-pack/files/orphan.dds", "orphan");
+        await Installer.InstallAsync(null, CancellationToken.None);
+        Assert.Equal(MapsPackState.Installed, MapsPackRecord.Check(Paths, out _));
+        Assert.False(File.Exists(Path.Combine(Paths.MapsPack, "files", "orphan.dds")));
+    }
+
+    [Fact]
     public async Task StaleStagingIsDeletedBeforeInstall()
     {
         Publish(1, Archive("a.zip", KitchenPath, "kitchen"));
@@ -342,7 +353,10 @@ public sealed class MapsPackInstallerTests : IDisposable
             {
                 stream.Write(data);
             }
-            progress?.Report(data.Length);
+            for (var step = 1; step <= 4; step++)
+            {
+                progress?.Report(data.Length * step / 4);
+            }
             return Task.FromResult((long)data.Length);
         }
     }

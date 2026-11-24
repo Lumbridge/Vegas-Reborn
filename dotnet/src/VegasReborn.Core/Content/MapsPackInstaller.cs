@@ -72,7 +72,7 @@ public sealed class MapsPackInstaller(AppPaths paths, IReleaseDownloader downloa
             {
                 var destination = Path.Combine(StagingPath, archive.Name);
                 var baseline = done;
-                var reporter = progress is null ? null : new Progress<long>(bytes =>
+                var reporter = progress is null ? null : new DirectProgress(bytes =>
                     progress.Report(new MapsPackProgress(baseline + bytes, total)));
                 await DownloadArchiveAsync(archive, destination, reporter, ct).ConfigureAwait(false);
                 done += archive.Bytes;
@@ -95,12 +95,10 @@ public sealed class MapsPackInstaller(AppPaths paths, IReleaseDownloader downloa
             new MapsPackRecord(release.Version, release.Files).Write(RecordPath);
             DeleteDirectory(StagingPath);
         }
-        catch (Exception error) when (error is not (OperationCanceledException or ContentException))
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException or UpdateException)
         {
             CleanUpAfterFailure();
-            throw error is IOException or UnauthorizedAccessException or InvalidDataException or UpdateException
-                ? Fail("a file could not be written or read.")
-                : error;
+            throw Fail("a file could not be written or read.");
         }
         catch
         {
@@ -238,5 +236,11 @@ public sealed class MapsPackInstaller(AppPaths paths, IReleaseDownloader downloa
         {
             Directory.Delete(path, recursive: true);
         }
+    }
+
+    /// <summary>Reports on the caller's thread, in order, before the download call returns.</summary>
+    private sealed class DirectProgress(Action<long> report) : IProgress<long>
+    {
+        public void Report(long value) => report(value);
     }
 }
