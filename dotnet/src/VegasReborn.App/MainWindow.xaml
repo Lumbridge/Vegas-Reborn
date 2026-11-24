@@ -165,8 +165,8 @@
                                                            Text="Players need the Maps Pack to join matches that use these maps." />
                                             </StackPanel>
                                         </Border>
-                                        <StackPanel ToolTipService.ShowOnDisabled="True" ToolTip="{Binding DisabledReason}">
-                                            <Button Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" Content="{Binding DownloadText}" Command="{Binding DownloadCommand}"
+                                        <StackPanel>
+                                            <Button Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" Content="{Binding DownloadText}" Command="{Binding DownloadCommand}" ToolTipService.ShowOnDisabled="True" ToolTip="{Binding DisabledReason}"
                                                     Visibility="{Binding ShowDownload, Converter={StaticResource Visible}}" />
                                             <StackPanel Visibility="{Binding IsDownloading, Converter={StaticResource Visible}}">
                                                 <ProgressBar Maximum="100" Height="8" Margin="0,0,0,8" Background="{StaticResource Line}" Value="{Binding Percent, Mode=OneWay}"
@@ -177,20 +177,20 @@
                                                 </DockPanel>
                                             </StackPanel>
                                             <DockPanel Visibility="{Binding ShowInstalled, Converter={StaticResource Visible}}">
-                                                <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Content="Remove" Margin="12,0,0,0" Command="{Binding RemoveCommand}" />
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Content="Remove" Margin="12,0,0,0" Command="{Binding RemoveCommand}" ToolTipService.ShowOnDisabled="True" ToolTip="{Binding DisabledReason}" />
                                                 <TextBlock Text="Installed" VerticalAlignment="Center" />
                                             </DockPanel>
                                             <DockPanel Visibility="{Binding ShowUpdate, Converter={StaticResource Visible}}">
                                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="12,0,0,0">
-                                                    <Button Style="{StaticResource SecondaryButton}" Content="Update" Command="{Binding UpdateCommand}" />
-                                                    <Button Style="{StaticResource SecondaryButton}" Content="Remove" Margin="8,0,0,0" Command="{Binding RemoveCommand}" />
+                                                    <Button Style="{StaticResource SecondaryButton}" Content="Update" Command="{Binding UpdateCommand}" ToolTipService.ShowOnDisabled="True" ToolTip="{Binding DisabledReason}" />
+                                                    <Button Style="{StaticResource SecondaryButton}" Content="Remove" Margin="8,0,0,0" Command="{Binding RemoveCommand}" ToolTipService.ShowOnDisabled="True" ToolTip="{Binding DisabledReason}" />
                                                 </StackPanel>
                                                 <TextBlock Text="A newer Maps Pack is available" VerticalAlignment="Center" TextWrapping="Wrap" />
                                             </DockPanel>
                                             <DockPanel Visibility="{Binding ShowDamaged, Converter={StaticResource Visible}}">
                                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="12,0,0,0">
-                                                    <Button Style="{StaticResource SecondaryButton}" Content="Download again" Command="{Binding DownloadCommand}" />
-                                                    <Button Style="{StaticResource SecondaryButton}" Content="Remove" Margin="8,0,0,0" Command="{Binding RemoveCommand}" />
+                                                    <Button Style="{StaticResource SecondaryButton}" Content="Download again" Command="{Binding DownloadCommand}" ToolTipService.ShowOnDisabled="True" ToolTip="{Binding DisabledReason}" />
+                                                    <Button Style="{StaticResource SecondaryButton}" Content="Remove" Margin="8,0,0,0" Command="{Binding RemoveCommand}" ToolTipService.ShowOnDisabled="True" ToolTip="{Binding DisabledReason}" />
                                                 </StackPanel>
                                                 <TextBlock Text="The Maps Pack is damaged. Download it again or remove it." VerticalAlignment="Center" TextWrapping="Wrap" />
                                             </DockPanel>

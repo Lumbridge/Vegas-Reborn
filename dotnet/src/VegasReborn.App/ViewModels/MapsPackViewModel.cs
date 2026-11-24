@@ -26,6 +26,7 @@ public sealed class MapsPackViewModel : ObservableObject
     private bool updateAvailable;
     private string sizeText = FallbackSize;
     private CancellationTokenSource? cancel;
+    private int generation;
     private bool runningCached;
     private long runningCheckedAt = long.MinValue;
 
@@ -112,7 +113,6 @@ public sealed class MapsPackViewModel : ObservableObject
     public bool ShowInstalled => !IsDownloading && State == MapsPackState.Installed && !UpdateAvailable;
     public bool ShowUpdate => !IsDownloading && State == MapsPackState.Installed && UpdateAvailable;
     public bool ShowDamaged => !IsDownloading && State == MapsPackState.Damaged;
-    public bool ShowRemove => !IsDownloading && State != MapsPackState.NotInstalled;
 
     /// <summary>The tooltip for the disabled buttons; null while the game is closed.</summary>
     public string? DisabledReason => GameRunning() ? GameRunningText : null;
@@ -123,7 +123,6 @@ public sealed class MapsPackViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowInstalled));
         OnPropertyChanged(nameof(ShowUpdate));
         OnPropertyChanged(nameof(ShowDamaged));
-        OnPropertyChanged(nameof(ShowRemove));
     }
 
     private bool GameRunning()
@@ -148,13 +147,18 @@ public sealed class MapsPackViewModel : ObservableObject
 
     private async Task CheckForUpdateAsync()
     {
+        var started = generation;
         try
         {
             using var downloader = new ReleaseDownloader(ReleaseDownloader.ContentDeadline);
             var installer = new MapsPackInstaller(paths, downloader);
             if (State == MapsPackState.Installed)
             {
-                UpdateAvailable = await installer.UpdateAvailableAsync(CancellationToken.None);
+                var available = await installer.UpdateAvailableAsync(CancellationToken.None);
+                if (started == generation)
+                {
+                    UpdateAvailable = available;
+                }
             }
             else if (State == MapsPackState.NotInstalled)
             {
@@ -163,9 +167,9 @@ public sealed class MapsPackViewModel : ObservableObject
                 OnPropertyChanged(nameof(DownloadText));
             }
         }
-        catch (ContentException)
+        catch (Exception)
         {
-            // Offline is normal; keep the fallback size and no update notice.
+            // Offline is normal; keep the fallback size and current state.
         }
     }
 
@@ -174,6 +178,7 @@ public sealed class MapsPackViewModel : ObservableObject
 
     private Task DownloadAsync() => owner.RunBusyAsync(async _ =>
     {
+        generation++;
         StatusText = "";
         Percent = 0;
         OnPropertyChanged(nameof(ProgressText));
@@ -209,20 +214,27 @@ public sealed class MapsPackViewModel : ObservableObject
         }
     });
 
-    private Task RemoveAsync() => owner.RunBusyAsync(_ =>
+    private Task RemoveAsync() => owner.RunBusyAsync(async _ =>
     {
+        generation++;
         StatusText = "";
         try
         {
-            using var downloader = new ReleaseDownloader(ReleaseDownloader.ContentDeadline);
-            new MapsPackInstaller(paths, downloader).Remove();
+            await Task.Run(() =>
+            {
+                using var downloader = new ReleaseDownloader(ReleaseDownloader.ContentDeadline);
+                new MapsPackInstaller(paths, downloader).Remove();
+            });
             UpdateAvailable = false;
         }
         catch (ContentException error)
         {
             StatusText = error.Message;
         }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            StatusText = $"The Maps Pack could not be removed: {error.Message}";
+        }
         RefreshState();
-        return Task.CompletedTask;
     });
 }
