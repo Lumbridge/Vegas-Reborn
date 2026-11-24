@@ -5,13 +5,21 @@ using VegasReborn.Core.Titles;
 namespace VegasReborn.Core.Launch;
 
 /// <summary>
-/// Terrorist Hunt weapon lists in the copy's shared team package. Every Terrorist Hunt
-/// spawn point names one R6EquipmentTemplate from this package, and each spawned terrorist
-/// draws its primary weapon from that template's m_EquipmentPrimary list, weighted by
-/// m_fPercent. The originals only list assault rifles, SMGs, LMGs, shotguns and pistols.
+/// Terrorist Hunt equipment in the copy's shared team package. Every Terrorist Hunt spawn
+/// point names one R6EquipmentTemplate from this package. The game draws each terrorist's
+/// primary weapon and pistol from the template's m_EquipmentPrimary and m_EquipmentPistol
+/// lists (a float weighted pick over m_fPercent), then rolls the template's attachment
+/// chances once per terrorist and applies them to both weapons: m_fSilencerProbability adds
+/// a suppressor where the weapon takes one, m_fLaserProbability (Vegas 2) a laser where the
+/// weapon takes one, otherwise m_fScopeProbability a random scope, otherwise no attachment.
+/// Those rolls override the per-entry attachment levels. The shipped Terrorist Hunt
+/// templates set none of the chances, so their terrorists never carry attachments.
+///
 /// This adds the campaign's sniper rifles (both games) and, in Vegas 2, the riot shield
-/// (EquipmentTemplates.Shields, as the Convention Center shield terrorists use it).
-/// The existing weights are scaled so each edited list totals exactly 100.
+/// (EquipmentTemplates.Shields, as the Convention Center shield terrorists use it), spreads
+/// each weapon category's weight evenly over every weapon the game has in that category,
+/// gives the pistol slot every pistol, and sets the attachment chances. Weights are scaled so
+/// each primary list totals exactly 100.
 /// The package is always rebuilt from the installed original, and only the pinned original
 /// is changed: names and class imports are appended, no export is added or removed, so
 /// object indexes, the package GUID and the export count stay as shipped.
@@ -22,9 +30,49 @@ internal static class TerroristHuntEnemies
 
     internal sealed record Edit(string Template, IReadOnlyList<Addition> Additions);
 
-    internal sealed record Spec(string File, string OriginalSha256, IReadOnlyList<Edit> Edits);
+    internal sealed record Chance(string Property, float Value);
+
+    /// <summary>
+    /// <paramref name="Arsenal"/> lists every weapon of a category, keyed by class-name prefix.
+    /// List entries of that category are replaced by all of them.
+    /// </summary>
+    internal sealed record Spec(string File, string OriginalSha256, IReadOnlyList<Edit> Edits,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> Arsenal, IReadOnlyList<Chance> Chances);
 
     private const string Primary = "m_EquipmentPrimary";
+    private const string Pistol = "m_EquipmentPistol";
+
+    // Weapons with attachment options in KellerGame/Config/PCKellerWeaponsConfig.ini, less the
+    // fixed mounted guns. Each one is carried by a shipped campaign equipment template or is a
+    // multiplayer loadout weapon.
+    private static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> Vegas1Arsenal =
+        new Dictionary<string, IReadOnlyList<string>>
+        {
+            ["R6Assault"] = ["R6Assault552Commando", "R6AssaultAK47", "R6AssaultAUGA3", "R6AssaultFamas", "R6AssaultG36C",
+                "R6AssaultG3KA4", "R6AssaultM8", "R6AssaultMTAR21", "R6AssaultSCARHCQC"],
+            ["R6Sub"] = ["R6SubMAC11", "R6SubMP5N", "R6SubMP7A1", "R6SubMP9", "R6SubP90", "R6SubUMP45"],
+            ["R6LMG"] = ["R6LMG21E", "R6LMGM249SPW", "R6LMGMG36", "R6LMGMK46"],
+            ["R6Shotgun"] = ["R6Shotgun870MCS", "R6ShotgunM3", "R6ShotgunSpas12", "R6ShotgunXM26LSS"],
+            ["R6Sniper"] = ["R6SniperM40A1", "R6SniperPSG1", "R6SniperSV98", "R6SniperScoutTactical"],
+            ["R6Pistol"] = ["R6Pistol92FS", "R6PistolDesertEagle", "R6PistolGlock18", "R6PistolMK23", "R6PistolRagingBull",
+                "R6PistolUSP40"],
+        };
+
+    private static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> Vegas2Arsenal =
+        new Dictionary<string, IReadOnlyList<string>>
+        {
+            ["R6Assault"] = ["R6Assault552Commando", "R6AssaultAK47", "R6AssaultAKS74U", "R6AssaultAUGA3", "R6AssaultFNC",
+                "R6AssaultFamas", "R6AssaultG36C", "R6AssaultG3KA4", "R6AssaultL85A2", "R6AssaultM468", "R6AssaultM8",
+                "R6AssaultMTAR21", "R6AssaultSCARHCQC"],
+            ["R6Sub"] = ["R6SubAUGPara", "R6SubMAC11", "R6SubMP5N", "R6SubMP7A1", "R6SubMP9", "R6SubP90", "R6SubType05JS",
+                "R6SubUMP45", "R6SubVZ83"],
+            ["R6LMG"] = ["R6LMG21E", "R6LMGM249SPW", "R6LMGMG36", "R6LMGMK46"],
+            ["R6Shotgun"] = ["R6Shotgun500Tactical", "R6Shotgun870MCS", "R6ShotgunM3", "R6ShotgunSpas12", "R6ShotgunXM26LSS"],
+            ["R6Sniper"] = ["R6SniperL96ArticWarfare", "R6SniperM40A1", "R6SniperPSG1", "R6SniperSR25SD", "R6SniperSV98",
+                "R6SniperScoutTactical"],
+            ["R6Pistol"] = ["R6Pistol92FS", "R6PistolDesertEagle", "R6PistolGlock18", "R6PistolMK23", "R6PistolP99",
+                "R6PistolRagingBull", "R6PistolUSP40"],
+        };
 
     public static Spec Vegas1 { get; } = new(
         "KellerGame/Content/CookedPc/Maps/00_MP_Common/00_MP_TH_Teams.uppc",
@@ -33,7 +81,10 @@ internal static class TerroristHuntEnemies
             // Shared by every Vegas 1 Terrorist Hunt map. Both rifles are campaign sniper
             // loadouts (RS5_EquipmentTemplates *_Sniper).
             new("Equipment.MP_TH_Equip01", [new("R6SniperSV98", 5, 1), new("R6SniperPSG1", 5, 1)]),
-        ]);
+        ],
+        Vegas1Arsenal,
+        // Vegas 1 templates have no laser chance. Campaign templates use scope chances from 0 to 1.
+        [new("m_fScopeProbability", 0.5f), new("m_fSilencerProbability", 0.35f)]);
 
     public static Spec Vegas2 { get; } = new(
         "KellerGame/CookedPC/MapsBishop/Mb00_Common/Mb00_TH_Teams.uppc",
@@ -45,7 +96,10 @@ internal static class TerroristHuntEnemies
             new("Equipment.TH_Guerrilla_01", [new("R6SniperSV98", 6, 1), new("R6Shield", 6, 0)]),
             new("Equipment.TH_Mercs_01", [new("R6SniperScoutTactical", 6, 1), new("R6Shield", 6, 0)]),
             new("Equipment.MP_TH_Equip01", [new("R6SniperM40A1", 6, 1), new("R6Shield", 6, 0)]),
-        ]);
+        ],
+        Vegas2Arsenal,
+        // On a weapon that takes a laser, a laser roll replaces the scope roll.
+        [new("m_fScopeProbability", 0.5f), new("m_fSilencerProbability", 0.35f), new("m_fLaserProbability", 0.35f)]);
 
     public static Spec? For(GameTitle title) =>
         title.Key == TitleCatalog.Vegas1.Key ? Vegas1 : title.Key == TitleCatalog.Vegas2.Key ? Vegas2 : null;
@@ -60,7 +114,7 @@ internal static class TerroristHuntEnemies
             return;
         }
         var bytes = File.ReadAllBytes(original);
-        var expected = PrivateFile.Sha256(bytes) == spec.OriginalSha256 ? Patch(bytes, spec.Edits) ?? bytes : bytes;
+        var expected = PrivateFile.Sha256(bytes) == spec.OriginalSha256 ? Patch(bytes, spec) ?? bytes : bytes;
         if (!File.ReadAllBytes(target).AsSpan().SequenceEqual(expected))
         {
             PrivateFile.Write(target, expected);
@@ -68,7 +122,7 @@ internal static class TerroristHuntEnemies
     }
 
     /// <summary>The package with every edit applied, or null when its layout is not the expected one.</summary>
-    internal static byte[]? Patch(byte[] original, IReadOnlyList<Edit> edits)
+    internal static byte[]? Patch(byte[] original, Spec spec)
     {
         try
         {
@@ -77,9 +131,11 @@ internal static class TerroristHuntEnemies
             {
                 return null;
             }
-            foreach (var edit in edits)
+            foreach (var edit in spec.Edits)
             {
-                if (!package.AddToList(edit.Template, Primary, edit.Additions))
+                if (!package.RewriteList(edit.Template, Primary, entries => Spread(Add(entries, edit.Additions), spec.Arsenal))
+                    || !package.RewriteList(edit.Template, Pistol, entries => Spread(entries, spec.Arsenal))
+                    || spec.Chances.Any(chance => !package.SetFloat(edit.Template, chance.Property, chance.Value)))
                 {
                     return null;
                 }
@@ -90,6 +146,55 @@ internal static class TerroristHuntEnemies
         {
             return null;
         }
+    }
+
+    /// <summary>One equipment list entry: an R6Game class name (or None), its weight and attachment level.</summary>
+    internal sealed record Entry(string Weapon, double Weight, byte Level);
+
+    /// <summary>Appends <paramref name="additions"/>, scaling the existing weights so the list totals 100.</summary>
+    internal static List<Entry>? Add(List<Entry> entries, IReadOnlyList<Addition> additions)
+    {
+        var total = entries.Sum(entry => entry.Weight);
+        var added = additions.Sum(addition => (double)addition.Percent);
+        if (!(total > 0) || !(added > 0) || added >= 100)
+        {
+            return null;
+        }
+        var scale = (100 - added) / total;
+        return [.. entries.Select(entry => entry with { Weight = entry.Weight * scale }),
+            .. additions.Select(addition => new Entry(addition.WeaponClass, addition.Percent, addition.AttachmentLevel))];
+    }
+
+    /// <summary>
+    /// Replaces the entries of each arsenal category with every weapon of that category,
+    /// sharing the category's total weight evenly, at the category's first attachment level.
+    /// A category takes the position of its first entry; other entries are kept as they are.
+    /// </summary>
+    internal static List<Entry>? Spread(List<Entry>? entries, IReadOnlyDictionary<string, IReadOnlyList<string>> arsenal)
+    {
+        if (entries is null)
+        {
+            return null;
+        }
+        string? Category(string weapon) => arsenal.Keys.FirstOrDefault(prefix => weapon.StartsWith(prefix, StringComparison.Ordinal));
+        var result = new List<Entry>();
+        var done = new HashSet<string>();
+        foreach (var entry in entries)
+        {
+            if (Category(entry.Weapon) is not { } category)
+            {
+                result.Add(entry);
+                continue;
+            }
+            if (!done.Add(category))
+            {
+                continue;
+            }
+            var weight = entries.Where(other => Category(other.Weapon) == category).Sum(other => other.Weight);
+            var weapons = arsenal[category];
+            result.AddRange(weapons.Select(weapon => new Entry(weapon, weight / weapons.Count, entry.Level)));
+        }
+        return result;
     }
 
     /// <summary>
@@ -344,20 +449,32 @@ internal static class TerroristHuntEnemies
             return -1;
         }
 
-        /// <summary>
-        /// Appends inventory entries to an equipment list, scaling the existing weights so the
-        /// list totals 100. False when the template or list is not present in the expected form.
-        /// </summary>
-        public bool AddToList(string template, string list, IReadOnlyList<Addition> additions)
+        /// <summary>The template's tagged properties, or null when it is not a template in the expected form.</summary>
+        private (int Export, byte[] Data, List<Tag> Tags)? Template(string template)
         {
             var export = FindExport(template);
             if (export < 0 || ObjectPath(Exports[export][0]) != "R6Game.R6EquipmentTemplate")
             {
-                return false;
+                return null;
             }
             var data = Data[export];
-            var array = Properties(data, 0, out var objectEnd).FirstOrDefault(tag => tag.Name == list && tag.Type == "ArrayProperty");
-            if (array is null || objectEnd != data.Length)
+            var tags = Properties(data, 0, out var objectEnd);
+            return objectEnd == data.Length ? (export, data, tags) : null;
+        }
+
+        /// <summary>
+        /// Replaces an equipment list with <paramref name="transform"/> of its entries. Each written
+        /// element is a copy of the first one with its inventory, weight and level replaced.
+        /// False when the template or list is not present in the expected form.
+        /// </summary>
+        public bool RewriteList(string template, string list, Func<List<Entry>, List<Entry>?> transform)
+        {
+            if (Template(template) is not var (export, data, tags))
+            {
+                return false;
+            }
+            var array = tags.FirstOrDefault(tag => tag.Name == list && tag.Type == "ArrayProperty");
+            if (array is null)
             {
                 return false;
             }
@@ -367,12 +484,12 @@ internal static class TerroristHuntEnemies
             var elements = new List<(int Start, int End, Dictionary<string, Tag> Tags)>();
             for (var i = 0; i < count; i++)
             {
-                var tags = Properties(data, p, out var end).ToDictionary(tag => tag.Name);
+                var element = Properties(data, p, out var end).ToDictionary(tag => tag.Name);
                 if (end > arrayEnd)
                 {
                     return false;
                 }
-                elements.Add((p, end, tags));
+                elements.Add((p, end, element));
                 p = end;
             }
             if (count <= 0 || p != arrayEnd || elements.Any(element =>
@@ -382,47 +499,75 @@ internal static class TerroristHuntEnemies
             {
                 return false;
             }
-            var weights = elements.Select(element => BinaryPrimitives.ReadSingleLittleEndian(data.AsSpan(element.Tags["m_fPercent"].ValueAt))).ToList();
-            var total = weights.Sum(weight => (double)weight);
-            var added = additions.Sum(addition => (double)addition.Percent);
-            if (!(total > 0) || !(added > 0) || added >= 100)
+            var entries = new List<Entry>();
+            foreach (var element in elements)
+            {
+                var weapon = ObjectPath(I(data, element.Tags["m_Inventory"].ValueAt));
+                if (weapon != "None" && !weapon.StartsWith("R6Game.", StringComparison.Ordinal))
+                {
+                    return false;
+                }
+                entries.Add(new Entry(weapon == "None" ? weapon : weapon["R6Game.".Length..],
+                    BinaryPrimitives.ReadSingleLittleEndian(data.AsSpan(element.Tags["m_fPercent"].ValueAt)),
+                    data[element.Tags["m_eAttachmentLevel"].ValueAt]));
+            }
+            var rewritten = transform(entries);
+            if (rewritten is null || rewritten.Count == 0)
             {
                 return false;
             }
-            var scale = (100 - added) / total;
             var body = new MemoryStream();
-            WriteInts(body, [count + additions.Count]);
-            for (var i = 0; i < elements.Count; i++)
+            WriteInts(body, [rewritten.Count]);
+            foreach (var entry in rewritten)
             {
-                body.Write(Element(data, elements[i], null, (float)(weights[i] * scale), null));
+                body.Write(Element(data, elements[0], entry.Weapon == "None" ? 0 : ClassImport(entry.Weapon),
+                    (float)entry.Weight, entry.Level));
             }
-            foreach (var addition in additions)
-            {
-                body.Write(Element(data, elements[0], ClassImport(addition.WeaponClass), addition.Percent, addition.AttachmentLevel));
-            }
-            var replaced = new MemoryStream();
-            replaced.Write(data, 0, array.ValueAt);
-            replaced.Write(body.ToArray());
-            replaced.Write(data, arrayEnd, data.Length - arrayEnd);
-            var result = replaced.ToArray();
+            var result = Splice(data, array.ValueAt, arrayEnd, body.ToArray());
             BinaryPrimitives.WriteInt32LittleEndian(result.AsSpan(array.SizeAt), (int)body.Length);
             Data[export] = result;
             return true;
         }
 
+        /// <summary>Sets a float property on the template, adding it before None when absent.</summary>
+        public bool SetFloat(string template, string property, float value)
+        {
+            if (Template(template) is not var (export, data, tags))
+            {
+                return false;
+            }
+            var existing = tags.FirstOrDefault(tag => tag.Name == property);
+            if (existing is not null)
+            {
+                if (existing.Type != "FloatProperty" || existing.Size != 4)
+                {
+                    return false;
+                }
+                BinaryPrimitives.WriteSingleLittleEndian(data.AsSpan(existing.ValueAt), value);
+                return true;
+            }
+            var tag = new MemoryStream();
+            WriteInts(tag, [NameIndex(property), NameIndex("FloatProperty"), 4, 0, BitConverter.SingleToInt32Bits(value)]);
+            Data[export] = Splice(data, data.Length - 4, data.Length - 4, tag.ToArray());
+            return true;
+        }
+
+        private static byte[] Splice(byte[] data, int from, int to, byte[] replacement)
+        {
+            var result = new byte[data.Length - (to - from) + replacement.Length];
+            data.AsSpan(0, from).CopyTo(result);
+            replacement.CopyTo(result, from);
+            data.AsSpan(to).CopyTo(result.AsSpan(from + replacement.Length));
+            return result;
+        }
+
         private static byte[] Element(byte[] data, (int Start, int End, Dictionary<string, Tag> Tags) element,
-            int? inventory, float percent, byte? level)
+            int inventory, float percent, byte level)
         {
             var bytes = data[element.Start..element.End];
             BinaryPrimitives.WriteSingleLittleEndian(bytes.AsSpan(element.Tags["m_fPercent"].ValueAt - element.Start), percent);
-            if (inventory is { } reference)
-            {
-                BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(element.Tags["m_Inventory"].ValueAt - element.Start), reference);
-            }
-            if (level is { } attachment)
-            {
-                bytes[element.Tags["m_eAttachmentLevel"].ValueAt - element.Start] = attachment;
-            }
+            BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(element.Tags["m_Inventory"].ValueAt - element.Start), inventory);
+            bytes[element.Tags["m_eAttachmentLevel"].ValueAt - element.Start] = level;
             return bytes;
         }
 
