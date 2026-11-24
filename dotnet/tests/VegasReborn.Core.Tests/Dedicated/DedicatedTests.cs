@@ -278,6 +278,22 @@ public sealed class DedicatedHostTests : IDisposable
     }
 
     [Fact]
+    public async Task MapsPackFileErrorIsReportedNotThrownRaw()
+    {
+        MapsPackFixture.Install(_paths, MapsPackFixture.Default());
+        await Host().RunAsync(Request(null));
+        // A reinstall gives the store new files, so the next start must relink the copy's file.
+        MapsPackFixture.Install(_paths, MapsPackFixture.Default());
+        var held = Path.Combine(_paths.Local, "dedicated/vegas1/game", MapsPackFixture.Map);
+
+        using (new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            var error = await Assert.ThrowsAsync<DedicatedException>(() => Host().RunAsync(Request(null)));
+            Assert.StartsWith("The Maps Pack could not be added to the server's game copy: ", error.Message);
+        }
+    }
+
+    [Fact]
     public async Task ChangedServerExecutableIsRefusedBeforeCopying()
     {
         File.WriteAllText(Path.Combine(_source, "Binaries/R6VegasServer.exe"), "patched");

@@ -323,6 +323,10 @@ public sealed class DedicatedHost
         {
             throw new DedicatedException(error.Message, error);
         }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            throw new DedicatedException($"The Maps Pack could not be added to the server's game copy: {error.Message}", error);
+        }
     }
 
     private static async Task<string> PrepareCopyAsync(IDedicatedAdapter adapter, string source, string root, IProgress<string>? progress, CancellationToken cancellationToken)
