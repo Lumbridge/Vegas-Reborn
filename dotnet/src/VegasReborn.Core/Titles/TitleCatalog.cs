@@ -189,8 +189,8 @@ public static class TitleCatalog
                 FixSection.GameFixes, FixKind.AlwaysOn),
             // The adapter reports punkBusterRemovedVerified (settings menu row 2).
             new(PunkBusterRemoved, "PunkBuster settings removed",
-                "Remove the PunkBuster options and match filter and keep PunkBuster off.",
-                "PunkBuster's online service no longer exists. This removes the Enable PunkBuster Server and Enable PunkBuster Client rows from the settings menu, runs the game's own routines to turn them off each time the menu opens, and stops the game from turning the client on. It also hides the PunkBuster match filter and sets it to Any.",
+                "Remove the PunkBuster options, match filter and sort button and keep PunkBuster off.",
+                "PunkBuster's online service no longer exists. This removes the Enable PunkBuster Server and Enable PunkBuster Client rows from the settings menu, runs the game's own routines to turn them off each time the menu opens, and stops the game from turning the client on. It also hides the PunkBuster match filter, sets it to Any, and hides the PunkBuster sort button in the server browser.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             // Same Joysticks.ini table as Vegas 1; the adapter reports gamepadVerified.
             new(Controller, "Controller support",

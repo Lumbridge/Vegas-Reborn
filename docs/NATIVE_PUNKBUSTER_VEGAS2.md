@@ -1,8 +1,9 @@
 # Vegas 2 PunkBuster settings
 
 PunkBuster's service no longer exists. The Vegas 2 adapter removes the
-"ENABLE PUNKBUSTER SERVER" and "ENABLE PUNKBUSTER CLIENT" rows and the
-PunkBuster match filter, and keeps PunkBuster off.
+"ENABLE PUNKBUSTER SERVER" and "ENABLE PUNKBUSTER CLIENT" rows, the
+PunkBuster match filter and the server browser's PunkBuster sort button, and
+keeps PunkBuster off.
 Implementation: `tools/companion/native_punkbuster_vegas2.h`.
 
 ## Original evidence
@@ -45,7 +46,22 @@ Implementation: `tools/companion/native_punkbuster_vegas2.h`.
 - Before each build the adapter sets the PunkBuster option's `+0x10` flag.
   Its load sets the value to Any and saves that with the original save
   routine.
-- The adapter reports `punkBusterRemovedVerified`; the launcher requires it.
+
+## Sort button
+
+- The server browser (`R6MagmaSelectMatch`, vtable `0x11ef0a5c`) labels its
+  `B_Link07` button with `R6Menus.int [Punkbuster] PunkBusterSortBtn`, read
+  through `0x121bcf0c` only by the menu's refresh. Clicking `B_Link07` sorts
+  the list by the PunkBuster filter id `0x29` (`0x114c3667`).
+- The menu's bind (slot 5, `0x114c3b90`) looks up the elements named in the
+  table at `0x121bce0c` in order; `B_Link07` (entry 16) lands at menu `+0xa0`.
+- Its show method (slot 19, `0x114c6020`) runs each time the menu is shown and
+  hides two unused elements by clearing bit 0 of element `+0x18`.
+- After the show method, the adapter hides `B_Link07` the same way. The
+  PunkBuster column in the match list shows what each server reports and is
+  left as is.
+
+The adapter reports `punkBusterRemovedVerified`; the launcher requires it.
 
 ## Reading the client code
 

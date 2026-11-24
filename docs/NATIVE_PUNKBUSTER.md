@@ -59,6 +59,9 @@ separately in `NATIVE_PUNKBUSTER_VEGAS2.md`.
 
 - The PunkBuster icon in the match list and the PunkBuster row in a match's
   details show what a server reports; they are not settings.
+- Vegas 1 has no PunkBuster sort button: its match browser's `B_Link03` to
+  `B_Link07` switch list tabs (0xa8980-0xa8ab6), and `R6Menus.int` has no
+  `PunkBusterSortBtn` key.
 
 ## Reading the client code
 

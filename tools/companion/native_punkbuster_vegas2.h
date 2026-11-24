@@ -44,6 +44,18 @@
 // Before each build, the adapter sets the PunkBuster option's +0x10 flag. Its
 // load sets the value to Any and saves that with the original save routine
 // instead of reading the saved value.
+//
+// The server browser's PunkBuster sort button (R6MagmaSelectMatch, vtable
+// 0x11ef0a5c; R6Menus.int [Punkbuster] PunkBusterSortBtn, read through
+// 0x121bcf0c only by the menu's refresh):
+// - Bind (slot 5, 0x114c3b90) looks up the elements named in the table at
+//   0x121bce0c in order; B_Link07 (0x121bce4c, entry 16) lands at menu +0xa0
+//   and its text at +0xf0, where the refresh writes PunkBusterSortBtn.
+// - The click handler (slot 23) sorts by the PunkBuster filter id 0x29 when
+//   B_Link07 is clicked (0x114c3667).
+// - Show (slot 19, 0x114c6020) runs each time the menu is shown and hides
+//   two unused elements (+0x74, +0x7c) by clearing bit 0 of element +0x18.
+// After Show, the adapter hides B_Link07 the same way.
 #include <windows.h>
 #include <intrin.h>
 #include <cstring>
@@ -59,7 +71,7 @@ constexpr unsigned ClientOn = 0x11594960, ClientOff = 0x115949a0;
 // push 2 / push 0x11ef1f9c / call AddRow, returning to 0x114cca5c; then
 // push 3 / push 0x11ef1fa0 / call AddRow, returning to 0x114cca6b.
 constexpr unsigned RowCall = 0x114cca50, ServerRowReturn = 0x114cca5c, ClientRowReturn = 0x114cca6b;
-constexpr unsigned ListOffset = 0x70, ServerRow = 2, ClientRow = 3, HookCount = 7;
+constexpr unsigned ListOffset = 0x70, ServerRow = 2, ClientRow = 3, HookCount = 8;
 constexpr unsigned char OpenPrologue[] = {0x56,0x8b,0xf1,0x83,0x7e,0x0c,0x00,0x0f,0x84,0xf2,0x01,0x00,0x00};
 constexpr unsigned char RefreshPrologue[] = {0x64,0xa1,0,0,0,0,0x6a,0xff,0x68,0x88,0x45,0xc0,0x11,0x50};
 constexpr unsigned char AddRowPrologue[] = {0x6a,0xff,0x68,0x58,0xd1,0xc0,0x11,0x64,0xa1,0,0,0,0,0x50};
@@ -84,6 +96,20 @@ constexpr unsigned char FilterSaveCode[] = {0x56,0x8b,0xf1,0x8b,0x4e,0x04,0x85,0
 constexpr unsigned char FilterSaveStoreCode[] = {0x8b,0x40,0x34,0x8b,0x4e,0x08,0x89,0x48,0x4c};
 constexpr unsigned char FilterIdCode[] = {0xb8,0x29,0x00,0x00,0x00,0xc3};
 constexpr unsigned char FilterVtableStoreCode[] = {0xc7,0x06,0x8c,0x3f,0xf9,0x11};
+constexpr unsigned MatchVtable = 0x11ef0a5c, MatchShow = 0x114c6020, MatchBind = 0x114c3b90;
+constexpr unsigned MatchBindStore = 0x114c3c18, SortClick = 0x114c3667, SortButtonName = 0x121bce4c;
+constexpr unsigned MatchBindSlot = 5, MatchShowSlot = 19, SortButtonOffset = 0xa0, ElementFlags = 0x18;
+// Ends with Show's own hiding of +0x74 and +0x7c.
+constexpr unsigned char MatchShowCode[] = {0x56,0x8b,0xf1,0x8b,0x8e,0xac,0x00,0x00,0x00,0x57,0xe8,0xd1,0x5c,0x0a,0x00,
+    0x8b,0x8e,0xb0,0x00,0x00,0x00,0xe8,0xc6,0x5c,0x0a,0x00,0x8b,0x46,0x74,0xb1,0xfe,0x20,0x48,0x18,0x8b,0x46,0x7c,0x20,0x48,0x18};
+// Bind's loop storing the named elements from menu +0x60.
+constexpr unsigned char MatchBindStoreCode[] = {0xbb,0x0c,0xce,0x1b,0x12,0x8d,0x7e,0x60,0xc7,0x07,0x00,0x00,0x00,0x00,
+    0x8b,0x0b,0x8b,0x56,0x1c,0x51,0x52,0xe8,0x9e,0x50,0x07,0x00,0x83,0xc4,0x08,0x85,0xc0,0x89,0x07,0x0f,0x84,0x9a,0x00,0x00,0x00,
+    0x83,0xc3,0x04,0x83,0xc7,0x04,0x81,0xfb,0x58,0xce,0x1b,0x12};
+// B_Link07's click: sort by id 0x29.
+constexpr unsigned char SortClickCode[] = {0x8b,0x0d,0x4c,0xce,0x1b,0x12,0x8b,0x28,0x51,0x8d,0x54,0x24,0x14,0x52,0xe8,0x96,0xc8,0x07,0x00,
+    0x83,0xc4,0x08,0x3b,0x28,0x75,0x38,0x8b,0x07,0x8b,0x50,0x08,0x8d,0x4e,0x50,0xbb,0x0b,0x00,0x00,0x00,0x39,0x9e,0x00,0x01,0x00,0x00,
+    0x51,0x8b,0xcf,0x74,0x0e,0x6a,0x01,0x6a,0x29};
 constexpr unsigned char RowCallCode[] = {0x6a,0x02,0x68,0x9c,0x1f,0xef,0x11,0xe8,0x84,0xf8,0x09,0x00,
     0x8b,0x4e,0x70,0x6a,0x03,0x68,0xa0,0x1f,0xef,0x11,0xe8,0x75,0xf8,0x09,0x00};
 
@@ -104,6 +130,8 @@ using FindFilterFn = void*(__thiscall*)(void*,int);
 using FilterFn = void(__thiscall*)(void*);
 inline BuildFiltersFn OriginalBuildFilters = nullptr;
 inline FilterFn OriginalFilterLoad = nullptr;
+using ShowFn = void(__thiscall*)(void*);
+inline ShowFn OriginalMatchShow = nullptr;
 inline bool Verified = false;
 inline const char* Error = "notInstalled";
 // The settings list while its Refresh runs on the game thread.
@@ -147,6 +175,12 @@ inline void __fastcall LoadPunkBusterFilter(void* option, void*) {
     *reinterpret_cast<int*>(static_cast<unsigned char*>(option)+FilterValue) = 0;
     reinterpret_cast<FilterFn>(At(FilterSave))(option);
 }
+inline void __fastcall ShowMatchList(void* menu, void*) {
+    OriginalMatchShow(menu);
+    // Hidden the way Show hides the menu's other unused elements.
+    unsigned char* const button = *reinterpret_cast<unsigned char**>(static_cast<unsigned char*>(menu)+SortButtonOffset);
+    if (button) button[ElementFlags] &= 0xfe;
+}
 inline void __fastcall RefreshSettings(void* menu, void*) {
     void* const list = *reinterpret_cast<void**>(static_cast<unsigned char*>(menu)+ListOffset);
     void* const previousList = ActiveList;
@@ -177,6 +211,12 @@ inline bool FilterTableReady() {
     return table[FilterIdSlot] == At(FilterId) && table[FilterSaveSlot] == At(FilterSave) &&
            table[FilterLoadSlot] == At(FilterLoad);
 }
+inline bool SortButtonReady() {
+    void* const* const table = reinterpret_cast<void* const*>(At(MatchVtable));
+    const char* const name = *reinterpret_cast<const char* const*>(At(SortButtonName));
+    return table[MatchBindSlot] == At(MatchBind) && table[MatchShowSlot] == At(MatchShow) &&
+           name && !strcmp(name,"B_Link07");
+}
 inline bool CodeReady(unsigned char* base) {
     Base = base;
     return !memcmp(At(Open),OpenPrologue,sizeof(OpenPrologue)) &&
@@ -196,20 +236,25 @@ inline bool CodeReady(unsigned char* base) {
            !memcmp(At(FilterId),FilterIdCode,sizeof(FilterIdCode)) &&
            !memcmp(At(FilterVtableStore),FilterVtableStoreCode,sizeof(FilterVtableStoreCode)) &&
            FilterTableReady() &&
+           !memcmp(At(MatchShow),MatchShowCode,sizeof(MatchShowCode)) &&
+           !memcmp(At(MatchBindStore),MatchBindStoreCode,sizeof(MatchBindStoreCode)) &&
+           !memcmp(At(SortClick),SortClickCode,sizeof(SortClickCode)) &&
+           SortButtonReady() &&
            !memcmp(At(RowCall),RowCallCode,sizeof(RowCallCode));
 }
 
 inline bool Install(unsigned char* base) {
     if (!CodeReady(base)) { Error = "codeMismatch"; return false; }
     void* const targets[HookCount] = {At(AddRow),At(Refresh),At(SetRowText),At(SetRowEnabled),At(ClientOn),
-        At(FilterLoad),At(BuildFilters)};
+        At(FilterLoad),At(BuildFilters),At(MatchShow)};
     void* const detours[HookCount] = {reinterpret_cast<void*>(SkipPunkBusterRows),reinterpret_cast<void*>(RefreshSettings),
         reinterpret_cast<void*>(SetText),reinterpret_cast<void*>(SetEnabled),reinterpret_cast<void*>(KeepClientOff),
-        reinterpret_cast<void*>(LoadPunkBusterFilter),reinterpret_cast<void*>(BuildShownFilters)};
+        reinterpret_cast<void*>(LoadPunkBusterFilter),reinterpret_cast<void*>(BuildShownFilters),
+        reinterpret_cast<void*>(ShowMatchList)};
     void** const originals[HookCount] = {reinterpret_cast<void**>(&OriginalAddRow),reinterpret_cast<void**>(&OriginalRefresh),
         reinterpret_cast<void**>(&OriginalSetRowText),reinterpret_cast<void**>(&OriginalSetRowEnabled),
         reinterpret_cast<void**>(&OriginalClientOn),reinterpret_cast<void**>(&OriginalFilterLoad),
-        reinterpret_cast<void**>(&OriginalBuildFilters)};
+        reinterpret_cast<void**>(&OriginalBuildFilters),reinterpret_cast<void**>(&OriginalMatchShow)};
     unsigned created = 0;
     for (; created < HookCount; ++created) {
         if (MH_CreateHook(targets[created],detours[created],originals[created]) != MH_OK) break;
@@ -220,7 +265,7 @@ inline bool Install(unsigned char* base) {
     }
     // Refresh and the list calls first, so an open menu never sees a
     // four-row list filled by six-row positions.
-    const unsigned order[HookCount] = {4,5,6,1,2,3,0};
+    const unsigned order[HookCount] = {4,5,6,7,1,2,3,0};
     for (unsigned i = 0; i < HookCount; ++i) {
         if (MH_EnableHook(targets[order[i]]) != MH_OK) {
             for (unsigned j = 0; j < HookCount; ++j) { MH_DisableHook(targets[j]); MH_RemoveHook(targets[j]); }
