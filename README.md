@@ -67,15 +67,15 @@ from signing in with your Discord account. While it is on, your Discord status
 shows a **Get Vegas Reborn** button that opens the launcher's download page.
 Discord join invites are not available.
 
-## Maps Pack
+## Extra Maps
 
-The Rainbow Six Vegas page has a **Maps Pack** section. **Download Maps Pack**
-downloads Ubisoft's official Maps Pack (about 727 MB), verifies it and adds it
+The Rainbow Six Vegas page has an **Extra Maps** section. **Download Extra Maps**
+downloads Ubisoft's official extra maps (about 727 MB), verifies it and adds it
 to the launcher's game copy. The installed game is not changed. With the pack
 installed, story missions can also be played as Terrorist Hunt, Deathmatch,
 Team Deathmatch and Attack & Defend for up to 16 players. The added modes have not been tested in a full online match yet.
 Everyone in a match needs the pack. **Remove** takes it out again. Dedicated servers use
-`VegasServer.exe maps-pack install`; see [docs/HOSTING.md](docs/HOSTING.md).
+`VegasServer.exe extra-maps install`; see [docs/HOSTING.md](docs/HOSTING.md).
 
 ## Hosting
 

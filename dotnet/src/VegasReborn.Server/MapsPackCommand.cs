@@ -4,13 +4,13 @@ using VegasReborn.Core.Content;
 namespace VegasReborn.Server;
 
 /// <summary>
-/// <c>VegasServer maps-pack install [--force]|remove|status</c>: manages the Vegas 1 Maps Pack in the
+/// <c>VegasServer extra-maps install [--force]|remove|status</c> (also accepted as <c>maps-pack</c>): manages Vegas 1 Extra Maps in the
 /// installation's content store. The server's game copy picks it up on its next start.
 /// </summary>
 internal static class MapsPackCommand
 {
     internal const string StopFirst = "Stop the server first.";
-    internal const string DamagedText = "The Maps Pack is damaged. Download it again or remove it.";
+    internal const string DamagedText = "Extra Maps is damaged. Download it again or remove it.";
 
     /// <param name="acquireHostLock">The Vegas 1 server's host lock for this installation, or null while a server holds it.</param>
     /// <param name="createInstaller">Only called for install and remove, after the host lock is held.</param>
@@ -43,7 +43,7 @@ internal static class MapsPackCommand
                     if (verb == "remove")
                     {
                         installer.Remove();
-                        output.WriteLine("Maps Pack removed.");
+                        output.WriteLine("Extra Maps removed.");
                         return 0;
                     }
                     if (!force && MapsPackRecord.CheckQuick(paths, out var current) == MapsPackState.Installed)
@@ -51,7 +51,7 @@ internal static class MapsPackCommand
                         var release = await installer.FetchAsync(cancellationToken).ConfigureAwait(false);
                         if (current!.Version >= release.Version)
                         {
-                            output.WriteLine($"Maps Pack already installed (version {current.Version}).");
+                            output.WriteLine($"Extra Maps already installed (version {current.Version}).");
                             return 0;
                         }
                     }
@@ -63,7 +63,7 @@ internal static class MapsPackCommand
                         if (percent != last)
                         {
                             last = percent;
-                            output.WriteLine($"Downloading the Maps Pack: {percent}%");
+                            output.WriteLine($"Downloading Extra Maps: {percent}%");
                         }
                     });
                     try
@@ -78,7 +78,7 @@ internal static class MapsPackCommand
                     return ReportInstall(paths, output, error);
                 }
             default:
-                throw new ArgumentException($"Unknown maps-pack command: {verb}", nameof(verb));
+                throw new ArgumentException($"Unknown extra-maps command: {verb}", nameof(verb));
         }
     }
 
@@ -89,13 +89,13 @@ internal static class MapsPackCommand
         switch (state)
         {
             case MapsPackState.Installed:
-                output.WriteLine($"Maps Pack {Describe(state, installed)}. It is used the next time the server starts.");
+                output.WriteLine($"Extra Maps {Describe(state, installed)}. It is used the next time the server starts.");
                 return 0;
             case MapsPackState.Damaged:
                 error.WriteLine(DamagedText);
                 return 1;
             default:
-                error.WriteLine($"Maps Pack: {Describe(state, installed)}");
+                error.WriteLine($"Extra Maps: {Describe(state, installed)}");
                 return 1;
         }
     }

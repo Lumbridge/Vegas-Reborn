@@ -52,7 +52,7 @@ internal static class MissionPlayerLimits
     /// <summary>
     /// Puts each story-mission ini listed in <see cref="MapModeExtension.OrderIds"/> back to the
     /// installed original, unchanged, where the copy has it and it differs. Used by the server
-    /// copy when the Maps Pack is not installed.
+    /// copy when Extra Maps is not installed.
     /// </summary>
     public static void RestoreStoryModes(string copy, string source)
     {

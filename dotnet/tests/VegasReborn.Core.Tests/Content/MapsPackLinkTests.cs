@@ -9,7 +9,7 @@ using Xunit;
 
 namespace VegasReborn.Core.Tests.Content;
 
-/// <summary>Writes a verified Maps Pack store (files plus record) for tests.</summary>
+/// <summary>Writes a verified Extra Maps store (files plus record) for tests.</summary>
 internal static class MapsPackFixture
 {
     public const string Map = "KellerGame/Content/CookedPc/MapsPack/PAK_01_Kitchen/PAK_01_Kitchen.usdx";
@@ -165,7 +165,7 @@ public sealed class MapsPackLinkTests : IDisposable
         Assert.Equal(MapsPackState.Damaged, MapsPackRecord.Check(_paths, out _));
         var error = Assert.Throws<LaunchException>(() => MapsPackLink.Apply(_paths, _copy));
 
-        Assert.Equal("The Maps Pack is damaged. Download it again or remove it.", error.Message);
+        Assert.Equal("Extra Maps is damaged. Download it again or remove it.", error.Message);
         Assert.Equal("game", File.ReadAllText(Copy("Binaries/R6Vegas_Game.exe")));
         Assert.False(File.Exists(Copy(MapsPackFixture.Map)));
     }
@@ -209,7 +209,7 @@ public sealed class MapsPackLinkTests : IDisposable
 
         var error = Assert.Throws<LaunchException>(() => MapsPackLink.Apply(_paths, _copy));
 
-        Assert.Equal("The Maps Pack is damaged. Download it again or remove it.", error.Message);
+        Assert.Equal("Extra Maps is damaged. Download it again or remove it.", error.Message);
         Assert.False(File.Exists(Copy(MapsPackFixture.Map)));
     }
 

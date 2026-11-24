@@ -14,7 +14,7 @@ public sealed class MapsPackInstallerTests : IDisposable
     private const string Base = "https://example.test/pack/";
     private const string KitchenPath = "KellerGame/Content/CookedPc/MapsPack/PAK_01_Kitchen/PAK_01_Kitchen.usdx";
     private const string ImagePath = "KellerGame/ImageMap/PAK_Kitchen.dds";
-    private const string FailedText = "The Maps Pack download failed. Check your connection and try again.";
+    private const string FailedText = "The Extra Maps download failed. Check your connection and try again.";
 
     private readonly TestDirectory _dir = new();
     private readonly UpdateFixture _fixture = new();
@@ -117,7 +117,7 @@ public sealed class MapsPackInstallerTests : IDisposable
         served[^1] ^= 0xFF;
         _downloader.Items[Base + "a.zip"] = served;
         var error = await Assert.ThrowsAsync<ContentException>(() => Installer.InstallAsync(null, CancellationToken.None));
-        Assert.StartsWith("The Maps Pack could not be installed:", error.Message);
+        Assert.StartsWith("Extra Maps could not be installed:", error.Message);
         AssertNothingInstalled();
     }
 
@@ -137,7 +137,7 @@ public sealed class MapsPackInstallerTests : IDisposable
         var spec = good with { Zip = Zip((KitchenPath, Bytes("kitchen")), ("KellerGame/ImageMap/PAK_Extra.dds", Bytes("x"))) };
         Publish(1, spec);
         var error = await Assert.ThrowsAsync<ContentException>(() => Installer.InstallAsync(null, CancellationToken.None));
-        Assert.StartsWith("The Maps Pack could not be installed:", error.Message);
+        Assert.StartsWith("Extra Maps could not be installed:", error.Message);
         AssertNothingInstalled();
     }
 
@@ -177,7 +177,7 @@ public sealed class MapsPackInstallerTests : IDisposable
         var spec = a with { Files = [(KitchenPath, Bytes("kitchen")), (ImagePath, Bytes("image"))] };
         Publish(1, spec);
         var error = await Assert.ThrowsAsync<ContentException>(() => Installer.InstallAsync(null, CancellationToken.None));
-        Assert.StartsWith("The Maps Pack could not be installed:", error.Message);
+        Assert.StartsWith("Extra Maps could not be installed:", error.Message);
         AssertNothingInstalled();
     }
 

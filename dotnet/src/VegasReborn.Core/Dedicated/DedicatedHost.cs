@@ -304,7 +304,7 @@ public sealed class DedicatedHost
         PrivateFile.WriteText(Path.Combine(Root(paths, title), StopFileName), "stop\n");
 
     /// <summary>
-    /// Links the installed Maps Pack into the server copy and adds the story-mission versus modes;
+    /// Links the installed Extra Maps into the server copy and adds the story-mission versus modes;
     /// without the pack, unlinks it and restores those story missions to the originals.
     /// </summary>
     private void LinkMapsPack(string game, string source)
@@ -326,7 +326,7 @@ public sealed class DedicatedHost
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            throw new DedicatedException($"The Maps Pack could not be added to the server's game copy: {error.Message}", error);
+            throw new DedicatedException($"Extra Maps could not be added to the server's game copy: {error.Message}", error);
         }
     }
 

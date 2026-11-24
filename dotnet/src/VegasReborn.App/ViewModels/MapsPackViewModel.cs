@@ -8,7 +8,7 @@ using VegasReborn.Core.Update;
 
 namespace VegasReborn.App.ViewModels;
 
-/// <summary>The Maps Pack section of the Vegas 1 page: download, progress, cancel, remove and update.</summary>
+/// <summary>The Extra Maps section of the Vegas 1 page: download, progress, cancel, remove and update.</summary>
 public sealed class MapsPackViewModel : ObservableObject
 {
     public const string FallbackSize = "727 MB";
@@ -107,7 +107,7 @@ public sealed class MapsPackViewModel : ObservableObject
     }
 
     public bool HasStatus => StatusText.Length > 0;
-    public string DownloadText => $"Download Maps Pack ({sizeText})";
+    public string DownloadText => $"Download Extra Maps ({sizeText})";
     public string ProgressText => $"Downloading… {Percent:0}%";
     public bool ShowDownload => !IsDownloading && State == MapsPackState.NotInstalled;
     public bool ShowInstalled => !IsDownloading && State == MapsPackState.Installed && !UpdateAvailable;
@@ -233,7 +233,7 @@ public sealed class MapsPackViewModel : ObservableObject
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            StatusText = $"The Maps Pack could not be removed: {error.Message}";
+            StatusText = $"Extra Maps could not be removed: {error.Message}";
         }
         RefreshState();
     });

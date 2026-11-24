@@ -8,13 +8,13 @@ namespace VegasReborn.Core.Content;
 public sealed record MapsPackProgress(long Bytes, long TotalBytes);
 
 /// <summary>
-/// Downloads the Maps Pack into the launcher-owned content store. Nothing counts as installed until
+/// Downloads Extra Maps into the launcher-owned content store. Nothing counts as installed until
 /// every archive and every extracted file matches the signed manifest; the record is written last.
 /// </summary>
 public sealed class MapsPackInstaller
 {
-    private const string DownloadFailed = "The Maps Pack download failed. Check your connection and try again.";
-    private const string InstallFailed = "The Maps Pack could not be installed: ";
+    private const string DownloadFailed = "The Extra Maps download failed. Check your connection and try again.";
+    private const string InstallFailed = "Extra Maps could not be installed: ";
     private const int SignatureBytes = 64;
     private const int BlockSize = 1024 * 1024;
 
@@ -23,7 +23,7 @@ public sealed class MapsPackInstaller
     private readonly string? publicKeyHex;
     private readonly string _baseUrl;
 
-    /// <summary>Uses the published Maps Pack location and the release signing key.</summary>
+    /// <summary>Uses the published Extra Maps location and the release signing key.</summary>
     public MapsPackInstaller(AppPaths paths, IReleaseDownloader downloader)
         : this(paths, downloader, publicKeyHex: null, baseUrl: null)
     {
@@ -142,7 +142,7 @@ public sealed class MapsPackInstaller
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            throw new ContentException("The Maps Pack could not be removed: a file is in use or cannot be deleted.");
+            throw new ContentException("Extra Maps could not be removed: a file is in use or cannot be deleted.");
         }
     }
 

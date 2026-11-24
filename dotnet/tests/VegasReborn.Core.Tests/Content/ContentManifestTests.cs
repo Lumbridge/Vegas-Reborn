@@ -7,8 +7,8 @@ namespace VegasReborn.Core.Tests.Content;
 
 public sealed class ContentManifestTests : IDisposable
 {
-    private const string Unsafe = "The Maps Pack download list is unsupported or unsafe";
-    private const string Unverified = "The Maps Pack download list could not be verified";
+    private const string Unsafe = "The Extra Maps download list is unsupported or unsafe";
+    private const string Unverified = "The Extra Maps download list could not be verified";
     private const string GoodPath = "KellerGame/Content/CookedPc/MapsPack/PAK_01_Kitchen/PAK_01_Kitchen.usdx";
 
     private readonly UpdateFixture _fixture = new();

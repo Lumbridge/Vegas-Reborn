@@ -25,8 +25,8 @@ public static class Program
           login                       Sign in with Discord for online hosting
           run [--local-test]          Run the server until Ctrl+C or 'stop'
           stop                        Ask a running server to stop
-          maps-pack install [--force] Install the Vegas 1 Maps Pack (--force reinstalls it)
-          maps-pack remove|status     Remove the Maps Pack or show its state
+          extra-maps install [--force] Install Vegas 1 Extra Maps (--force reinstalls it)
+          extra-maps remove|status    Remove Extra Maps or show its state
 
         Options:
           --game vegas1|vegas2        Which game (default vegas1)
@@ -53,7 +53,7 @@ public static class Program
                 "login" => await LoginAsync(paths).ConfigureAwait(false),
                 "run" => await RunAsync(paths, options).ConfigureAwait(false),
                 "stop" => Stop(paths, options),
-                "maps-pack" => await MapsPackAsync(paths, options).ConfigureAwait(false),
+                "extra-maps" or "maps-pack" => await MapsPackAsync(paths, options).ConfigureAwait(false),
                 _ => Fail(Usage),
             };
         }
@@ -221,15 +221,15 @@ public static class Program
             var force = false;
             string? verb = null;
             var first = 1;
-            if (args[0] == "maps-pack")
+            if (args[0] is "extra-maps" or "maps-pack")
             {
                 if (args.Length < 2 || args[1].StartsWith("--", StringComparison.Ordinal))
                 {
-                    throw new UsageException("maps-pack needs install, remove or status");
+                    throw new UsageException($"{args[0]} needs install, remove or status");
                 }
                 verb = args[1] is "install" or "remove" or "status"
                     ? args[1]
-                    : throw new UsageException($"Unknown maps-pack command: {args[1]}");
+                    : throw new UsageException($"Unknown {args[0]} command: {args[1]}");
                 first = 2;
             }
             for (var index = first; index < args.Length; index++)
@@ -258,7 +258,7 @@ public static class Program
             }
             if (verb is not null && title.Key != TitleCatalog.Vegas1.Key)
             {
-                throw new UsageException("The Maps Pack is only for Rainbow Six Vegas");
+                throw new UsageException("Extra Maps is only for Rainbow Six Vegas");
             }
             return new Options(args[0], title, folder, root, localTest, verb, force);
         }

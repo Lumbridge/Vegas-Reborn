@@ -10,7 +10,7 @@ public enum MapsPackState
     Damaged,
 }
 
-/// <summary>What the launcher installed into its Maps Pack store: every file with its size and SHA-256.</summary>
+/// <summary>What the launcher installed into its Extra Maps store: every file with its size and SHA-256.</summary>
 public sealed record MapsPackRecord(int Version, IReadOnlyList<ContentFile> Files)
 {
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };

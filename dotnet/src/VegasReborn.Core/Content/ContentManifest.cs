@@ -25,8 +25,8 @@ public static class ContentManifest
     public const long MaxUnpacked = 2L * 1024 * 1024 * 1024;
     public const int MaxFiles = 5000;
 
-    private const string Unsafe = "The Maps Pack download list is unsupported or unsafe";
-    private const string Unverified = "The Maps Pack download list could not be verified";
+    private const string Unsafe = "The Extra Maps download list is unsupported or unsafe";
+    private const string Unverified = "The Extra Maps download list could not be verified";
     private const string ContentPrefix = "KellerGame/Content/CookedPc/MapsPack/";
     private const string LocalizationPrefix = "KellerGame/Localization/";
     private const string ImagePrefix = "KellerGame/ImageMap/PAK_";

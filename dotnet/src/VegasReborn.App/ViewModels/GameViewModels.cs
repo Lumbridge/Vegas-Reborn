@@ -144,7 +144,7 @@ public sealed class GameViewModel : ObservableObject
     public bool IsExperimental => Title.Support == TitleSupport.Experimental;
     public ObservableCollection<FixSectionViewModel> Sections { get; } = [];
     public IReadOnlyList<string> DisplayModeNames { get; } = DisplayModes.All.Select(DisplayModes.Name).ToList();
-    /// <summary>The Maps Pack section; null for titles without one.</summary>
+    /// <summary>The Extra Maps section; null for titles without one.</summary>
     public MapsPackViewModel? MapsPack { get; }
     public ICommand LaunchCommand { get; }
     public ICommand BrowseCommand { get; }

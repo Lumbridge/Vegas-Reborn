@@ -1,6 +1,6 @@
 namespace VegasReborn.Core.Content;
 
-/// <summary>Where the optional Vegas 1 Maps Pack is published.</summary>
+/// <summary>Where the optional Vegas 1 Extra Maps is published.</summary>
 public static class ContentInfo
 {
     public const string Repository = "Lumbridge/R6V-content";

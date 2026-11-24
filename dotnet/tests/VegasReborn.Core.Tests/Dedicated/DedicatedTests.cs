@@ -273,7 +273,7 @@ public sealed class DedicatedHostTests : IDisposable
 
         var error = await Assert.ThrowsAsync<DedicatedException>(() => Host().RunAsync(Request(null)));
 
-        Assert.Equal("The Maps Pack is damaged. Download it again or remove it.", error.Message);
+        Assert.Equal("Extra Maps is damaged. Download it again or remove it.", error.Message);
         Assert.Null(_system.Started);
     }
 
@@ -289,7 +289,7 @@ public sealed class DedicatedHostTests : IDisposable
         using (new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.Read))
         {
             var error = await Assert.ThrowsAsync<DedicatedException>(() => Host().RunAsync(Request(null)));
-            Assert.StartsWith("The Maps Pack could not be added to the server's game copy: ", error.Message);
+            Assert.StartsWith("Extra Maps could not be added to the server's game copy: ", error.Message);
         }
     }
 

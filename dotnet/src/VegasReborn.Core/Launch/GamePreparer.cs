@@ -97,7 +97,7 @@ internal static partial class GamePreparer
     }
 
     /// <summary>
-    /// Vegas 1: links or unlinks the Maps Pack. Then, with the 16-player fix, rebuilds the mission
+    /// Vegas 1: links or unlinks Extra Maps. Then, with the 16-player fix, rebuilds the mission
     /// inis from the originals, adding the story-mission versus modes only while the pack is installed.
     /// </summary>
     internal static void ApplyMissionContent(AppPaths paths, GameTitle title, string destination, string source)

@@ -7,7 +7,7 @@ using NativeMethods = VegasReborn.Core.Update.NativeMethods;
 namespace VegasReborn.Core.Content;
 
 /// <summary>
-/// Puts the verified Maps Pack from the launcher's content store into a Vegas 1 game copy, or
+/// Puts the verified Extra Maps from the launcher's content store into a Vegas 1 game copy, or
 /// takes it out again when the pack is gone. Pack files are hard links to the store (copies when
 /// linking fails), except the pack's own mission inis, which are private copies so the
 /// 16-player raise can rewrite them. The copy's <see cref="LinkedList"/> records what was added,
@@ -28,7 +28,7 @@ internal static class MapsPackLink
         var state = MapsPackRecord.CheckQuick(paths, out var record);
         if (state == MapsPackState.Damaged)
         {
-            throw new LaunchException("The Maps Pack is damaged. Download it again or remove it.");
+            throw new LaunchException("Extra Maps is damaged. Download it again or remove it.");
         }
         var listPath = Path.Combine(copy, LinkedList);
         var previous = ReadList(listPath);
@@ -54,7 +54,7 @@ internal static class MapsPackLink
             }
             catch (UpdateException)
             {
-                throw new LaunchException("A Maps Pack file would be placed outside the game copy");
+                throw new LaunchException("An Extra Maps file would be placed outside the game copy");
             }
             var origin = Path.Combine(store, file.Path);
             if (IsPackIni(file.Path))

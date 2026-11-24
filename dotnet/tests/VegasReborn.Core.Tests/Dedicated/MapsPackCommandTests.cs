@@ -28,7 +28,7 @@ public sealed class MapsPackCommandTests : IDisposable
         }
     }
 
-    /// <summary>Publishes a signed one-archive Maps Pack at <see cref="Base"/>.</summary>
+    /// <summary>Publishes a signed one-archive Extra Maps at <see cref="Base"/>.</summary>
     private void Publish(int version, string content)
     {
         var data = Encoding.UTF8.GetBytes(content);
@@ -83,7 +83,7 @@ public sealed class MapsPackCommandTests : IDisposable
         var (code, output, _) = await InstallAsync();
 
         Assert.Equal(0, code);
-        Assert.Equal("Maps Pack already installed (version 1).", output.Trim());
+        Assert.Equal("Extra Maps already installed (version 1).", output.Trim());
         Assert.Equal(1, _server.Archives);
     }
 
@@ -125,7 +125,7 @@ public sealed class MapsPackCommandTests : IDisposable
 
         Assert.Equal(1, MapsPackCommand.ReportInstall(paths, output, error));
 
-        Assert.Equal("The Maps Pack is damaged. Download it again or remove it.", error.ToString().Trim());
+        Assert.Equal("Extra Maps is damaged. Download it again or remove it.", error.ToString().Trim());
         Assert.Equal("", output.ToString());
     }
 
@@ -144,13 +144,13 @@ public sealed class MapsPackCommandTests : IDisposable
     [Fact]
     public void ParsesForceForInstall()
     {
-        Assert.True(Program.Options.Parse(["maps-pack", "install", "--force"]).Force);
-        Assert.False(Program.Options.Parse(["maps-pack", "install"]).Force);
+        Assert.True(Program.Options.Parse(["extra-maps", "install", "--force"]).Force);
+        Assert.False(Program.Options.Parse(["extra-maps", "install"]).Force);
     }
 
     [Theory]
-    [InlineData("maps-pack remove --force")]
-    [InlineData("maps-pack status --force")]
+    [InlineData("extra-maps remove --force")]
+    [InlineData("extra-maps status --force")]
     [InlineData("run --force")]
     public void RejectsForceElsewhere(string line)
     {
@@ -164,15 +164,15 @@ public sealed class MapsPackCommandTests : IDisposable
     [InlineData("status")]
     public void ParsesEachVerb(string verb)
     {
-        var options = Program.Options.Parse(["maps-pack", verb, "--root", @"C:\VR"]);
-        Assert.Equal("maps-pack", options.Command);
+        var options = Program.Options.Parse(["extra-maps", verb, "--root", @"C:\VR"]);
+        Assert.Equal("extra-maps", options.Command);
         Assert.Equal(verb, options.Verb);
         Assert.Equal(@"C:\VR", options.Root);
     }
 
     [Theory]
-    [InlineData("maps-pack")]
-    [InlineData("maps-pack --root C:/VR")]
+    [InlineData("extra-maps")]
+    [InlineData("extra-maps --root C:/VR")]
     public void RejectsMissingVerb(string line)
     {
         var error = Assert.Throws<Program.UsageException>(() => Program.Options.Parse(line.Split(' ')));
@@ -182,21 +182,31 @@ public sealed class MapsPackCommandTests : IDisposable
     [Fact]
     public void RejectsUnknownVerb()
     {
-        var error = Assert.Throws<Program.UsageException>(() => Program.Options.Parse(["maps-pack", "update"]));
+        var error = Assert.Throws<Program.UsageException>(() => Program.Options.Parse(["extra-maps", "update"]));
         Assert.Contains("update", error.Message);
     }
 
     [Fact]
     public void RejectsVegas2()
     {
-        var error = Assert.Throws<Program.UsageException>(() => Program.Options.Parse(["maps-pack", "install", "--game", "vegas2"]));
-        Assert.Equal("The Maps Pack is only for Rainbow Six Vegas", error.Message);
+        var error = Assert.Throws<Program.UsageException>(() => Program.Options.Parse(["extra-maps", "install", "--game", "vegas2"]));
+        Assert.Equal("Extra Maps is only for Rainbow Six Vegas", error.Message);
+    }
+
+    [Fact]
+    public void AcceptsMapsPackAlias()
+    {
+        var options = Program.Options.Parse(["maps-pack", "status"]);
+        Assert.Equal("maps-pack", options.Command);
+        Assert.Equal("status", options.Verb);
+        var error = Assert.Throws<Program.UsageException>(() => Program.Options.Parse(["maps-pack", "update"]));
+        Assert.Equal("Unknown maps-pack command: update", error.Message);
     }
 
     [Fact]
     public void AcceptsExplicitVegas1()
     {
-        Assert.Equal("install", Program.Options.Parse(["maps-pack", "install", "--game", "vegas1"]).Verb);
+        Assert.Equal("install", Program.Options.Parse(["extra-maps", "install", "--game", "vegas1"]).Verb);
     }
 
     [Fact]

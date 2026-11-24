@@ -45,19 +45,20 @@ including the server's log, to `local\dedicated\vegas1\runs\<id>`.
 `run --local-test` starts a server bound to 127.0.0.3 without signing in. Use it
 to check the setup on one PC.
 
-## Maps Pack
+## Extra Maps
 
 ```powershell
-.\runtime-0.5.3\VegasServer.exe maps-pack install
-.\runtime-0.5.3\VegasServer.exe maps-pack status
-.\runtime-0.5.3\VegasServer.exe maps-pack remove
+.\runtime-0.5.3\VegasServer.exe extra-maps install
+.\runtime-0.5.3\VegasServer.exe extra-maps status
+.\runtime-0.5.3\VegasServer.exe extra-maps remove
 ```
 
-`install` downloads Ubisoft's official Maps Pack (about 727 MB), verifies it
+`install` downloads Ubisoft's official extra maps (about 727 MB), verifies it
 and adds it to the server's game copy on the next run. It also adds Terrorist
 Hunt, Deathmatch, Team Deathmatch and Attack & Defend to the story missions, for
 up to 16 players. The added modes have not been tested in a full online match yet. Players need the pack in their
-launcher to join those maps. Stop the server before installing or removing it.
+launcher to join those maps. Stop the server before installing or removing it. The older
+`maps-pack` command name still works.
 The pack is shared with the launcher on the same PC, so it is downloaded once:
 `install` does nothing when the published version is already installed. Use
 `install --force` to download it again.

@@ -50,7 +50,7 @@ public sealed class ReleaseDownloader : IReleaseDownloader, IDisposable
     private static readonly TimeSpan OperationTimeout = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan UpdateDeadline = TimeSpan.FromSeconds(180);
 
-    /// <summary>Deadline for large optional content downloads (the Maps Pack is about 1 GB).</summary>
+    /// <summary>Deadline for large optional content downloads (Extra Maps is about 1 GB).</summary>
     public static readonly TimeSpan ContentDeadline = TimeSpan.FromMinutes(30);
     private const int MaxRedirects = 10;
     private const int BlockSize = 1024 * 1024;
