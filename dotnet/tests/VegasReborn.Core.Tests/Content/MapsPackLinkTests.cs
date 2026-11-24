@@ -124,6 +124,53 @@ public sealed class MapsPackLinkTests : IDisposable
     }
 
     [Fact]
+    public void ReinstalledStoreIsRelinked()
+    {
+        MapsPackFixture.Install(_paths, MapsPackFixture.Default());
+        MapsPackLink.Apply(_paths, _copy);
+        // A reinstall writes new store files with the same contents (new file identities).
+        MapsPackFixture.Install(_paths, MapsPackFixture.Default());
+        Assert.False(MapsPackLink.SameFile(Copy(MapsPackFixture.Map), Store(MapsPackFixture.Map)));
+
+        Assert.True(MapsPackLink.Apply(_paths, _copy));
+
+        Assert.True(MapsPackLink.SameFile(Copy(MapsPackFixture.Map), Store(MapsPackFixture.Map)));
+        Assert.True(MapsPackLink.SameFile(Copy(MapsPackFixture.Names), Store(MapsPackFixture.Names)));
+        Assert.Equal("map data", File.ReadAllText(Copy(MapsPackFixture.Map)));
+    }
+
+    [Fact]
+    public void SameSizeCopyFileWithOldTimeIsRelinked()
+    {
+        MapsPackFixture.Install(_paths, MapsPackFixture.Default());
+        MapsPackLink.Apply(_paths, _copy);
+        File.Delete(Copy(MapsPackFixture.Map));
+        File.WriteAllText(Copy(MapsPackFixture.Map), "map date");
+        File.SetLastWriteTimeUtc(Copy(MapsPackFixture.Map), File.GetLastWriteTimeUtc(Store(MapsPackFixture.Map)));
+
+        MapsPackLink.Apply(_paths, _copy);
+
+        Assert.True(MapsPackLink.SameFile(Copy(MapsPackFixture.Map), Store(MapsPackFixture.Map)));
+        Assert.Equal("map data", File.ReadAllText(Copy(MapsPackFixture.Map)));
+    }
+
+    [Fact]
+    public void RecordWithDisallowedPathIsDamaged()
+    {
+        var files = MapsPackFixture.Default();
+        files["Binaries/R6Vegas_Game.exe"] = "replaced";
+        MapsPackFixture.Install(_paths, files);
+
+        Assert.Equal(MapsPackState.Damaged, MapsPackRecord.CheckQuick(_paths, out _));
+        Assert.Equal(MapsPackState.Damaged, MapsPackRecord.Check(_paths, out _));
+        var error = Assert.Throws<LaunchException>(() => MapsPackLink.Apply(_paths, _copy));
+
+        Assert.Equal("The Maps Pack is damaged. Download it again or remove it.", error.Message);
+        Assert.Equal("game", File.ReadAllText(Copy("Binaries/R6Vegas_Game.exe")));
+        Assert.False(File.Exists(Copy(MapsPackFixture.Map)));
+    }
+
+    [Fact]
     public void RemovedPackIsUnlinkedOnNextPrepare()
     {
         var before = Snapshot(_copy);

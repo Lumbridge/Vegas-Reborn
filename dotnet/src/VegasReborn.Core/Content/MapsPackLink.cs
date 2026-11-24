@@ -65,7 +65,7 @@ internal static class MapsPackLink
                     Place(origin, target, link: false);
                 }
             }
-            else if (!Current(target, origin, file))
+            else if (!SameFile(target, origin))
             {
                 Place(origin, target, link: true);
             }
@@ -89,26 +89,21 @@ internal static class MapsPackLink
         && path.EndsWith(".ini", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Whether the copy already has the recorded file. Hashing the whole pack on every
-    /// launch is too slow, so the size is checked first, then a hard link to the store file
-    /// (the same data, whatever it holds), then an unchanged last-write
-    /// time (File.Copy keeps it). Only a same-size file with neither is hashed.
+    /// Whether the target is an earlier copy of the store file: same size and last-write time
+    /// (File.Copy keeps it). Used only where linking is not possible, so files are never hashed
+    /// per launch.
     /// </summary>
-    private static bool Current(string target, string origin, ContentFile file)
+    private static bool CopyCurrent(string target, string origin)
     {
         var info = new FileInfo(target);
-        if (!info.Exists || info.Length != file.Bytes)
-        {
-            return false;
-        }
-        if (SameFile(target, origin) || info.LastWriteTimeUtc == File.GetLastWriteTimeUtc(origin))
-        {
-            return true;
-        }
-        return string.Equals(PrivateFile.Sha256(target), file.Sha256, StringComparison.OrdinalIgnoreCase);
+        var source = new FileInfo(origin);
+        return info.Exists && info.Length == source.Length && info.LastWriteTimeUtc == source.LastWriteTimeUtc;
     }
 
-    /// <summary>Replaces the target with a hard link to (or a copy of) the store file.</summary>
+    /// <summary>
+    /// Replaces the target with a hard link to (or a copy of) the store file. When linking is
+    /// not possible, an existing copy that still matches the store file is kept.
+    /// </summary>
     private static void Place(string origin, string target, bool link)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
@@ -118,6 +113,10 @@ internal static class MapsPackLink
             // Linking fails across volumes or on file systems without hard links; copy then.
             if (!link || !NativeMethods.CreateHardLink(temporary, origin, 0))
             {
+                if (link && CopyCurrent(target, origin))
+                {
+                    return;
+                }
                 File.Copy(origin, temporary);
             }
             File.Move(temporary, target, overwrite: true);

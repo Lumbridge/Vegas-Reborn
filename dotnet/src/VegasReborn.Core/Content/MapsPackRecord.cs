@@ -36,14 +36,14 @@ public sealed record MapsPackRecord(int Version, IReadOnlyList<ContentFile> File
     public void Write(string path) => PrivateFile.WriteText(path, JsonSerializer.Serialize(this, Options));
 
     /// <summary>
-    /// Not installed without a record; damaged when any recorded file is missing or its
-    /// size or SHA-256 differs.
+    /// Not installed without a record; damaged when any recorded file is missing, its
+    /// size or SHA-256 differs, or its path is not one the pack may place in a game copy.
     /// </summary>
     public static MapsPackState Check(AppPaths paths, out MapsPackRecord? record) => Check(paths, out record, verifyHashes: true);
 
     /// <summary>
     /// The per-launch check: not installed without a record; damaged when any recorded file is
-    /// missing or its size differs. File contents are not hashed.
+    /// missing, its size differs or its path is not allowed. File contents are not hashed.
     /// </summary>
     public static MapsPackState CheckQuick(AppPaths paths, out MapsPackRecord? record) => Check(paths, out record, verifyHashes: false);
 
@@ -57,6 +57,12 @@ public sealed record MapsPackRecord(int Version, IReadOnlyList<ContentFile> File
         var files = Path.Combine(paths.MapsPack, "files");
         foreach (var file in record.Files)
         {
+            // The same rule the game-copy link and unlink use, so a record can never place a
+            // file the unlink would refuse to remove.
+            if (!ContentManifest.IsAllowedPath(file.Path))
+            {
+                return MapsPackState.Damaged;
+            }
             var path = Path.Combine(files, file.Path.Replace('/', Path.DirectorySeparatorChar));
             try
             {
