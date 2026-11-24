@@ -1,9 +1,11 @@
 using System.Runtime.InteropServices;
 using VegasReborn.Core;
 using VegasReborn.Core.Account;
+using VegasReborn.Core.Content;
 using VegasReborn.Core.Dedicated;
 using VegasReborn.Core.Launch;
 using VegasReborn.Core.Titles;
+using VegasReborn.Core.Update;
 
 namespace VegasReborn.Server;
 
@@ -23,6 +25,7 @@ public static class Program
           login                       Sign in with Discord for online hosting
           run [--local-test]          Run the server until Ctrl+C or 'stop'
           stop                        Ask a running server to stop
+          maps-pack install|remove|status   Manage the Vegas 1 Maps Pack
 
         Options:
           --game vegas1|vegas2        Which game (default vegas1)
@@ -49,6 +52,7 @@ public static class Program
                 "login" => await LoginAsync(paths).ConfigureAwait(false),
                 "run" => await RunAsync(paths, options).ConfigureAwait(false),
                 "stop" => Stop(paths, options),
+                "maps-pack" => await MapsPackAsync(paths, options).ConfigureAwait(false),
                 _ => Fail(Usage),
             };
         }
@@ -56,7 +60,7 @@ public static class Program
         {
             return Fail(error.Message + "\n\n" + Usage);
         }
-        catch (Exception error) when (error is LaunchException or ServiceException)
+        catch (Exception error) when (error is LaunchException or ServiceException or ContentException)
         {
             return Fail(error.Message);
         }
@@ -139,6 +143,21 @@ public static class Program
         return 0;
     }
 
+    private static async Task<int> MapsPackAsync(AppPaths paths, Options options)
+    {
+        using var cancel = CancelOnSignal();
+        using var downloader = new ReleaseDownloader(ReleaseDownloader.ContentDeadline);
+        var lockRoot = Path.GetFullPath(DedicatedHost.Root(paths, TitleCatalog.Vegas1));
+        return await MapsPackCommand.RunAsync(
+            options.Verb!,
+            paths,
+            () => new WindowsDedicatedSystem().TryAcquireHostLock(lockRoot),
+            () => new MapsPackInstaller(paths, downloader),
+            Console.Out,
+            Console.Error,
+            cancel.Token).ConfigureAwait(false);
+    }
+
     /// <summary>Ctrl+C, Ctrl+Break, console close and service/container termination cancel the token.</summary>
     private static SignalCancellation CancelOnSignal() => new();
 
@@ -184,9 +203,9 @@ public static class Program
         public void Report(string value) => report(value);
     }
 
-    private sealed class UsageException(string message) : Exception(message);
+    internal sealed class UsageException(string message) : Exception(message);
 
-    private sealed record Options(string Command, GameTitle Title, string? GameFolder, string? Root, bool LocalTest)
+    internal sealed record Options(string Command, GameTitle Title, string? GameFolder, string? Root, bool LocalTest, string? Verb = null)
     {
         public static Options Parse(string[] args)
         {
@@ -197,7 +216,20 @@ public static class Program
             var title = TitleCatalog.Vegas1;
             string? folder = null, root = null;
             var localTest = false;
-            for (var index = 1; index < args.Length; index++)
+            string? verb = null;
+            var first = 1;
+            if (args[0] == "maps-pack")
+            {
+                if (args.Length < 2 || args[1].StartsWith("--", StringComparison.Ordinal))
+                {
+                    throw new UsageException("maps-pack needs install, remove or status");
+                }
+                verb = args[1] is "install" or "remove" or "status"
+                    ? args[1]
+                    : throw new UsageException($"Unknown maps-pack command: {args[1]}");
+                first = 2;
+            }
+            for (var index = first; index < args.Length; index++)
             {
                 switch (args[index])
                 {
@@ -218,7 +250,11 @@ public static class Program
                         throw new UsageException($"Unknown option: {args[index]}");
                 }
             }
-            return new Options(args[0], title, folder, root, localTest);
+            if (verb is not null && title.Key != TitleCatalog.Vegas1.Key)
+            {
+                throw new UsageException("The Maps Pack is only for Rainbow Six Vegas");
+            }
+            return new Options(args[0], title, folder, root, localTest, verb);
         }
 
         private static string Value(string[] args, ref int index) =>

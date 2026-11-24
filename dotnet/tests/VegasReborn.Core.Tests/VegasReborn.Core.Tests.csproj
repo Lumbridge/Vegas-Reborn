@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\VegasReborn.Core\VegasReborn.Core.csproj" />
+    <ProjectReference Include="..\..\src\VegasReborn.Server\VegasReborn.Server.csproj" />
   </ItemGroup>
 
 </Project>
