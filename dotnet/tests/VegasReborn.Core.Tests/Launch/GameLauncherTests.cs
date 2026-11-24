@@ -88,12 +88,13 @@ public sealed class GameLauncherTests : IDisposable
     }
 
     private LaunchRequest Request(GameTitle title, DisplayMode mode = DisplayMode.GameDefault, bool skipIntros = false,
-        IReadOnlySet<string>? disabled = null, Action? started = null) => new()
+        IReadOnlySet<string>? disabled = null, Action? started = null, int fieldOfView = 0) => new()
     {
         Title = title,
         GameFolder = _install,
         DisplayMode = mode,
         SkipIntros = skipIntros,
+        FieldOfView = fieldOfView,
         DisabledFixes = disabled ?? new HashSet<string>(),
         OnStarted = started,
     };
@@ -144,6 +145,7 @@ public sealed class GameLauncherTests : IDisposable
         Assert.Equal("[CDKEY]\nKEYID=" + new string('a', 48) + "\n", File.ReadAllText(Path.Combine(output, "profile/Ubisoft/R6Vegas/PlayerProfile.ini")));
         Assert.Equal("native\n", File.ReadAllText(Path.Combine(output, "display-mode.txt")));
         Assert.Equal("play\n", File.ReadAllText(Path.Combine(output, "skip-intros.txt")));
+        Assert.Equal("default\n", File.ReadAllText(Path.Combine(output, "field-of-view.txt")));
         Assert.Equal("", File.ReadAllText(Path.Combine(output, "native-features.txt")));
         Assert.False(File.Exists(Path.Combine(output, "claimed-name.txt")));
         var route = File.ReadAllText(Path.Combine(output, "native-route.txt")).Split('\n');
@@ -216,6 +218,40 @@ public sealed class GameLauncherTests : IDisposable
         var engine = File.ReadAllText(Path.Combine(_paths.GameCopy("vegas1"), "KellerGame/Config/PCKellerEngine.ini"));
         Assert.Contains("StartupResolutionX=1920\nStartupResolutionY=1080\n", engine);
         Assert.Contains("[INTRO]\r\nEnable=FALSE", File.ReadAllText(Path.Combine(_paths.GameCopy("vegas1"), "KellerGame/Config/MovieLoading.ini")));
+    }
+
+    [Fact]
+    public async Task FieldOfViewIsWrittenAndVerified()
+    {
+        InstallVegas2();
+        var title = Vegas2;
+        _credentials.Supported = false;
+        _system.Output = Output(title);
+        _system.Status = () =>
+        {
+            var report = Reports.Vegas2Ready();
+            report["fieldOfViewRequested"] = 80;
+            report["fieldOfViewVerified"] = true;
+            return report;
+        };
+
+        await Launcher().PlayAsync(Request(title, fieldOfView: 80), _messages);
+
+        Assert.Equal("80\n", File.ReadAllText(Path.Combine(Output(title), "field-of-view.txt")));
+    }
+
+    [Fact]
+    public async Task UnverifiedFieldOfViewStopsTheLaunch()
+    {
+        InstallVegas2();
+        var title = Vegas2;
+        _credentials.Supported = false;
+        _system.Output = Output(title);
+        _system.Status = Reports.Vegas2Ready;
+
+        var error = await Assert.ThrowsAsync<LaunchException>(() => Launcher().PlayAsync(Request(title, fieldOfView: 80), _messages));
+
+        Assert.Contains("Field of view", error.Message);
     }
 
     [Fact]

@@ -17,7 +17,9 @@ described at https://github.com/Lumbridge/Vegas-Reborn/blob/main/docs/HOSTING.md
 Rainbow Six Vegas 2 uses the same sign-in and claimed player name. Unranked
 multiplayer matches can be started with one player, and match XP is awarded
 in full whatever the player count or team balance.
-Display mode, monitor and Skip intro movies work for both games.
+Display mode, monitor, Field of view and Skip intro movies work for both games.
+Field of view is set on each game's page: Game default (60 degrees) or a
+vertical angle from 65 to 90 degrees. Zoomed views and scopes scale with it.
 
 The interface has Games, Account and Settings
 pages. Switching pages preserves the selected window size and position.

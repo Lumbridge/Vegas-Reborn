@@ -38,12 +38,14 @@ public static class CompatibilityValidation
         string? claimedName = null,
         DisplayMode displayMode = DisplayMode.GameDefault,
         IReadOnlySet<string>? disabledFixes = null,
-        bool skipIntros = false)
+        bool skipIntros = false,
+        int fieldOfView = 0)
     {
         disabledFixes ??= new HashSet<string>();
         if (!TitleLaunchProfile.For(title).NativeGameHooks)
         {
             ValidateGeneric(title, compatibility, claimedName, displayMode, skipIntros);
+            ValidateFieldOfView(compatibility, fieldOfView);
             return;
         }
         if (!Truthy(compatibility["ready"]))
@@ -88,6 +90,15 @@ public static class CompatibilityValidation
         if (displayMode == DisplayMode.Borderless && !Truthy(compatibility["displayStyleVerified"]))
         {
             throw new LaunchException("Borderless setup was not verified. Update the launcher's native compatibility module, then retry.");
+        }
+        ValidateFieldOfView(compatibility, fieldOfView);
+    }
+
+    private static void ValidateFieldOfView(JsonObject compatibility, int fieldOfView)
+    {
+        if (fieldOfView > 0 && (!Truthy(compatibility["fieldOfViewVerified"]) || !NumberEquals(compatibility["fieldOfViewRequested"], fieldOfView)))
+        {
+            throw new LaunchException("The field of view setting could not be applied. Set Field of view to Game default or update the launcher.");
         }
     }
 

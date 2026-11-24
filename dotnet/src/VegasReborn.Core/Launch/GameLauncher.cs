@@ -148,6 +148,9 @@ public sealed class GameLauncher
                 DisplayMode.Windowed => "windowed\n",
                 _ => "native\n",
             });
+            // Both adapters scale the player's view to the requested field of view.
+            PrivateFile.WriteText(Path.Combine(output, "field-of-view.txt"),
+                request.FieldOfView > 0 ? FormattableString.Invariant($"{request.FieldOfView}\n") : "default\n");
             PrivateFile.Delete(Path.Combine(output, "launch-options-status.json"));
             if (profile.NativeGameHooks)
             {
@@ -212,7 +215,7 @@ public sealed class GameLauncher
             await _system.RunComponentAsync([control, "--stop-gate", Argument(steamPid), module, gateDll]).ConfigureAwait(false);
             await WaitForFileAsync(readyFile, 65, "The game's compatibility module did not become ready", cancellationToken).ConfigureAwait(false);
             var compatibility = ReadObject(readyFile) ?? throw new LaunchException("The game's compatibility module did not become ready");
-            CompatibilityValidation.Validate(title, compatibility, account.ClaimedName, displayMode, disabled, request.SkipIntros);
+            CompatibilityValidation.Validate(title, compatibility, account.ClaimedName, displayMode, disabled, request.SkipIntros, request.FieldOfView);
             // Vegas 2 reports its intro hook in compat-status.json.
             var optionsIntros = profile.NativeGameHooks && request.SkipIntros;
             if (displayMode is DisplayMode.Windowed or DisplayMode.Borderless || optionsIntros)

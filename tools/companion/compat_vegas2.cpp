@@ -30,6 +30,9 @@
 #include "native_display_vegas2.h"
 #include "native_punkbuster_vegas2.h"
 #include "native_gamepad.h"
+#include "native_field_of_view.h"
+
+static int FieldOfViewRequested=0;
 
 static bool RedirectedHost(const char* name){
     // Static: RainbowSixVegas2_SADS.exe bootstrap host (file offset 0x1664f10)
@@ -169,6 +172,7 @@ static void WriteStatus(bool ready,unsigned gameHooks){
         "\"skipIntrosRequested\":%s,\"skipIntrosVerified\":%s,\"skipIntrosStatus\":\"%s\","
         "\"punkBusterRemovedVerified\":%s,\"punkBusterRemovedStatus\":\"%s\","
         "\"gamepadVerified\":%s,\"gamepadStatus\":\"%s\","
+        "\"fieldOfViewRequested\":%d,\"fieldOfViewVerified\":%s,\"fieldOfViewStatus\":\"%s\","
         "\"windowedRequested\":%s,\"borderlessRequested\":%s,\"displayViewportVerified\":%s,\"displayStyleVerified\":%s,\"displayStatus\":\"%s\"}\n",
         ready?"true":"false",gameHooks,
         NativeProceduralAnimationVegas2::Verified?"true":"false",NativeProceduralAnimationVegas2::Error,
@@ -179,6 +183,7 @@ static void WriteStatus(bool ready,unsigned gameHooks){
         NativeSkipIntrosVegas2::Requested?"true":"false",NativeSkipIntrosVegas2::Verified?"true":"false",NativeSkipIntrosVegas2::Error,
         NativePunkBusterVegas2::Verified?"true":"false",NativePunkBusterVegas2::Error,
         NativeGamepad::Verified?"true":"false",NativeGamepad::Error,
+        FieldOfViewRequested,NativeFieldOfView::Verified?"true":"false",NativeFieldOfView::Error,
         NativeDisplayVegas2::Windowed?"true":"false",NativeDisplayVegas2::Borderless?"true":"false",
         NativeDisplayVegas2::ViewportArmed?"true":"false",NativeDisplayVegas2::StyleVerified?"true":"false",NativeDisplayVegas2::Error);
     fclose(status);
@@ -208,9 +213,11 @@ static DWORD WINAPI NativeInitialize(LPVOID){
     const bool intros=NativeSkipIntrosVegas2::Install(base,Output);
     const bool display=NativeDisplayVegas2::Install(base);
     const bool punkBuster=NativePunkBusterVegas2::Install(base);
-    Trace("game hooks: animation %s, sign-in %s, name %s, solo %s, xp %s, intros %s, display %s, punkbuster %s",NativeProceduralAnimationVegas2::Error,
+    // A requested field of view is reported on its own; the launcher checks it.
+    NativeFieldOfView::Install(base,NativeFieldOfView::Vegas2::Game,FieldOfViewRequested);
+    Trace("game hooks: animation %s, sign-in %s, name %s, solo %s, xp %s, intros %s, display %s, punkbuster %s, field of view %s",NativeProceduralAnimationVegas2::Error,
         NativeLoginVegas2::Error,NativeClaimedNameVegas2::Error,NativeSoloMatchVegas2::Error,NativeXpModifierVegas2::Error,
-        NativeSkipIntrosVegas2::Error,NativeDisplayVegas2::Error,NativePunkBusterVegas2::Error);
+        NativeSkipIntrosVegas2::Error,NativeDisplayVegas2::Error,NativePunkBusterVegas2::Error,NativeFieldOfView::Error);
     const bool ready=animation&&login&&name&&solo&&xp&&intros&&display&&punkBuster;
     WriteStatus(ready,(animation?NativeProceduralAnimationVegas2::MethodCount+1:0)+(login?2:0)+
         (NativeClaimedNameVegas2::Verified?NativeClaimedNameVegas2::Count:0)+(solo?NativeSoloMatchVegas2::Count:0)+(xp?2:0)+
@@ -231,6 +238,8 @@ extern "C" DWORD WINAPI StartCompanion(LPVOID configuration){
     fclose(settings);
     if(!valid||!port||port>65535||!ipc||ipc>65535||strlen(capability)!=64||strlen(alias)!=15||InetPtonA(AF_INET,address,&RouteIp)!=1)return 0;
     RouteAddress=address;RouteTcpPort=port;IpcPort=ipc;NativeAlias=alias;IpcCapability.assign(capability,capability+64);
+    FieldOfViewRequested=NativeFieldOfView::Read(Output);
+    if(FieldOfViewRequested<0)return 0;
     CreateDirectoryW(ProfileDirectory.c_str(),nullptr);CreateDirectoryW((Output+L"\\agora-session").c_str(),nullptr);
     InitializeCriticalSection(&TraceLock);
     // Shared read access so the trace can be inspected while the game runs.

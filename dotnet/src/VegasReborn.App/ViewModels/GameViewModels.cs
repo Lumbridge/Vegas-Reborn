@@ -89,6 +89,12 @@ public sealed record MonitorChoice(string Device, string Label)
     public override string ToString() => Label;
 }
 
+/// <summary>A field of view choice. Zero degrees is the game's default.</summary>
+public sealed record FieldOfViewChoice(int Degrees, string Label)
+{
+    public override string ToString() => Label;
+}
+
 public sealed class GameViewModel : ObservableObject
 {
     private readonly MainViewModel owner;
@@ -203,6 +209,27 @@ public sealed class GameViewModel : ObservableObject
     public bool ShowsMonitor => preferences.DisplayMode is DisplayMode.Borderless or DisplayMode.Windowed;
 
     public IReadOnlyList<MonitorChoice> Monitors => owner.Monitors;
+
+    public IReadOnlyList<FieldOfViewChoice> FieldOfViewChoices { get; } =
+    [
+        new(0, "Game default (60°)"),
+        .. FieldOfView.Choices.Select(degrees => new FieldOfViewChoice(degrees, $"{degrees}°")),
+    ];
+
+    // The field of view is kept per game (preferences.json titles.<key>.field_of_view).
+    public FieldOfViewChoice SelectedFieldOfView
+    {
+        get => FieldOfViewChoices.FirstOrDefault(choice => choice.Degrees == preferences.FieldOfViewFor(Title)) ?? FieldOfViewChoices[0];
+        set
+        {
+            if (value is not null && value.Degrees != preferences.FieldOfViewFor(Title))
+            {
+                preferences.SetFieldOfView(Title, value.Degrees);
+                owner.SavePreferences();
+                OnPropertyChanged();
+            }
+        }
+    }
 
     public MonitorChoice? SelectedMonitor
     {

@@ -65,6 +65,36 @@ public sealed class PreferencesTests
     }
 
     [Fact]
+    public void FieldOfViewPerTitle()
+    {
+        using var directory = new TestDirectory();
+        var path = Path.Combine(directory.Path, "preferences.json");
+        var preferences = new Preferences();
+        Assert.Equal(0, preferences.FieldOfViewFor(TitleCatalog.Vegas1));
+        Assert.Equal(0, preferences.LaunchRequestFor(TitleCatalog.Vegas2).FieldOfView);
+        preferences.SetFieldOfView(TitleCatalog.Vegas1, 75);
+        preferences.Save(path);
+        var titles = JsonNode.Parse(File.ReadAllText(path))!["titles"]!.AsObject();
+        Assert.Equal(75, titles["vegas1"]!["field_of_view"]!.GetValue<int>());
+        Assert.False(titles.ContainsKey("vegas2"));
+        var loaded = Preferences.Load(path);
+        Assert.Equal(75, loaded.FieldOfViewFor(TitleCatalog.Vegas1));
+        Assert.Equal(0, loaded.FieldOfViewFor(TitleCatalog.Vegas2));
+        Assert.Equal(75, loaded.LaunchRequestFor(TitleCatalog.Vegas1).FieldOfView);
+        loaded.SetFieldOfView(TitleCatalog.Vegas1, 0);
+        Assert.Equal(0, loaded.FieldOfViewFor(TitleCatalog.Vegas1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => loaded.SetFieldOfView(TitleCatalog.Vegas2, 120));
+        // Unsupported stored values keep the game's default without resetting other settings.
+        foreach (var value in new[] { "120", "\"75\"", "75.5", "true" })
+        {
+            File.WriteAllText(path, "{\"skip_intros\":false,\"titles\":{\"vegas2\":{\"field_of_view\":" + value + "}}}");
+            var stored = Preferences.Load(path);
+            Assert.Equal(0, stored.FieldOfViewFor(TitleCatalog.Vegas2));
+            Assert.False(stored.SkipIntros);
+        }
+    }
+
+    [Fact]
     public void GameFolderPerTitle()
     {
         var preferences = new Preferences();

@@ -237,6 +237,16 @@
                                                 </StackPanel>
                                             </DockPanel>
                                         </Border>
+                                        <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,14">
+                                            <DockPanel>
+                                                <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding FieldOfViewChoices}" SelectedItem="{Binding SelectedFieldOfView}"
+                                                          AutomationProperties.Name="Field of view" Width="240" />
+                                                <StackPanel>
+                                                    <TextBlock Text="Field of view" FontWeight="SemiBold" FontSize="15" />
+                                                    <TextBlock Text="Vertical angle of your view in degrees. Zoomed views scale with it." Style="{StaticResource MutedText}" FontSize="13" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
                                         </StackPanel>
                                         </StackPanel>
                                         <ItemsControl ItemsSource="{Binding Fixes}" ItemTemplate="{StaticResource FixRow}" Focusable="False" />

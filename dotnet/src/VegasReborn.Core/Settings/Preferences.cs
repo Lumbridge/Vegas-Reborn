@@ -16,11 +16,14 @@ namespace VegasReborn.Core.Settings;
 /// title's fix switches are under <c>titles.&lt;key&gt;</c>:
 /// <c>{"game_folder": "...", "fixes": {"report-xp": false}}</c>. A missing or unknown fix
 /// state means the fix's default; AlwaysOn fixes are never stored and always enabled.
+/// <c>titles.&lt;key&gt;.field_of_view</c> is the vertical field of view in degrees; it is
+/// absent for the game's default.
 /// </remarks>
 public sealed class Preferences
 {
     private readonly Dictionary<string, string> _gameFolders = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Dictionary<string, bool>> _fixes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _fieldOfView = new(StringComparer.Ordinal);
 
     public string GameFolder { get; set; } = DefaultFolder(TitleCatalog.Vegas1);
     public DisplayMode DisplayMode { get; set; } = DisplayMode.Borderless;
@@ -86,6 +89,24 @@ public sealed class Preferences
         states[fixId] = enabled;
     }
 
+    /// <summary>The title's vertical field of view in degrees; 0 is the game's default.</summary>
+    public int FieldOfViewFor(GameTitle title) => _fieldOfView.GetValueOrDefault(title.Key);
+
+    /// <summary>Sets the title's field of view: 0 for the game's default or one of <see cref="FieldOfView.Choices"/>.</summary>
+    public void SetFieldOfView(GameTitle title, int degrees)
+    {
+        if (degrees == 0)
+        {
+            _fieldOfView.Remove(title.Key);
+            return;
+        }
+        if (!FieldOfView.IsChoice(degrees))
+        {
+            throw new ArgumentOutOfRangeException(nameof(degrees), degrees, "Unsupported field of view");
+        }
+        _fieldOfView[title.Key] = degrees;
+    }
+
     /// <summary>Toggle fix ids that are off for a title (for <see cref="LaunchRequest.DisabledFixes"/>).</summary>
     public IReadOnlySet<string> DisabledFixes(GameTitle title) =>
         title.Fixes.Where(fix => fix.Kind == FixKind.Toggle && !IsFixEnabled(title, fix.Id)).Select(fix => fix.Id).ToHashSet(StringComparer.Ordinal);
@@ -98,6 +119,7 @@ public sealed class Preferences
         DisplayMode = DisplayMode,
         MonitorDevice = MonitorDevice,
         SkipIntros = SkipIntros,
+        FieldOfView = FieldOfViewFor(title),
         DisabledFixes = DisabledFixes(title),
         OnStarted = onStarted,
     };
@@ -150,6 +172,11 @@ public sealed class Preferences
                     {
                         result._gameFolders[title.Key] = path2;
                     }
+                    if (entry["field_of_view"] is JsonValue angle && angle.GetValueKind() == JsonValueKind.Number
+                        && angle.TryGetValue<int>(out var degrees) && FieldOfView.IsChoice(degrees))
+                    {
+                        result._fieldOfView[title.Key] = degrees;
+                    }
                     if (entry["fixes"] is JsonObject fixes)
                     {
                         foreach (var (id, state) in fixes)
@@ -182,6 +209,10 @@ public sealed class Preferences
             if (title.Key != TitleCatalog.Vegas1.Key && _gameFolders.TryGetValue(title.Key, out var folder))
             {
                 entry["game_folder"] = folder;
+            }
+            if (_fieldOfView.TryGetValue(title.Key, out var degrees))
+            {
+                entry["field_of_view"] = degrees;
             }
             if (_fixes.TryGetValue(title.Key, out var states) && states.Count > 0)
             {

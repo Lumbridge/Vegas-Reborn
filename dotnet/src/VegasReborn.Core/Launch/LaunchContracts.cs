@@ -79,6 +79,8 @@ public sealed record LaunchRequest
     public DisplayMode DisplayMode { get; init; } = DisplayMode.GameDefault;
     public string MonitorDevice { get; init; } = "";
     public bool SkipIntros { get; init; }
+    /// <summary>Vertical field of view in degrees; 0 keeps the game's default.</summary>
+    public int FieldOfView { get; init; }
     /// <summary>Toggle fix ids the player turned off (see Settings.Preferences.DisabledFixes).</summary>
     public IReadOnlySet<string> DisabledFixes { get; init; } = new HashSet<string>();
     /// <summary>Called once the game is running and verified, before waiting for it to exit.</summary>

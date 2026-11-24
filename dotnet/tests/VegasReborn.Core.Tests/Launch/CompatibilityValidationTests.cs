@@ -123,6 +123,23 @@ public sealed class CompatibilityValidationTests
     }
 
     [Fact]
+    public void FieldOfViewRequiresTheRequestedAngleVerified()
+    {
+        foreach (var (title, ready) in new[] { (TitleCatalog.Vegas1, Reports.Vegas1Ready()), (TitleCatalog.Vegas2, Reports.Vegas2Ready()) })
+        {
+            CompatibilityValidation.Validate(title, ready);
+            Assert.Contains("Field of view", Assert.Throws<LaunchException>(
+                () => CompatibilityValidation.Validate(title, ready, fieldOfView: 75)).Message);
+            ready["fieldOfViewRequested"] = 75;
+            ready["fieldOfViewVerified"] = true;
+            CompatibilityValidation.Validate(title, ready, fieldOfView: 75);
+            Assert.Throws<LaunchException>(() => CompatibilityValidation.Validate(title, ready, fieldOfView: 80));
+            ready["fieldOfViewVerified"] = false;
+            Assert.Throws<LaunchException>(() => CompatibilityValidation.Validate(title, ready, fieldOfView: 75));
+        }
+    }
+
+    [Fact]
     public void Vegas2SkipIntrosRequiresVerifiedSequenceHook()
     {
         var title = TitleCatalog.Vegas2;

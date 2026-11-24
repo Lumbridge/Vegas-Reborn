@@ -47,6 +47,8 @@ Each game's page lists its fixes. Changes apply the next time you launch the gam
   **Game default**. Borderless fills your selected monitor without keeping the
   game always on top.
 - **Monitor:** where the game window opens.
+- **Field of view:** **Game default** (60°) or a vertical angle from 65° to 90°,
+  set for each game. Zoomed views and scopes scale with it.
 - **Skip intro movies:** enabled by default. Bypasses the startup logo and
   splash sequence, including its waits. Loading screens, the menu background
   and gameplay movies are retained. Turning it off restores the original

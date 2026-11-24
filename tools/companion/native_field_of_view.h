@@ -1,0 +1,202 @@
+#pragma once
+// Field of view for Rainbow Six Vegas and Rainbow Six Vegas 2.
+//
+// Both games build the player's projection with the engine's perspective
+// matrix routine (thiscall matrix, half angle in radians, width, height,
+// near plane; ret 0x10). It keeps the vertical angle fixed: row 1 is
+// 1/tan(half) and row 0 is height/(tan(half)*width). The half angle is the
+// player's vertical field of view in degrees times pi/360.
+//
+// Rainbow Six Vegas (routine 0x10b77190):
+// - The scene view setup 0x10b93060 asks the player controller for its field
+//   of view (vtable +0x5c0, argument 0; 0x10b930eb), stores it in the view
+//   (+0x84), multiplies it by pi/360 (0x10b93260) and passes it to the routine,
+//   returning to 0x10b932f6 (camera with a fixed aspect ratio) or 0x10b9339e.
+// - The camera's view-projection 0x1118b130 uses the camera's field of view
+//   (vtable +0x580) times pi/360, returning to 0x1118b29c.
+// - R6PlayerController's field of view falls back to the weapons settings'
+//   +0x254 (59.84 when there are none, 0x111c92e0). The same settings object
+//   is read from 0x123c1a74 at 0x111b0df4.
+// Rainbow Six Vegas 2 (routine 0x10c14350):
+// - The scene view setup 0x111ba3d0 asks the player controller for its field
+//   of view (vtable +0x67c, argument 0; 0x111ba45e), stores it in the view
+//   (+0x84), multiplies it by pi and divides by 360 (0x111ba64d), and passes
+//   it to the routine, returning to 0x111ba6ef.
+// - The camera's view-projection uses the camera's field of view (vtable
+//   +0x634) the same way, returning to 0x10c15035 or 0x10c15095.
+// - R6PlayerController's field of view falls back to, and scales scopes by,
+//   +0x94 of the settings object at 0x124a8a44 (0x10c6c9b0).
+//
+// Only those calls are changed. Each half angle is scaled in tangent space by
+// tan(requested/2)/tan(base/2), where base is the game's own default field of
+// view from the settings object (59.84 when it is not available). The
+// default view then gets the requested angle and zoomed views keep their
+// zoom relative to it. The stored view angle, aiming and the game's other
+// projections (scene captures, shadows) are unchanged.
+#include <windows.h>
+#include <intrin.h>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <string>
+#include "MinHook.h"
+
+namespace NativeFieldOfView {
+constexpr int MinimumDegrees = 50, MaximumDegrees = 100;
+constexpr float FallbackBase = 59.84f;
+
+struct Signature { unsigned rva; const BYTE* code; size_t size; };
+struct Layout {
+    unsigned perspective;
+    const Signature* signatures; size_t signatureCount;
+    const unsigned* returns; size_t returnCount;
+    unsigned settings, baseOffset;
+};
+
+namespace Vegas1 {
+constexpr BYTE Perspective[]{0xd9,0x44,0x24,0x04,0xf3,0x0f,0x10,0x4c,0x24,0x10,0xd9,0xf2,0x0f,0x57,0xc0,0xf3};
+// Player controller field of view (vtable +0x5c0, argument 0) into the view's +0x84.
+constexpr BYTE SceneFov[]{0x8b,0x4f,0x38,0x8b,0x11,0x6a,0x00,0xff,0x92,0xc0,0x05,0x00,0x00,0xd9,0x54,0x24,0x18,
+    0xf3,0x0f,0x10,0x44,0x24,0x18,0xd9,0x9b,0x84,0x00,0x00,0x00};
+// View +0x84 times pi/360 (0x11ed349c) into [esp+0x18].
+constexpr BYTE SceneAngle[]{0xf3,0x0f,0x10,0x83,0x84,0x00,0x00,0x00,0xf3,0x0f,0x10,0x15,0x9c,0x34,0xed,0x11,
+    0xf3,0x0f,0x10,0x4d,0x1c,0xf3,0x0f,0x59,0xc2,0xf3,0x0f,0x11,0x44,0x24,0x18};
+// Fixed aspect ratio: [esp+0x18] with the camera's +0x260 aspect.
+constexpr BYTE SceneConstrained[]{0x8b,0x8b,0x80,0x00,0x00,0x00,0x8b,0x90,0x8c,0x03,0x00,0x00,0x8b,0x82,0x60,0x02,0x00,0x00,
+    0x51,0x8b,0x4c,0x24,0x1c,0x68,0x00,0x00,0x80,0x3f,0x50,0x51,0x8d,0x8c,0x24,0x90,0x00,0x00,0x00,0xe8,0x9a,0x3e,0xfe,0xff};
+// Viewport size: [esp+0x18] with the scaled width and height.
+constexpr BYTE SceneWorld[]{0x8b,0x44,0x24,0x20,0x51,0x8d,0x8c,0x24,0x8c,0x00,0x00,0x00,0xd9,0x1c,0x24,0x50,0xe8,0xf2,0x3d,0xfe,0xff};
+// Camera field of view (vtable +0x580) times pi/360.
+constexpr BYTE Camera[]{0x8b,0x13,0x50,0xff,0x92,0x80,0x05,0x00,0x00,0xd8,0x0d,0x9c,0x34,0xed,0x11,0x51,0x8d,0x8c,0x24,0xb0,0x00,0x00,0x00,
+    0xd9,0x1c,0x24,0xe8,0xf4,0xbe,0x9e,0xff};
+// Weapons settings (0x123c1a74) +0x254.
+constexpr BYTE Base[]{0xa1,0x74,0x1a,0x3c,0x12,0xf3,0x0f,0x10,0x80,0x54,0x02,0x00,0x00};
+constexpr Signature Signatures[]{
+    {0x277190,Perspective,sizeof(Perspective)},{0x2930e4,SceneFov,sizeof(SceneFov)},{0x293260,SceneAngle,sizeof(SceneAngle)},
+    {0x2932cc,SceneConstrained,sizeof(SceneConstrained)},{0x293389,SceneWorld,sizeof(SceneWorld)},
+    {0x88b27d,Camera,sizeof(Camera)},{0x8b0df4,Base,sizeof(Base)}};
+constexpr unsigned Returns[]{0x2932f6,0x29339e,0x88b29c};
+constexpr Layout Game{0x277190,Signatures,sizeof(Signatures)/sizeof(*Signatures),Returns,sizeof(Returns)/sizeof(*Returns),0x1ac1a74,0x254};
+}
+
+namespace Vegas2 {
+constexpr BYTE Perspective[]{0x83,0xec,0x20,0xd9,0x44,0x24,0x30,0x56,0xd9,0xe0,0x8b,0xf1,0xdc,0x0d,0x78,0x95,0xfa,0x11};
+// Player controller field of view (vtable +0x67c, argument 0) into the view's +0x84.
+constexpr BYTE SceneFov[]{0x8b,0x4b,0x34,0x8b,0x01,0x8b,0x90,0x7c,0x06,0x00,0x00,0x6a,0x00,0xff,0xd2,0xd9,0x5c,0x24,0x0c,
+    0xd9,0x44,0x24,0x0c,0xf3,0x0f,0x10,0x44,0x24,0x0c,0xf3,0x0f,0x10,0x0d,0xf8,0x92,0xfa,0x11,0xd9,0x9e,0x84,0x00,0x00,0x00};
+// View +0x84 times pi (0x11ca0140) over 360 (0x11cbb9f0) into [esp+0x5c].
+constexpr BYTE SceneAngle[]{0xd9,0x86,0x84,0x00,0x00,0x00,0xdd,0x05,0x40,0x01,0xca,0x11,0x83,0xc4,0x0c,0xdc,0xc9,
+    0xdd,0x05,0xf0,0xb9,0xcb,0x11,0xdc,0xfa,0xd9,0xca,0xd9,0x5c,0x24,0x5c};
+// [esp+0x5c] as the half angle.
+constexpr BYTE SceneWorld[]{0xd9,0x86,0x80,0x00,0x00,0x00,0x83,0xec,0x10,0xd9,0x5c,0x24,0x0c,0x8d,0x4c,0x24,0x70,0xd9,0xe8,
+    0xd9,0x5c,0x24,0x08,0xd9,0x44,0x24,0x1c,0xd9,0x5c,0x24,0x04,0xd9,0x44,0x24,0x6c,0xd9,0x1c,0x24,0xe8,0x61,0x9c,0xa5,0xff};
+// Camera field of view (vtable +0x634) times pi over 360, fixed aspect ratio and viewport size.
+constexpr BYTE CameraConstrained[]{0xf6,0x86,0x6c,0x02,0x00,0x00,0x02,0x74,0x54,0xd9,0x05,0xf4,0x8d,0x18,0x12,0x8b,0x16,
+    0x8b,0x82,0x34,0x06,0x00,0x00,0x83,0xec,0x0c,0xd9,0x5c,0x24,0x08,0xd9,0xe8,0xd9,0x5c,0x24,0x04,0xd9,0x86,0x74,0x02,0x00,0x00,
+    0xd9,0x1c,0x24,0xff,0xd0,0xdc,0x0d,0x40,0x01,0xca,0x11,0x51,0x8d,0x8c,0x24,0xa0,0x00,0x00,0x00,0xdc,0x35,0xf0,0xb9,0xcb,0x11,
+    0xd9,0x5c,0x24,0x18,0xd9,0x44,0x24,0x18,0xd9,0x1c,0x24,0xe8,0x1b,0xf3,0xff,0xff};
+constexpr BYTE Camera[]{0xd9,0x05,0xf4,0x8d,0x18,0x12,0x8b,0x06,0x8b,0x90,0x34,0x06,0x00,0x00,0x83,0xec,0x0c,0xd9,0x5c,0x24,0x08,
+    0x8b,0xce,0xd9,0x44,0x24,0x18,0xd9,0x5c,0x24,0x04,0xd9,0x44,0x24,0x14,0xd9,0x1c,0x24,0xff,0xd2,0xdc,0x0d,0x40,0x01,0xca,0x11,
+    0x51,0x8d,0x8c,0x24,0xa0,0x00,0x00,0x00,0xdc,0x35,0xf0,0xb9,0xcb,0x11,0xd9,0x5c,0x24,0x18,0xd9,0x44,0x24,0x18,0xd9,0x1c,0x24,
+    0xe8,0xbb,0xf2,0xff,0xff};
+// Settings (0x124a8a44) +0x94.
+constexpr BYTE Base[]{0x8b,0x15,0x44,0x8a,0x4a,0x12,0xf3,0x0f,0x10,0x82,0x94,0x00,0x00,0x00};
+constexpr Signature Signatures[]{
+    {0x314350,Perspective,sizeof(Perspective)},{0x8ba459,SceneFov,sizeof(SceneFov)},{0x8ba64d,SceneAngle,sizeof(SceneAngle)},
+    {0x8ba6c4,SceneWorld,sizeof(SceneWorld)},{0x314fe2,CameraConstrained,sizeof(CameraConstrained)},
+    {0x315049,Camera,sizeof(Camera)},{0x36ca08,Base,sizeof(Base)}};
+constexpr unsigned Returns[]{0x8ba6ef,0x315035,0x315095};
+constexpr Layout Game{0x314350,Signatures,sizeof(Signatures)/sizeof(*Signatures),Returns,sizeof(Returns)/sizeof(*Returns),0x1ba8a44,0x94};
+}
+
+inline BYTE* Image = nullptr;
+inline const Layout* Active = nullptr;
+inline int Requested = 0;
+inline bool Verified = false;
+inline const char* Error = "notRequested";
+inline BYTE* CachedSettings = nullptr;
+inline bool CachedReadable = false;
+using PerspectiveFn = void*(__thiscall*)(void*,float,float,float,float);
+inline PerspectiveFn OriginalPerspective = nullptr;
+
+// <output>\field-of-view.txt: "default" or a vertical angle in degrees.
+// Returns 0 for the game's default, the angle, or -1 for an invalid file.
+inline int Read(const std::wstring& output) {
+    FILE* file = nullptr;
+    if (_wfopen_s(&file,(output+L"\\field-of-view.txt").c_str(),L"rb") || !file) return 0;
+    char value[16]{};
+    const bool read = fscanf_s(file,"%15s",value,unsigned(sizeof(value))) == 1;
+    fclose(file);
+    if (!read) return -1;
+    if (!strcmp(value,"default")) return 0;
+    char* end = nullptr;
+    const long degrees = strtol(value,&end,10);
+    return end && !*end && degrees >= MinimumDegrees && degrees <= MaximumDegrees ? int(degrees) : -1;
+}
+
+inline bool Readable(const void* pointer, size_t size) {
+    MEMORY_BASIC_INFORMATION m{};
+    if (!pointer || !VirtualQuery(pointer,&m,sizeof(m)) || m.State != MEM_COMMIT || (m.Protect&(PAGE_GUARD|PAGE_NOACCESS))) return false;
+    const auto at = reinterpret_cast<uintptr_t>(pointer), begin = reinterpret_cast<uintptr_t>(m.BaseAddress);
+    return at >= begin && size <= m.RegionSize-(at-begin);
+}
+
+// The game's default vertical field of view, read as the game reads it.
+inline float BaseDegrees() {
+    BYTE* const settings = *reinterpret_cast<BYTE* volatile*>(Image+Active->settings);
+    if (settings != CachedSettings) {
+        CachedSettings = settings;
+        CachedReadable = Readable(settings+Active->baseOffset,sizeof(float));
+    }
+    if (!settings || !CachedReadable) return FallbackBase;
+    float base = 0;
+    memcpy(&base,settings+Active->baseOffset,sizeof(base));
+    return base > 1.0f && base < 170.0f ? base : FallbackBase;
+}
+
+inline float Scale(float half) {
+    constexpr double Pi = 3.14159265358979323846, Limit = 85.0*Pi/180.0;
+    if (!(half > 0.0f) || !(half < 1.5f)) return half;
+    const double factor = std::tan(Requested*Pi/360.0)/std::tan(BaseDegrees()*Pi/360.0);
+    const double scaled = std::atan(std::tan(double(half))*factor);
+    return float(scaled < Limit ? scaled : Limit);
+}
+
+inline void* __fastcall Perspective(void* matrix, void*, float half, float width, float height, float minimum) {
+    const BYTE* const caller = static_cast<const BYTE*>(_ReturnAddress());
+    for (size_t index = 0; index < Active->returnCount; ++index) {
+        if (caller == Image+Active->returns[index]) { half = Scale(half); break; }
+    }
+    return OriginalPerspective(matrix,half,width,height,minimum);
+}
+
+inline bool CodeMatches(BYTE* base, const Layout& layout) {
+    for (size_t index = 0; index < layout.signatureCount; ++index) {
+        const Signature& signature = layout.signatures[index];
+        if (memcmp(base+signature.rva,signature.code,signature.size)) return false;
+    }
+    for (size_t index = 0; index < layout.returnCount; ++index) {
+        const BYTE* call = base+layout.returns[index]-5;
+        LONG delta = 0;
+        memcpy(&delta,call+1,sizeof(delta));
+        if (call[0] != 0xe8 || call+5+delta != base+layout.perspective) return false;
+    }
+    return true;
+}
+
+// Installs only for a requested angle; the default leaves the game unchanged.
+inline bool Install(BYTE* base, const Layout& layout, int degrees) {
+    Image = base; Active = &layout; Requested = degrees;
+    if (degrees == 0) { Error = "notRequested"; return true; }
+    if (degrees < MinimumDegrees || degrees > MaximumDegrees) { Error = "invalidRequest"; return false; }
+    if (!CodeMatches(base,layout)) { Error = "codeMismatch"; return false; }
+    if (MH_CreateHook(base+layout.perspective,reinterpret_cast<void*>(&Perspective),reinterpret_cast<void**>(&OriginalPerspective)) != MH_OK) {
+        Error = "hookCreationFailed"; return false;
+    }
+    if (MH_EnableHook(base+layout.perspective) != MH_OK) {
+        MH_RemoveHook(base+layout.perspective); Error = "hookEnableFailed"; return false;
+    }
+    Verified = true; Error = "installed";
+    return true;
+}
+}
