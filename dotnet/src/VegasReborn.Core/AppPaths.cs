@@ -39,6 +39,8 @@ public sealed class AppPaths
     public string AccountSession => Path.Combine(CompanionConfig, "account-session.json");
     public string Preferences => Path.Combine(CompanionConfig, "preferences.json");
     public string RetailAccounts => Path.Combine(Local, "retail-accounts");
+    /// <summary>Launcher-owned Vegas 1 Maps Pack store: files/, staging/ and record.json.</summary>
+    public string MapsPack => Path.Combine(Local, "content", "vegas1-maps-pack");
     public string Updates => Path.Combine(Root, ".updates");
 
     /// <summary>Private game copy for a title. Vegas 1 keeps the 0.4.x location.</summary>
