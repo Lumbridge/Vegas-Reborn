@@ -157,53 +157,37 @@
                                                 <TextBlock Text="{Binding Lead}" Style="{StaticResource SectionLead}" />
                                             </StackPanel>
                                         </Border>
+                                        <!-- Display mode and monitor lead the game fixes -->
+                                        <StackPanel Visibility="{Binding ShowsDisplay, Converter={StaticResource Visible}}">
+                                        <StackPanel DataContext="{Binding Display}">
+                                        <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,14">
+                                            <DockPanel>
+                                                <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding DisplayModeNames}" SelectedItem="{Binding SelectedDisplayMode}" Width="240"
+                                                          AutomationProperties.Name="Display mode" />
+                                                <StackPanel>
+                                                    <TextBlock Text="Display mode" FontWeight="SemiBold" FontSize="15" />
+                                                    <TextBlock Text="Borderless fills your selected monitor without staying on top." Style="{StaticResource MutedText}" FontSize="13" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                        <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,14"
+                                                Visibility="{Binding ShowsMonitor, Converter={StaticResource Visible}}">
+                                            <DockPanel>
+                                                <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding Monitors}" SelectedItem="{Binding SelectedMonitor}"
+                                                          AutomationProperties.Name="Monitor" Width="240" />
+                                                <StackPanel>
+                                                    <TextBlock Text="Monitor" FontWeight="SemiBold" FontSize="15" />
+                                                    <TextBlock Text="Where the game window opens." Style="{StaticResource MutedText}" FontSize="13" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                        </StackPanel>
+                                        </StackPanel>
                                         <ItemsControl ItemsSource="{Binding Fixes}" ItemTemplate="{StaticResource FixRow}" Focusable="False" />
                                     </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-
-                        <!-- Playing on a PC -->
-                        <Border BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="0,20,0,0" Margin="0,16,0,0">
-                            <StackPanel>
-                                <TextBlock Text="Playing on a PC" Style="{StaticResource SectionHeading}" />
-                                <TextBlock Text="How the game shows on your PC." Style="{StaticResource SectionLead}" />
-                                <TextBlock Text="Display options are not available for this game yet. It opens as the original does."
-                                           Style="{StaticResource MutedText}" Margin="0,8,0,0">
-                                    <TextBlock.Visibility>
-                                        <Binding Path="SupportsLaunchOptions">
-                                            <Binding.Converter>
-                                                <vm:InverseVisibilityConverter />
-                                            </Binding.Converter>
-                                        </Binding>
-                                    </TextBlock.Visibility>
-                                </TextBlock>
-
-                                <StackPanel Visibility="{Binding SupportsLaunchOptions, Converter={StaticResource Visible}}">
-                                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,14">
-                                    <DockPanel>
-                                        <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding DisplayModeNames}" SelectedItem="{Binding SelectedDisplayMode}" Width="240"
-                                                  AutomationProperties.Name="Display mode" />
-                                        <StackPanel>
-                                            <TextBlock Text="Display mode" FontWeight="SemiBold" FontSize="15" />
-                                            <TextBlock Text="Borderless fills your selected monitor without staying on top." Style="{StaticResource MutedText}" FontSize="13" Margin="0,2,0,0" />
-                                        </StackPanel>
-                                    </DockPanel>
-                                </Border>
-                                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,14"
-                                        Visibility="{Binding ShowsMonitor, Converter={StaticResource Visible}}">
-                                    <DockPanel>
-                                        <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding Monitors}" SelectedItem="{Binding SelectedMonitor}"
-                                                  AutomationProperties.Name="Monitor" Width="240" />
-                                        <StackPanel>
-                                            <TextBlock Text="Monitor" FontWeight="SemiBold" FontSize="15" />
-                                            <TextBlock Text="Where the game window opens." Style="{StaticResource MutedText}" FontSize="13" Margin="0,2,0,0" />
-                                        </StackPanel>
-                                    </DockPanel>
-                                </Border>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>

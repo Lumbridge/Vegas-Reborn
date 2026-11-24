@@ -116,7 +116,7 @@ public static class TitleCatalog
     {
         Key = "vegas2",
         DisplayName = "Rainbow Six Vegas 2",
-        Support = TitleSupport.Experimental,
+        Support = TitleSupport.Supported,
         SteamAppId = 15120,
         DefaultInstallFolder = "E:/SteamLibrary/steamapps/common/Rainbow Six Vegas 2",
         ClientExecutable = "Binaries/R6Vegas2_Game.exe",
@@ -130,8 +130,6 @@ public static class TitleCatalog
         TrustKey = TrustKeyKind.SignaturePub,
         RedirectedHosts = ["gconnect.ubi.com", "stun.apac.ubi.com", "stun.emea.ubi.com", "stun.ncsa.ubi.com"],
         RealmPort = 3080,
-        // Display and intro options need Vegas 2 adapter hooks that do not exist yet.
-        SupportsLaunchOptions = false,
         // Account slots are added once the Vegas 2 save format is grounded.
         SaveSlots = new Dictionary<string, string>(),
         Fixes =
@@ -164,7 +162,7 @@ public static class TitleCatalog
                 FixSection.KeptFromCrashing, FixKind.AlwaysOn),
             new(OnlineRoute, "Revived online service",
                 "Connect the game's online menus to the Vegas Reborn service.",
-                "The game copy's Ubisoft service addresses lead to the Vegas Reborn service, and its signature.pub is the service's key. The installed game is not changed. Online support for Vegas 2 is being tested.",
+                "The game copy's Ubisoft service addresses lead to the Vegas Reborn service, and its signature.pub is the service's key. The installed game is not changed.",
                 FixSection.OnlineServices, FixKind.AlwaysOn),
             // The adapter reports discordSignInVerified.
             new(DiscordSignIn, "Sign in with Discord",

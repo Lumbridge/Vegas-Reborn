@@ -57,7 +57,7 @@ internal sealed record TitleLaunchProfile
             // copy is also written so a profile reset still finds the key.
             CopyProfileIni = "KellerGame/Config/PC/PlayerProfile.ini",
             EncodedKeyId = true,
-            RunningMessage = "Game running. Choose Login from the main menu and click Login. Sign-in is automatic. Online support for this game is being tested.",
+            RunningMessage = "Game running. Choose Login from the main menu and click Login. Sign-in is automatic.",
         },
         _ => throw new ArgumentException($"No launch support for '{title.Key}'", nameof(title)),
     };

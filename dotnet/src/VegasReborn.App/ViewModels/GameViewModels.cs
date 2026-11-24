@@ -73,8 +73,11 @@ public sealed class FixViewModel : ObservableObject
     public void Refresh() => OnPropertyChanged(nameof(IsEnabled));
 }
 
-public sealed class FixSectionViewModel(string heading, string lead, IEnumerable<FixViewModel> fixes)
+public sealed class FixSectionViewModel(string heading, string lead, IEnumerable<FixViewModel> fixes, GameViewModel? display = null)
 {
+    /// <summary>The game whose display mode and monitor rows lead this section; null for none.</summary>
+    public GameViewModel? Display { get; } = display;
+    public bool ShowsDisplay => Display is not null;
     public string Heading { get; } = heading;
     public string Lead { get; } = lead;
     public IReadOnlyList<FixViewModel> Fixes { get; } = fixes.ToList();
@@ -114,7 +117,7 @@ public sealed class GameViewModel : ObservableObject
             }
             if (fixes.Count > 0)
             {
-                Sections.Add(new FixSectionViewModel(heading, lead, fixes));
+                Sections.Add(new FixSectionViewModel(heading, lead, fixes, section == FixSection.GameFixes ? this : null));
             }
         }
         LaunchCommand = new RelayCommand(() => owner.PlayAsync(this), () => !owner.IsBusy);
@@ -135,7 +138,6 @@ public sealed class GameViewModel : ObservableObject
     public GameTitle Title { get; }
     public string Name => Title.DisplayName;
     public bool IsExperimental => Title.Support == TitleSupport.Experimental;
-    public bool SupportsLaunchOptions => Title.SupportsLaunchOptions;
     public ObservableCollection<FixSectionViewModel> Sections { get; } = [];
     public IReadOnlyList<string> DisplayModeNames { get; } = DisplayModes.All.Select(DisplayModes.Name).ToList();
     public ICommand LaunchCommand { get; }

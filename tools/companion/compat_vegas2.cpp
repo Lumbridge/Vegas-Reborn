@@ -2,7 +2,8 @@
 // profile, routes the original Agora bootstrap and STUN hosts to the
 // configured realm and, once Steam has unpacked the client, installs the
 // grounded game hooks: fixed-rate head and face animation, Discord sign-in,
-// the claimed player name, one-player multiplayer matches and full online XP.
+// the claimed player name, one-player multiplayer matches, full online XP and
+// the startup intro sequence, and the Windowed and Borderless display modes.
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -24,6 +25,8 @@
 #include "native_claimed_name_vegas2.h"
 #include "native_solo_match_vegas2.h"
 #include "native_xp_modifier_vegas2.h"
+#include "native_skip_intros_vegas2.h"
+#include "native_display_vegas2.h"
 
 static bool RedirectedHost(const char* name){
     // Static: RainbowSixVegas2_SADS.exe bootstrap host (file offset 0x1664f10)
@@ -159,13 +162,18 @@ static void WriteStatus(bool ready,unsigned gameHooks){
         "\"discordSignInVerified\":%s,\"discordSignInStatus\":\"%s\","
         "\"claimedNameVerified\":%s,\"claimedNameStatus\":\"%s\","
         "\"soloMatchVerified\":%s,\"soloMatchStatus\":\"%s\","
-        "\"fullXpVerified\":%s,\"fullXpStatus\":\"%s\"}\n",
+        "\"fullXpVerified\":%s,\"fullXpStatus\":\"%s\","
+        "\"skipIntrosRequested\":%s,\"skipIntrosVerified\":%s,\"skipIntrosStatus\":\"%s\","
+        "\"windowedRequested\":%s,\"borderlessRequested\":%s,\"displayViewportVerified\":%s,\"displayStyleVerified\":%s,\"displayStatus\":\"%s\"}\n",
         ready?"true":"false",gameHooks,
         NativeProceduralAnimationVegas2::Verified?"true":"false",NativeProceduralAnimationVegas2::Error,
         NativeLoginVegas2::Verified?"true":"false",NativeLoginVegas2::Error,
         NativeClaimedNameVegas2::Verified?"true":"false",NativeClaimedNameVegas2::Error,
         NativeSoloMatchVegas2::Verified?"true":"false",NativeSoloMatchVegas2::Error,
-        NativeXpModifierVegas2::Verified?"true":"false",NativeXpModifierVegas2::Error);
+        NativeXpModifierVegas2::Verified?"true":"false",NativeXpModifierVegas2::Error,
+        NativeSkipIntrosVegas2::Requested?"true":"false",NativeSkipIntrosVegas2::Verified?"true":"false",NativeSkipIntrosVegas2::Error,
+        NativeDisplayVegas2::Windowed?"true":"false",NativeDisplayVegas2::Borderless?"true":"false",
+        NativeDisplayVegas2::ViewportArmed?"true":"false",NativeDisplayVegas2::StyleVerified?"true":"false",NativeDisplayVegas2::Error);
     fclose(status);
     MoveFileExW((Output+L"\\compat-status.tmp").c_str(),(Output+L"\\compat-status.json").c_str(),MOVEFILE_REPLACE_EXISTING);
 }
@@ -190,11 +198,15 @@ static DWORD WINAPI NativeInitialize(LPVOID){
     const bool name=NativeClaimedNameVegas2::Install(base,Output);
     const bool solo=NativeSoloMatchVegas2::Install(base);
     const bool xp=NativeXpModifierVegas2::Install(base);
-    Trace("game hooks: animation %s, sign-in %s, name %s, solo %s, xp %s",NativeProceduralAnimationVegas2::Error,
-        NativeLoginVegas2::Error,NativeClaimedNameVegas2::Error,NativeSoloMatchVegas2::Error,NativeXpModifierVegas2::Error);
-    const bool ready=animation&&login&&name&&solo&&xp;
+    const bool intros=NativeSkipIntrosVegas2::Install(base,Output);
+    const bool display=NativeDisplayVegas2::Install(base);
+    Trace("game hooks: animation %s, sign-in %s, name %s, solo %s, xp %s, intros %s, display %s",NativeProceduralAnimationVegas2::Error,
+        NativeLoginVegas2::Error,NativeClaimedNameVegas2::Error,NativeSoloMatchVegas2::Error,NativeXpModifierVegas2::Error,
+        NativeSkipIntrosVegas2::Error,NativeDisplayVegas2::Error);
+    const bool ready=animation&&login&&name&&solo&&xp&&intros&&display;
     WriteStatus(ready,(animation?NativeProceduralAnimationVegas2::MethodCount+1:0)+(login?2:0)+
-        (NativeClaimedNameVegas2::Verified?NativeClaimedNameVegas2::Count:0)+(solo?NativeSoloMatchVegas2::Count:0)+(xp?2:0));
+        (NativeClaimedNameVegas2::Verified?NativeClaimedNameVegas2::Count:0)+(solo?NativeSoloMatchVegas2::Count:0)+(xp?2:0)+
+        (NativeSkipIntrosVegas2::Verified?2:0)+(NativeDisplayVegas2::ViewportArmed?1:0)+(NativeDisplayVegas2::StyleVerified?1:0));
     return ready?1:0;
 }
 
@@ -237,6 +249,8 @@ extern "C" DWORD WINAPI StartCompanion(LPVOID configuration){
     HOOK("ws2_32.dll","getaddrinfo",TraceResolveAddr,OriginalResolveAddr);
     HOOK("ws2_32.dll","connect",TraceConnect,OriginalConnectSocket);
 #undef HOOK
+    // A failed display setup is reported with the game hooks, as for the others.
+    NativeDisplayVegas2::Arm(Output);
     if(!ready||MH_EnableHook(MH_ALL_HOOKS)!=MH_OK){MH_Uninitialize();WriteStatus(false,0);return 0;}
     Trace("adapter ready; route %s:%u",RouteAddress.c_str(),RouteTcpPort);
     HANDLE thread=CreateThread(nullptr,0,NativeInitialize,nullptr,0,nullptr);

@@ -121,4 +121,31 @@ public sealed class CompatibilityValidationTests
             () => CompatibilityValidation.Validate(title, absent, claimedName: "Tester")).Message);
         CompatibilityValidation.Validate(title, Reports.Vegas2Ready(), claimedName: "Tester");
     }
+
+    [Fact]
+    public void Vegas2SkipIntrosRequiresVerifiedSequenceHook()
+    {
+        var title = TitleCatalog.Vegas2;
+        var played = Reports.Vegas2Ready();
+        played["skipIntrosVerified"] = false;
+        played["skipIntrosStatus"] = "notRequested";
+        CompatibilityValidation.Validate(title, played);
+        Assert.Throws<LaunchException>(() => CompatibilityValidation.Validate(title, played, skipIntros: true));
+        CompatibilityValidation.Validate(title, Reports.Vegas2Ready(), skipIntros: true);
+    }
+
+    [Fact]
+    public void Vegas2DisplayModesRequireVerifiedViewportAndStyle()
+    {
+        var title = TitleCatalog.Vegas2;
+        var report = Reports.Vegas2Ready();
+        CompatibilityValidation.Validate(title, report, displayMode: DisplayMode.Fullscreen);
+        Assert.Throws<LaunchException>(() => CompatibilityValidation.Validate(title, report, displayMode: DisplayMode.Windowed));
+        report["displayViewportVerified"] = true;
+        CompatibilityValidation.Validate(title, report, displayMode: DisplayMode.Windowed);
+        Assert.Contains("Borderless", Assert.Throws<LaunchException>(
+            () => CompatibilityValidation.Validate(title, report, displayMode: DisplayMode.Borderless)).Message);
+        report["displayStyleVerified"] = true;
+        CompatibilityValidation.Validate(title, report, displayMode: DisplayMode.Borderless);
+    }
 }

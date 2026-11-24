@@ -263,6 +263,7 @@ internal static class Reports
         ["soloMatchVerified"] = true,
         ["soloMatchStatus"] = "ok",
         ["fullXpVerified"] = true,
+        ["skipIntrosVerified"] = true,
         ["fullXpStatus"] = "ok",
     };
 

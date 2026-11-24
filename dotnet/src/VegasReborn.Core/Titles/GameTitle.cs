@@ -78,8 +78,6 @@ public sealed record GameTitle
     /// <summary>Account profile slot name to save file name in the profile folder.</summary>
     public required IReadOnlyDictionary<string, string> SaveSlots { get; init; }
     public required IReadOnlyList<GameFix> Fixes { get; init; }
-    /// <summary>Whether the native adapter implements display mode and skip-intro options.</summary>
-    public bool SupportsLaunchOptions { get; init; } = true;
 
     public IEnumerable<GameFix> FixesIn(FixSection section) => Fixes.Where(fix => fix.Section == section);
 

@@ -237,18 +237,50 @@ public sealed class GameLauncherTests : IDisposable
         Assert.Equal(EngineIni.Replace("\r\n", "\n").Replace("DisableOcclusion=False", "DisableOcclusion=True"),
             File.ReadAllText(Path.Combine(game, "KellerGame/Config/PCKellerEngine.ini")));
         Assert.False(File.Exists(Path.Combine(Output(title), "native-features.txt")));
+        Assert.Equal("native\n", File.ReadAllText(Path.Combine(Output(title), "display-mode.txt")));
+        Assert.DoesNotContain("Verifying the game's requested display and intro settings...", _messages.Items);
         Assert.Contains("Enable=FALSE", File.ReadAllText(Path.Combine(game, "KellerGame/Config/MovieLoading.ini")));
         var route = File.ReadAllText(Path.Combine(Output(title), "native-route.txt")).Split('\n');
         Assert.Equal(["203.0.113.5", "3080", "1"], route.Take(3));
         Assert.Matches("^v[0-9a-f]{14}$", route[4]);
         Assert.Equal(["-applaunch", "15120"], Assert.Single(_system.SteamLaunches));
         Assert.Equal(Path.Combine(_paths.NativeBin, "VegasCompanionVegas2.dll"), _system.Components[1][3]);
-        Assert.Contains("Online support for this game is being tested", _messages.ToString());
+        Assert.Contains("Game running. Choose Login from the main menu and click Login. Sign-in is automatic.", _messages.Items);
+        Assert.DoesNotContain("being tested", _messages.ToString());
         Assert.Equal("Game closed.", _messages.Items[^1]);
         // A second launch accepts the already-installed key.
         _system.SteamLaunches.Clear();
         await Launcher().PlayAsync(Request(title), _messages);
         Assert.Single(_system.SteamLaunches);
+    }
+
+    [Fact]
+    public async Task Vegas2BorderlessWaitsForWindowedDeviceAndFitsMonitor()
+    {
+        InstallVegas2();
+        var title = Vegas2;
+        _system.Output = Output(title);
+        _system.Status = () =>
+        {
+            var report = Reports.Vegas2Ready();
+            report["displayViewportVerified"] = true;
+            report["displayStyleVerified"] = true;
+            return report;
+        };
+        // The Vegas 2 intro hook is reported in compat-status.json, not here.
+        _system.LaunchOptions = new JsonObject
+        {
+            ["viewportHookInstalled"] = true, ["deviceVerified"] = true, ["actualWindowed"] = true,
+        };
+        _system.ExitAfterWaits = 2;
+
+        await Launcher().PlayAsync(Request(title, DisplayMode.Borderless, skipIntros: true), _messages);
+
+        Assert.Equal("borderless\n", File.ReadAllText(Path.Combine(Output(title), "display-mode.txt")));
+        Assert.Contains("Verifying the game's requested display and intro settings...", _messages.Items);
+        Assert.Equal(["borderless:42", "borderless:42"], _desktop.Calls);
+        Assert.Contains("StartupFullscreen=False",
+            File.ReadAllText(Path.Combine(_paths.GameCopy("vegas2"), "KellerGame/Config/PCKellerEngine.ini")));
     }
 
     [Fact]

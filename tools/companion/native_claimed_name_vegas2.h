@@ -11,7 +11,13 @@
 // - 0x10f82bc6 in 0x10f82b70, which formats "START %s?Name=%s?XUID=%lld?
 //   XNADDR=%s" (format 0x11e2e620, pushed at 0x10f82f9d) and its password
 //   variant.
-// The companion replaces those two calls, so the player's in-game name becomes
+// - 0x10c8c618 in 0x10c8c5d0, the static online-name helper (cdecl: FString*
+//   out, int controller) used by the menus (for example 0x1147be50, which
+//   builds the Common.mgb player header), the DefaultPlayer Name= option
+//   0x11310780 and the server options managers.
+// The login screen R6MagmaLogin (0x114c8a91) keeps the sign-in name, and the
+// Agora match creation manager (0x10d71bb9) is unchanged.
+// The companion replaces those three calls, so the player's in-game name becomes
 // the claim. The XUID, the login credential and the online user record are
 // unchanged.
 #include <windows.h>
@@ -22,9 +28,9 @@
 namespace NativeClaimedNameVegas2 {
 constexpr unsigned Preferred = 0x10900000;
 constexpr unsigned Getter = 0x10f81f10, Wrapper = 0x10f7ca90, FormatPush = 0x10f82f9d, Format = 0x11e2e620;
-constexpr unsigned Count = 2;
-constexpr unsigned Sites[Count] = {0x10d525e7, 0x10f82bc6};
-constexpr unsigned Targets[Count] = {Wrapper, Getter};
+constexpr unsigned Count = 3;
+constexpr unsigned Sites[Count] = {0x10d525e7, 0x10f82bc6, 0x10c8c618};
+constexpr unsigned Targets[Count] = {Wrapper, Getter, Wrapper};
 constexpr unsigned char GetterPrologue[] = {0x51,0x83,0x3d,0xd0,0xc5,0x25,0x12,0x00,0xc7,0x04,0x24,0,0,0,0};
 // mov ecx,[ecx+0x18]; ... call 0x10f81f10 at +0x17.
 constexpr unsigned char WrapperPrologue[] = {0x51,0x8b,0x44,0x24,0x0c,0x8b,0x49,0x18};
@@ -47,7 +53,8 @@ NativeLoginVegas2::FString* __fastcall ClaimedName(void* manager, void*, NativeL
     return result;
 }
 inline void* const Replacements[Count] = {
-    reinterpret_cast<void*>(&ClaimedName<0>), reinterpret_cast<void*>(&ClaimedName<1>)};
+    reinterpret_cast<void*>(&ClaimedName<0>), reinterpret_cast<void*>(&ClaimedName<1>),
+    reinterpret_cast<void*>(&ClaimedName<2>)};
 
 // 0 when the companion wrote no claim, 1 for a valid claim, -1 for an invalid
 // file. The claim follows the service's name rules (3-16 characters, letters,
@@ -96,7 +103,7 @@ inline bool Write(unsigned site, const unsigned char* bytes) {
     return VirtualProtect(At(site),5,protection,&ignored) != FALSE && flushed && !memcmp(At(site),bytes,5);
 }
 
-// Returns true when no claim was written (nothing to do) or both calls were
+// Returns true when no claim was written (nothing to do) or all calls were
 // replaced. A claim the adapter cannot apply is a failure.
 inline bool Install(unsigned char* base, const std::wstring& output) {
     const int claim = ReadClaim(output);

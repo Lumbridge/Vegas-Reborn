@@ -15,6 +15,7 @@ Dedicated hosting is not included in this version.
 Rainbow Six Vegas 2 uses the same sign-in and claimed player name. Unranked
 multiplayer matches can be started with one player, and match XP is awarded
 in full whatever the player count or team balance.
+Display mode, monitor and Skip intro movies work for both games.
 
 The interface has Play, Account, Display & Game, Connections and Updates
 pages. Switching pages preserves the selected window size and position.

@@ -34,12 +34,13 @@ public static class CompatibilityValidation
         JsonObject compatibility,
         string? claimedName = null,
         DisplayMode displayMode = DisplayMode.GameDefault,
-        IReadOnlySet<string>? disabledFixes = null)
+        IReadOnlySet<string>? disabledFixes = null,
+        bool skipIntros = false)
     {
         disabledFixes ??= new HashSet<string>();
         if (!TitleLaunchProfile.For(title).NativeGameHooks)
         {
-            ValidateGeneric(title, compatibility, claimedName);
+            ValidateGeneric(title, compatibility, claimedName, displayMode, skipIntros);
             return;
         }
         if (!Truthy(compatibility["ready"]))
@@ -96,7 +97,7 @@ public static class CompatibilityValidation
         [TitleCatalog.FullXp] = "fullXpVerified",
     };
 
-    private static void ValidateGeneric(GameTitle title, JsonObject compatibility, string? claimedName)
+    private static void ValidateGeneric(GameTitle title, JsonObject compatibility, string? claimedName, DisplayMode displayMode, bool skipIntros)
     {
         if (!Truthy(compatibility["ready"]))
         {
@@ -118,6 +119,18 @@ public static class CompatibilityValidation
             && !Truthy(compatibility["claimedNameVerified"]))
         {
             throw new LaunchException("The game's player-name setup was not verified; update the companion and retry");
+        }
+        if (skipIntros && !Truthy(compatibility["skipIntrosVerified"]))
+        {
+            throw new LaunchException(UpdateModule);
+        }
+        if (displayMode is DisplayMode.Windowed or DisplayMode.Borderless && !Truthy(compatibility["displayViewportVerified"]))
+        {
+            throw new LaunchException("The game's display setup was not verified. Update the companion's native compatibility module, then retry.");
+        }
+        if (displayMode == DisplayMode.Borderless && !Truthy(compatibility["displayStyleVerified"]))
+        {
+            throw new LaunchException("Borderless setup was not verified. Update the companion's native compatibility module, then retry.");
         }
     }
 

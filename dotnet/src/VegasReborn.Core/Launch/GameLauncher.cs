@@ -139,17 +139,19 @@ public sealed class GameLauncher
             {
                 PrivateFile.Delete(claimFile);
             }
+            // Both adapters complete the original startup intro sequence on request.
+            PrivateFile.WriteText(Path.Combine(output, "skip-intros.txt"), request.SkipIntros ? "skip\n" : "play\n");
+            // Both adapters apply Windowed and Borderless in the game.
+            PrivateFile.WriteText(Path.Combine(output, "display-mode.txt"), displayMode switch
+            {
+                DisplayMode.Borderless => "borderless\n",
+                DisplayMode.Windowed => "windowed\n",
+                _ => "native\n",
+            });
+            PrivateFile.Delete(Path.Combine(output, "launch-options-status.json"));
             if (profile.NativeGameHooks)
             {
-                PrivateFile.WriteText(Path.Combine(output, "display-mode.txt"), displayMode switch
-                {
-                    DisplayMode.Borderless => "borderless\n",
-                    DisplayMode.Windowed => "windowed\n",
-                    _ => "native\n",
-                });
-                PrivateFile.WriteText(Path.Combine(output, "skip-intros.txt"), request.SkipIntros ? "skip\n" : "play\n");
                 PrivateFile.WriteText(Path.Combine(output, NativeFeatures.FileName), NativeFeatures.Format(disabled));
-                PrivateFile.Delete(Path.Combine(output, "launch-options-status.json"));
             }
             var profileDirectory = LaunchLayout.ProfileDirectory(output, title);
             GamePreparer.InstallCdKey(game, profileDirectory, profile, _configuration.NativeLicenseId);
@@ -210,13 +212,15 @@ public sealed class GameLauncher
             await _system.RunComponentAsync([control, "--stop-gate", Argument(steamPid), module, gateDll]).ConfigureAwait(false);
             await WaitForFileAsync(readyFile, 65, "The game's compatibility module did not become ready", cancellationToken).ConfigureAwait(false);
             var compatibility = ReadObject(readyFile) ?? throw new LaunchException("The game's compatibility module did not become ready");
-            CompatibilityValidation.Validate(title, compatibility, account.ClaimedName, displayMode, disabled);
-            if (profile.NativeGameHooks && (displayMode is DisplayMode.Windowed or DisplayMode.Borderless || request.SkipIntros))
+            CompatibilityValidation.Validate(title, compatibility, account.ClaimedName, displayMode, disabled, request.SkipIntros);
+            // Vegas 2 reports its intro hook in compat-status.json.
+            var optionsIntros = profile.NativeGameHooks && request.SkipIntros;
+            if (displayMode is DisplayMode.Windowed or DisplayMode.Borderless || optionsIntros)
             {
                 progress?.Report("Verifying the game's requested display and intro settings...");
                 var optionsFile = Path.Combine(output, "launch-options-status.json");
                 var deadline = _system.Now + 15_000;
-                while (!CompatibilityValidation.LaunchOptionsReady(ReadObject(optionsFile) ?? [], displayMode, request.SkipIntros))
+                while (!CompatibilityValidation.LaunchOptionsReady(ReadObject(optionsFile) ?? [], displayMode, optionsIntros))
                 {
                     if (_system.Now > deadline)
                     {
