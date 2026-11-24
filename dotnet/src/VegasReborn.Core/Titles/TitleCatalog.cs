@@ -26,6 +26,7 @@ public static class TitleCatalog
     public const string Controller = "controller";
     public const string PunkBusterRemoved = "punkbuster-removed";
     public const string LeaderboardLabels = "leaderboard-labels";
+    public const string PlayerAwards = "player-awards";
 
     public static GameTitle Vegas1 { get; } = new()
     {
@@ -91,6 +92,11 @@ public static class TitleCatalog
             new(PlayerRank, "Rank in Player Info",
                 "Add your rank to the Player Info menu.",
                 "Adds a Player Info entry that opens the original Trophy and Service Record panels with your account's rank.",
+                FixSection.GameFixes, FixKind.AlwaysOn),
+            // The adapter reports nativeAwardsVerified (award manager getter and unlock).
+            new(PlayerAwards, "Player awards",
+                "Track ribbons, medals, badges and trophies in Player Info.",
+                "The PC game never creates its award list and its unlock step does nothing, so Player Info shows 0 OF 0. This creates the game's own awards for your profile, lets the game's own checks unlock them, and saves them on this PC for your account.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             new(RankedAccess, "Ranked match option",
                 "Restore the Ranked choice in online menus.",

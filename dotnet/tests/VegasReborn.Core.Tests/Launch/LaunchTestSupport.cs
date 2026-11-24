@@ -301,6 +301,7 @@ internal static class Reports
         ["playerLimitVerified"] = true,
         ["fireSoundLoopVerified"] = true,
         ["punkBusterRemovedVerified"] = true,
+        ["nativeAwardsVerified"] = true,
         ["disabledFeatures"] = new JsonArray(),
     };
 

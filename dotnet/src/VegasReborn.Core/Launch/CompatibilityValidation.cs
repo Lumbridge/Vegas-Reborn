@@ -29,6 +29,7 @@ public static class CompatibilityValidation
     private static readonly string[] RequiredVegas1Fields =
     [
         "nativeStatisticsVerified", "nativeRankedHostVerified", "nativeUnlockPolicyVerified", "nativePecDefaultsVerified", "punkBusterRemovedVerified",
+        "nativeAwardsVerified",
     ];
 
     public static void Validate(
