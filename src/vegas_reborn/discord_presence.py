@@ -1,4 +1,4 @@
-"""Native Discord desktop IPC, matching the UE5 FVegasDiscordRpc integration.
+"""Native Discord desktop IPC.
 
 No OAuth bearer or native game credential is sent over this connection. Retail
 join secrets are deliberately absent until a retail join path is verified.
@@ -11,7 +11,7 @@ import struct
 import threading
 import time
 
-APPLICATION_ID = "1571611222636236904"  # Shared with UE5 VegasAccount/DefaultGame.ini.
+APPLICATION_ID = "1571611222636236904"  # The Vegas Reborn Discord application.
 MAX_PAYLOAD = 65536
 
 

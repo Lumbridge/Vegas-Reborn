@@ -14,13 +14,13 @@ public interface IDiscordPipe : IDisposable
 }
 
 /// <summary>
-/// Native Discord desktop IPC Rich Presence, matching the UE5 FVegasDiscordRpc integration.
+/// Native Discord desktop IPC Rich Presence.
 /// No OAuth bearer or native game credential is sent over this connection. Discord being
 /// unavailable never affects play. Status text goes to the progress callback.
 /// </summary>
 public sealed class DiscordPresence : IAsyncDisposable, IDisposable
 {
-    /// <summary>Shared with UE5 VegasAccount/DefaultGame.ini.</summary>
+    /// <summary>The Vegas Reborn Discord application.</summary>
     public const string ApplicationId = "1571611222636236904";
 
     private readonly IProgress<string>? _notify;

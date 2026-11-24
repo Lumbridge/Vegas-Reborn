@@ -220,7 +220,7 @@ class CompanionView:
         self.button(row,"connect","Sign in with Discord",self.actions["connect"],"account","Primary.TButton")
         self.button(row,"refresh","Refresh account",self.actions["refresh"],"sync")
         self.button(row,"signout","Sign out",self.actions["signout"],"logout","Quiet.TButton")
-        self.identity_card,name=self.panel(body,"Player name","Shared with the UE5 version. Use 3–16 letters, digits, _ - or .; start with a letter or digit.")
+        self.identity_card,name=self.panel(body,"Player name","Use 3–16 letters, digits, _ - or .; start with a letter or digit.")
         row=ttk.Frame(name,style="Panel.TFrame");row.pack(fill="x")
         self.widgets["name_entry"]=ttk.Entry(row,textvariable=self.values.claimed_name)
         self.widgets["name_entry"].pack(side="left",fill="x",expand=True,padx=(0,12))
@@ -272,7 +272,7 @@ class CompanionView:
         self.button(inner,"host_overview","Back to Play",lambda:self.show_page("overview"),"arrow","Quiet.TButton")
 
     def _connections(self):
-        _,inner=self.panel(self.pages["connections"].body,"Discord desktop","Activity sharing uses the same Discord application as the UE5 version.")
+        _,inner=self.panel(self.pages["connections"].body,"Discord desktop","Activity sharing shows your game in your Discord status.")
         ttk.Label(inner,image=self.graphics.icon("connections",52,ACCENT),background=PANEL).pack(anchor="w",pady=(0,20))
         ttk.Checkbutton(inner,text="Share my Vegas Reborn activity",variable=self.values.share_discord,style="Switch.TCheckbutton").pack(anchor="w")
         ttk.Label(inner,textvariable=self.values.discord_status,style="Panel.TLabel",wraplength=700).pack(anchor="w",pady=(16,12))

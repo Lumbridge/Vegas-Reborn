@@ -14,8 +14,8 @@ available.
 
 ## What you need
 
-- A Windows PC with an owned, installed copy of the original **Rainbow Six Vegas**.
-  This companion is for the original game, not the UE5 remake.
+- A Windows PC with an owned, installed copy of the original PC **Rainbow Six Vegas** or
+  **Rainbow Six Vegas 2**.
 - Steam running and signed in.
 - A Discord account and an internet connection for sign-in and character sync.
 - A writable folder for the companion and its separate game copy.
