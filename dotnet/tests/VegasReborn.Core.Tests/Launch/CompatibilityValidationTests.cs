@@ -57,7 +57,7 @@ public sealed class CompatibilityValidationTests
     {
         var report = Reports.Vegas1Ready();
         CompatibilityValidation.Validate(Vegas1, report, displayMode: DisplayMode.Windowed);
-        foreach (var key in new[] { "proceduralAnimationVerified", "reportXpVerified", "nativeStatisticsVerified", "nativePecDefaultsVerified" })
+        foreach (var key in new[] { "proceduralAnimationVerified", "reportXpVerified", "nativeStatisticsVerified", "nativePecDefaultsVerified", "punkBusterRemovedVerified" })
         {
             var changed = Reports.Vegas1Ready();
             changed[key] = false;

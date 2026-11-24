@@ -75,6 +75,11 @@ public static class TitleCatalog
                 "Stop other players' automatic fire sounds from looping after they stop shooting.",
                 "Online, the host sends the start and end of another player's automatic fire sound as two messages that can be lost or skipped at a distance. A lost end message leaves the sound looping. When that player has stopped firing and no end arrived, the game's own end sound is played in your game.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
+            // The adapter reports punkBusterRemovedVerified (Create Match CB_PBServer).
+            new(PunkBusterRemoved, "PunkBuster setting removed",
+                "Remove the Enable PunkBuster Server option and keep it off.",
+                "PunkBuster's online service no longer exists. This hides the Enable PunkBuster Server checkbox in Create Match, as the game already does in one of its own match screens, and stops the game from starting the PunkBuster server.",
+                FixSection.GameFixes, FixKind.AlwaysOn),
             new(ReportXp, "Match XP report",
                 "Show the XP earned at the end of a match.",
                 "Reads your character's XP before and after the original end-of-match award and shows the difference. It does not change rewards.",
