@@ -72,6 +72,10 @@ internal static partial class GamePreparer
             throw new LaunchException("The launcher's game copy failed its integrity check");
         }
         await Task.Run(() => ApplyMissionContent(paths, title, destination, source), cancellationToken).ConfigureAwait(false);
+        if (title.Fix(TitleCatalog.LeaderboardLabels) is not null)
+        {
+            await Task.Run(() => LeaderboardLabels.Apply(destination, source), cancellationToken).ConfigureAwait(false);
+        }
         foreach (var (relative, expected) in profile.PinnedFiles)
         {
             if (PrivateFile.Sha256(Path.Combine(destination, relative)) != expected)

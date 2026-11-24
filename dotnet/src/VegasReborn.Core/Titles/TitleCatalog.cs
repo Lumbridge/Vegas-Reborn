@@ -25,6 +25,7 @@ public static class TitleCatalog
     public const string FireSoundLoop = "fire-sound-loop";
     public const string Controller = "controller";
     public const string PunkBusterRemoved = "punkbuster-removed";
+    public const string LeaderboardLabels = "leaderboard-labels";
 
     public static GameTitle Vegas1 { get; } = new()
     {
@@ -77,6 +78,10 @@ public static class TitleCatalog
             new(ReportXp, "Match XP report",
                 "Show the XP earned at the end of a match.",
                 "Reads your character's XP before and after the original end-of-match award and shows the difference. It does not change rewards.",
+                FixSection.GameFixes, FixKind.AlwaysOn),
+            new(LeaderboardLabels, "Leaderboard map labels",
+                "Stop the map names under the leaderboards from overlapping.",
+                "The PC arrow buttons under each leaderboard keep their placeholder text, which is drawn over the map name the game shows beside them. The launcher's game copy blanks the placeholder text. The arrows still work.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             new(PlayerRank, "Rank in Player Info",
                 "Add your rank to the Player Info menu.",
