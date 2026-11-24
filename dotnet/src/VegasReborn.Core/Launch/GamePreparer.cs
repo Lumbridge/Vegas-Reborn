@@ -26,7 +26,8 @@ internal static partial class GamePreparer
         string source,
         IReadOnlySet<string> disabledFixes,
         IProgress<string>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IProgress<CopyProgress>? copyProgress = null)
     {
         source = Path.GetFullPath(source);
         var destination = Path.GetFullPath(paths.GameCopy(title.Key));
@@ -52,7 +53,7 @@ internal static partial class GamePreparer
                 throw new LaunchException("An unfinished game copy exists; preserve it before preparing another");
             }
             progress?.Report("Preparing a separate game copy. The installed game is preserved.");
-            await Task.Run(() => CopyTree(source, destination, cancellationToken), cancellationToken).ConfigureAwait(false);
+            await Task.Run(() => CopyTree(source, destination, cancellationToken, copyProgress), cancellationToken).ConfigureAwait(false);
             PrivateFile.WriteText(marker, title.Key == TitleCatalog.Vegas1.Key
                 ? $"{{\"version\": 1, \"sourceSha256\": \"{title.ClientSha256}\"}}"
                 : $"{{\"version\": 1, \"title\": \"{title.Key}\", \"sourceSha256\": \"{title.ClientSha256}\"}}");
@@ -99,7 +100,52 @@ internal static partial class GamePreparer
         return lower is "session" or "memdump.dmp" || lower.EndsWith(".log", StringComparison.Ordinal);
     }
 
-    internal static void CopyTree(string source, string destination, CancellationToken cancellationToken)
+    internal static void CopyTree(string source, string destination, CancellationToken cancellationToken,
+        IProgress<CopyProgress>? progress = null)
+    {
+        var total = 0L;
+        if (progress is not null)
+        {
+            total = TreeSize(source, cancellationToken);
+            progress.Report(new CopyProgress(0, total));
+        }
+        var completed = 0L;
+        var reported = 0L;
+        var buffer = new byte[CopyChunk];
+        CopyDirectory(source, destination, buffer, cancellationToken, bytes =>
+        {
+            completed += bytes;
+            // Report about every 0.25% so the UI thread is not flooded.
+            if (progress is not null && (completed - reported >= total / 400 || completed == total))
+            {
+                reported = completed;
+                progress.Report(new CopyProgress(completed, total));
+            }
+        });
+    }
+
+    private static long TreeSize(string source, CancellationToken cancellationToken)
+    {
+        var size = 0L;
+        foreach (var file in Directory.EnumerateFiles(source))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!Ignored(Path.GetFileName(file)))
+            {
+                size += new FileInfo(file).Length;
+            }
+        }
+        foreach (var directory in Directory.EnumerateDirectories(source))
+        {
+            if (!Ignored(Path.GetFileName(directory)))
+            {
+                size += TreeSize(directory, cancellationToken);
+            }
+        }
+        return size;
+    }
+
+    private static void CopyDirectory(string source, string destination, byte[] buffer, CancellationToken cancellationToken, Action<long> copied)
     {
         Directory.CreateDirectory(destination);
         foreach (var file in Directory.EnumerateFiles(source))
@@ -108,7 +154,7 @@ internal static partial class GamePreparer
             var name = Path.GetFileName(file);
             if (!Ignored(name))
             {
-                File.Copy(file, Path.Combine(destination, name));
+                CopyFile(file, Path.Combine(destination, name), buffer, cancellationToken, copied);
             }
         }
         foreach (var directory in Directory.EnumerateDirectories(source))
@@ -116,9 +162,29 @@ internal static partial class GamePreparer
             var name = Path.GetFileName(directory);
             if (!Ignored(name))
             {
-                CopyTree(directory, Path.Combine(destination, name), cancellationToken);
+                CopyDirectory(directory, Path.Combine(destination, name), buffer, cancellationToken, copied);
             }
         }
+    }
+
+    private const int CopyChunk = 1 << 20;
+
+    private static void CopyFile(string source, string destination, byte[] buffer, CancellationToken cancellationToken, Action<long> copied)
+    {
+        using (var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, 1, FileOptions.SequentialScan))
+        using (var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1))
+        {
+            output.SetLength(input.Length);
+            int read;
+            while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                output.Write(buffer, 0, read);
+                copied(read);
+            }
+        }
+        File.SetLastWriteTimeUtc(destination, File.GetLastWriteTimeUtc(source));
+        File.SetAttributes(destination, File.GetAttributes(source));
     }
 
     private static void RepairEngineIni(string target, string original, bool menuUrls, bool occlusionFix, bool disableOcclusion)

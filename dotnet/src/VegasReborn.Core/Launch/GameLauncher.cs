@@ -104,7 +104,7 @@ public sealed class GameLauncher
             {
                 await _sync.PullAsync(title, cancellationToken).ConfigureAwait(false);
             }
-            var game = await GamePreparer.PrepareAsync(_paths, title, profile, source, disabled, progress, cancellationToken).ConfigureAwait(false);
+            var game = await GamePreparer.PrepareAsync(_paths, title, profile, source, disabled, progress, cancellationToken, request.CopyProgress).ConfigureAwait(false);
             var statisticsCodec = "";
             if (profile.StatisticsCarrier)
             {

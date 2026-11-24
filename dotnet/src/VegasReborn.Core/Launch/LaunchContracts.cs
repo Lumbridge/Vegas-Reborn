@@ -83,6 +83,14 @@ public sealed record LaunchRequest
     public IReadOnlySet<string> DisabledFixes { get; init; } = new HashSet<string>();
     /// <summary>Called once the game is running and verified, before waiting for it to exit.</summary>
     public Action? OnStarted { get; init; }
+    /// <summary>Bytes copied while the launcher makes its own copy of the game (first launch only).</summary>
+    public IProgress<CopyProgress>? CopyProgress { get; init; }
+}
+
+/// <summary>Bytes of the installed game copied so far, out of the total to copy.</summary>
+public sealed record CopyProgress(long Completed, long Total)
+{
+    public double Fraction => Total > 0 ? Math.Clamp((double)Completed / Total, 0, 1) : 0;
 }
 
 /// <summary>The result of a completed play session.</summary>

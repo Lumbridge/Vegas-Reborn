@@ -133,8 +133,13 @@
                         <Border Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="4"
                                 Padding="14,10" Margin="0,8,0,8"
                                 Visibility="{Binding DataContext.HasMessage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Visible}}">
-                            <TextBlock Text="{Binding DataContext.Message, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap"
-                                       AutomationProperties.LiveSetting="Polite" />
+                            <StackPanel>
+                                <TextBlock Text="{Binding DataContext.Message, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap"
+                                           AutomationProperties.LiveSetting="Polite" />
+                                <ProgressBar Margin="0,8,0,2" Maximum="100" Background="{StaticResource Line}" AutomationProperties.Name="Game copy progress"
+                                             Value="{Binding DataContext.CopyPercent, RelativeSource={RelativeSource AncestorType=Window}, Mode=OneWay, TargetNullValue=0}"
+                                             Visibility="{Binding DataContext.HasCopyProgress, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Visible}}" />
+                            </StackPanel>
                         </Border>
 
                         <!-- Game folder -->

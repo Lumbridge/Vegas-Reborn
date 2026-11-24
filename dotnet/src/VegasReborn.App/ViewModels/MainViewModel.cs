@@ -26,6 +26,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private GameViewModel selectedGame;
     private Page page = Page.Games;
     private string message = "";
+    private double? copyPercent;
     private bool isBusy;
     private GameLauncher? launcher;
     private DiscordPresence? presence;
@@ -110,6 +111,30 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool HasMessage => Message.Length > 0;
 
+    /// <summary>Percent of the game copied while the launcher makes its own copy, or null.</summary>
+    public double? CopyPercent
+    {
+        get => copyPercent;
+        private set
+        {
+            if (Set(ref copyPercent, value))
+            {
+                OnPropertyChanged(nameof(HasCopyProgress));
+            }
+        }
+    }
+
+    public bool HasCopyProgress => CopyPercent is not null;
+
+    private void ShowCopyProgress(CopyProgress copy)
+    {
+        CopyPercent = copy.Fraction * 100;
+        Message = $"Preparing a separate game copy: {copy.Fraction:0%} ({Gigabytes(copy.Completed)} of {Gigabytes(copy.Total)} GB). "
+            + "The installed game is preserved.";
+    }
+
+    private static string Gigabytes(long bytes) => (bytes / 1073741824.0).ToString("0.0", System.Globalization.CultureInfo.CurrentCulture);
+
     /// <summary>True while launching, playing or saving. Other launches and account changes wait.</summary>
     public bool IsBusy
     {
@@ -167,11 +192,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
         }
         IsBusy = true;
-        var progress = new Progress<string>(text => Message = text);
+        // A later launch step replaces the copy progress bar with its own message.
+        var progress = new Progress<string>(text =>
+        {
+            CopyPercent = null;
+            Message = text;
+        });
         var started = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         try
         {
             launcher ??= new GameLauncher(paths, ServiceConfiguration.Load(paths), CompanionAccount, CompanionAccount);
+            var copied = new Progress<CopyProgress>(ShowCopyProgress);
             var request = Preferences.LaunchRequestFor(game.Title, () => App.Current.Dispatcher.BeginInvoke(() =>
             {
                 game.IsPlaying = true;
@@ -184,7 +215,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                     MinimizeRequested?.Invoke(this, true);
                 }
             }));
-            var outcome = await launcher.PlayAsync(request, progress);
+            var outcome = await launcher.PlayAsync(request with { CopyProgress = copied }, progress);
             Message = outcome.CharacterSaved ? SyncMessages.SavedAfterGame
                 : game.Title.SaveSlots.Count == 0 ? "Game closed."
                 : SyncMessages.NoCharacterCreated;
@@ -207,6 +238,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             game.IsPlaying = false;
             OnPropertyChanged(nameof(IsPlaying));
+            CopyPercent = null;
             IsBusy = false;
             ApplyPresence();
             MinimizeRequested?.Invoke(this, false);
