@@ -11,14 +11,32 @@ public sealed record MapsPackProgress(long Bytes, long TotalBytes);
 /// Downloads the Maps Pack into the launcher-owned content store. Nothing counts as installed until
 /// every archive and every extracted file matches the signed manifest; the record is written last.
 /// </summary>
-public sealed class MapsPackInstaller(AppPaths paths, IReleaseDownloader downloader, string? publicKeyHex = null, string? baseUrl = null)
+public sealed class MapsPackInstaller
 {
     private const string DownloadFailed = "The Maps Pack download failed. Check your connection and try again.";
     private const string InstallFailed = "The Maps Pack could not be installed: ";
     private const int SignatureBytes = 64;
     private const int BlockSize = 1024 * 1024;
 
-    private readonly string _baseUrl = baseUrl ?? ContentInfo.BaseUrl;
+    private readonly AppPaths paths;
+    private readonly IReleaseDownloader downloader;
+    private readonly string? publicKeyHex;
+    private readonly string _baseUrl;
+
+    /// <summary>Uses the published Maps Pack location and the release signing key.</summary>
+    public MapsPackInstaller(AppPaths paths, IReleaseDownloader downloader)
+        : this(paths, downloader, publicKeyHex: null, baseUrl: null)
+    {
+    }
+
+    /// <summary>For tests: another signing key and download location.</summary>
+    internal MapsPackInstaller(AppPaths paths, IReleaseDownloader downloader, string? publicKeyHex, string? baseUrl)
+    {
+        this.paths = paths;
+        this.downloader = downloader;
+        this.publicKeyHex = publicKeyHex;
+        _baseUrl = baseUrl ?? ContentInfo.BaseUrl;
+    }
 
     private string Store => paths.MapsPack;
     private string RecordPath => Path.Combine(Store, "record.json");
@@ -47,10 +65,13 @@ public sealed class MapsPackInstaller(AppPaths paths, IReleaseDownloader downloa
             : ContentManifest.Verify(manifest, signature, publicKeyHex);
     }
 
-    /// <summary>True when a record exists and the published version is greater.</summary>
+    /// <summary>
+    /// True when a record exists and the published version is greater. Only the record is read;
+    /// the installed files are not checked, so this stays cheap enough for app start.
+    /// </summary>
     public async Task<bool> UpdateAvailableAsync(CancellationToken ct)
     {
-        MapsPackRecord.Check(paths, out var record);
+        var record = await Task.Run(() => MapsPackRecord.Read(RecordPath), ct).ConfigureAwait(false);
         if (record is null)
         {
             return false;
