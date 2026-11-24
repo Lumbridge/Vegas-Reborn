@@ -21,6 +21,7 @@ public static class TitleCatalog
     public const string SoloMatch = "solo-match";
     public const string FullXp = "full-xp";
     public const string SixteenPlayers = "sixteen-players";
+    public const string HuntEnemies = "terrorist-hunt-enemies";
     public const string LargeAddressAware = "large-address-aware";
     public const string FireSoundLoop = "fire-sound-loop";
     public const string Controller = "controller";
@@ -71,6 +72,10 @@ public static class TitleCatalog
             new(SixteenPlayers, "16-player matches",
                 "Host Terrorist Hunt and adversarial matches for up to 16 players.",
                 "The original limits Terrorist Hunt to 4 players and adversarial matches hosted from the game to 14. This raises both to 16 in the launcher's game copy, including the Terrorist Hunt team size. Story co-op is unchanged.",
+                FixSection.GameFixes, FixKind.AlwaysOn),
+            new(HuntEnemies, "Terrorist Hunt enemy types",
+                "Terrorist Hunt can spawn snipers as well as the original enemy types.",
+                "Every Terrorist Hunt map draws each terrorist's main weapon from one shared list that has no sniper rifles. The launcher's game copy adds the SV-98 and PSG1 used by the campaign's snipers, each picked for 5% of terrorists. The other weapons keep their original proportions. The host's game copy decides each terrorist's weapon.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             new(FireSoundLoop, "Stuck gunfire sound",
                 "Stop other players' automatic fire sounds from looping after they stop shooting.",
@@ -186,6 +191,10 @@ public static class TitleCatalog
             new(FullXp, "Full match XP",
                 "Earn full XP online whatever the player count or team balance.",
                 "Online, the original game cuts XP when there are few players or the teams are uneven, down to 1%, and shows the cut as XP MODIFIER in the lobby. This keeps both factors at 100%.",
+                FixSection.GameFixes, FixKind.AlwaysOn),
+            new(HuntEnemies, "Terrorist Hunt enemy types",
+                "Terrorist Hunt can spawn snipers and shield terrorists as well as the original enemy types.",
+                "Each Terrorist Hunt map draws each terrorist's main weapon from a list with no sniper rifles or shields. The launcher's game copy adds a campaign sniper rifle and the riot shield used by the campaign's shield terrorists to each list, each picked for 6% of terrorists. The other weapons keep their original proportions. The host's game copy decides each terrorist's weapon.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             // The adapter reports punkBusterRemovedVerified (settings menu row 2).
             new(PunkBusterRemoved, "PunkBuster settings removed",

@@ -152,6 +152,7 @@ public sealed class DedicatedHost
         {
             await Task.Run(() => LinkMapsPack(game, source), cancellationToken).ConfigureAwait(false);
         }
+        await Task.Run(() => GamePreparer.ApplyHuntEnemies(title, game, source), cancellationToken).ConfigureAwait(false);
         var profile = TitleLaunchProfile.For(title);
         if (!request.LocalTest)
         {

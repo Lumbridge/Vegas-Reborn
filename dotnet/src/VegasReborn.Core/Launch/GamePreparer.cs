@@ -107,6 +107,16 @@ internal static partial class GamePreparer
         {
             MissionPlayerLimits.Apply(destination, source, extendModes: pack);
         }
+        ApplyHuntEnemies(title, destination, source);
+    }
+
+    /// <summary>Adds the extra Terrorist Hunt enemy types to the copy's team package.</summary>
+    internal static void ApplyHuntEnemies(GameTitle title, string destination, string source)
+    {
+        if (title.Fix(TitleCatalog.HuntEnemies) is not null && TerroristHuntEnemies.For(title) is { } spec)
+        {
+            TerroristHuntEnemies.Apply(destination, source, spec);
+        }
     }
 
     private static bool Ignored(string name)
