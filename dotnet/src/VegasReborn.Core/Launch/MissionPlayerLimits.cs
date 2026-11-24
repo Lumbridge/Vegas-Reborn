@@ -4,8 +4,9 @@ namespace VegasReborn.Core.Launch;
 /// Vegas 1 per-map player limits in the copy's mission ini files
 /// (KellerGame/Content/CookedPc/Maps/*/*.ini, read into R6MissionConfig's game mode list).
 /// The original allows 4 players in Terrorist Hunt and 14 in adversarial matches hosted
-/// from the game (16 only on dedicated servers). Each file is rebuilt from the installed
-/// original on every launch, changing only those exact shipped values to 16.
+/// from the game (16 only on dedicated servers). Every file is always rebuilt from the installed
+/// original on each launch: only those exact shipped values change to 16, and when asked,
+/// listed story missions also gain the versus modes from <see cref="MapModeExtension"/>.
 /// </summary>
 internal static class MissionPlayerLimits
 {
@@ -15,10 +16,13 @@ internal static class MissionPlayerLimits
     private const string MaxPlayers = "m_iMaxPlayers";
     private const string ListenServer = "m_iMaxPlayersListenServer";
 
-    /// <summary>Rewrite every mission ini in the copy that differs from the raised original.</summary>
-    public static void Apply(string copy, string source)
+    /// <summary>
+    /// Rebuild every mission ini under <paramref name="folder"/> in the copy from the original,
+    /// writing the files whose text differs. Modes are added only for the Maps folder.
+    /// </summary>
+    public static void Apply(string copy, string source, bool extendModes, string folder = MapsFolder)
     {
-        var maps = Path.Combine(source, MapsFolder);
+        var maps = Path.Combine(source, folder);
         if (!Directory.Exists(maps))
         {
             return;
@@ -31,10 +35,16 @@ internal static class MissionPlayerLimits
             {
                 continue;
             }
-            var raised = Raise(File.ReadAllText(original));
-            if (raised is not null && File.ReadAllText(target) != raised)
+            var text = File.ReadAllText(original);
+            var key = Path.GetRelativePath(maps, original).Replace('\\', '/');
+            if (extendModes && folder == MapsFolder && MapModeExtension.OrderIds.TryGetValue(key, out var orderId))
             {
-                PrivateFile.WriteText(target, raised);
+                text = MapModeExtension.Extend(text, orderId);
+            }
+            var expected = Raise(text) ?? text;
+            if (File.ReadAllText(target) != expected)
+            {
+                PrivateFile.WriteText(target, expected);
             }
         }
     }

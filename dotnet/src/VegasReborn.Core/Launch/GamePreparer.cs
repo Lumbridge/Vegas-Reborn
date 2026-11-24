@@ -72,7 +72,7 @@ internal static partial class GamePreparer
         }
         if (title.Fix(TitleCatalog.SixteenPlayers) is not null)
         {
-            await Task.Run(() => MissionPlayerLimits.Apply(destination, source), cancellationToken).ConfigureAwait(false);
+            await Task.Run(() => MissionPlayerLimits.Apply(destination, source, extendModes: false), cancellationToken).ConfigureAwait(false);
         }
         foreach (var (relative, expected) in profile.PinnedFiles)
         {
