@@ -235,11 +235,11 @@
                     </Border>
 
                     <!-- Player name -->
-                    <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,18" Visibility="{Binding CanClaimName, Converter={StaticResource Visible}}">
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,18" Visibility="{Binding ShowNameSection, Converter={StaticResource Visible}}">
                         <StackPanel>
                             <TextBlock Text="Player name" FontWeight="SemiBold" FontSize="15" />
-                            <TextBlock Text="{Binding NameHelp}" Style="{StaticResource MutedText}" FontSize="13" Margin="0,2,0,10" TextWrapping="Wrap" />
-                            <DockPanel>
+                            <TextBlock Text="{Binding NameHelp}" Style="{StaticResource MutedText}" FontSize="13" Margin="0,2,0,0" TextWrapping="Wrap" />
+                            <DockPanel Margin="0,10,0,0" Visibility="{Binding CanClaimName, Converter={StaticResource Visible}}">
                                 <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Content="Save name" Margin="12,0,0,0" Command="{Binding ClaimNameCommand}" />
                                 <TextBox Text="{Binding NameInput, UpdateSourceTrigger=PropertyChanged}" MaxLength="16" AutomationProperties.Name="Player name" />
                             </DockPanel>

@@ -24,13 +24,16 @@ public sealed record AccountSession(
 
     public bool RenameOnCooldown => IsRenameOnCooldown(DateTimeOffset.UtcNow);
 
-    public bool IsRenameOnCooldown(DateTimeOffset now)
+    public bool IsRenameOnCooldown(DateTimeOffset now) => NextNameChange(now) is not null;
+
+    /// <summary>When the player may next change their name, or null if they can change it now.</summary>
+    public DateTimeOffset? NextNameChange(DateTimeOffset now)
     {
         if (ClaimRequired || string.IsNullOrEmpty(NameChangeAllowed))
         {
-            return false;
+            return null;
         }
-        return AccountRules.TryParseTimestamp(NameChangeAllowed, out var allowed) && allowed > now;
+        return AccountRules.TryParseTimestamp(NameChangeAllowed, out var allowed) && allowed > now ? allowed : null;
     }
 
     public override string ToString() =>
@@ -74,6 +77,11 @@ public static class AccountMessages
     public static string Ready(AccountSession session) => session.NeedsNameClaim ? ChooseName : ReadyToPlay;
 
     public static string SignedInAs(AccountSession session) => "Signed in as " + session.PlayerName;
+
+    /// <summary>Cooldown notice, shown in the viewer's local time and culture.</summary>
+    public static string NextNameChange(DateTimeOffset allowed, TimeZoneInfo zone, CultureInfo culture) =>
+        "You can change your name again on " +
+        TimeZoneInfo.ConvertTime(allowed, zone).ToString("f", culture) + ". Names can change every 30 days.";
 }
 
 internal static partial class AccountRules
