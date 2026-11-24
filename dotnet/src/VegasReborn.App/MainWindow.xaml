@@ -50,6 +50,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -64,13 +65,44 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <RadioButton Style="{StaticResource NavTab}" Content="Games" GroupName="Nav" IsChecked="{Binding IsGames}" />
                     <RadioButton Style="{StaticResource NavTab}" Content="Account" GroupName="Nav" IsChecked="{Binding IsAccount}" />
-                    <RadioButton Style="{StaticResource NavTab}" Content="Settings" GroupName="Nav" IsChecked="{Binding IsSettings}" />
+                    <RadioButton Style="{StaticResource NavTab}" GroupName="Nav" IsChecked="{Binding IsSettings}" AutomationProperties.Name="Settings">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Settings" />
+                            <!-- Update available -->
+                            <Ellipse Width="8" Height="8" Margin="8,1,0,0" VerticalAlignment="Center" ToolTip="Update available"
+                                     Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                     Visibility="{Binding Settings.UpdateAvailable, Converter={StaticResource Visible}}" />
+                        </StackPanel>
+                    </RadioButton>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Update notice, shown on every page except Settings -->
+        <Border Grid.Row="1" DataContext="{Binding Settings}" Background="{StaticResource SelectedFill}"
+                BorderBrush="{StaticResource Accent}" BorderThickness="0,0,0,2" Padding="20,10"
+                Visibility="{Binding ShowNotice, Converter={StaticResource Visible}}">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                    <Button Style="{StaticResource PrimaryButton}" Content="Update and restart" Command="{Binding InstallCommand}"
+                            Visibility="{Binding UpdateAvailable, Converter={StaticResource Visible}}" />
+                    <Button Style="{StaticResource SecondaryButton}" Content="Force-close games and update" Margin="8,0,0,0" Command="{Binding ForceCommand}"
+                            Visibility="{Binding UpdateBlocked, Converter={StaticResource Visible}}" />
+                    <Button Style="{StaticResource SecondaryButton}" Content="Details" Margin="8,0,0,0" Command="{Binding ShowUpdatesCommand}" />
+                    <Button Style="{StaticResource SecondaryButton}" Content="Later" Margin="8,0,0,0" Command="{Binding DismissNoticeCommand}" />
+                </StackPanel>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Update available" FontWeight="SemiBold" Foreground="{StaticResource Accent}" />
+                    <TextBlock Text="{Binding UpdateStatus}" TextWrapping="Wrap" Margin="0,2,0,0" AutomationProperties.LiveSetting="Polite" />
+                    <ProgressBar Margin="0,6,0,0" Height="6" Maximum="100" Background="{StaticResource Line}" Value="{Binding ProgressValue, Mode=OneWay}"
+                                 AutomationProperties.Name="Update progress"
+                                 Visibility="{Binding HasProgress, Converter={StaticResource Visible}}" />
                 </StackPanel>
             </DockPanel>
         </Border>
 
         <!-- Games page -->
-        <Grid Grid.Row="1" Visibility="{Binding IsGames, Converter={StaticResource Visible}}">
+        <Grid Grid.Row="2" Visibility="{Binding IsGames, Converter={StaticResource Visible}}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="300" />
                 <ColumnDefinition Width="*" />
@@ -151,9 +183,9 @@
                             </StackPanel>
                         </DockPanel>
 
-                        <!-- Extra Maps (Vegas 1 only) -->
+                        <!-- Extra Maps (Vegas 1 only). An implicit template, so nothing is drawn when MapsPack is null. -->
                         <ContentControl Content="{Binding MapsPack}" Focusable="False" IsTabStop="False">
-                            <ContentControl.ContentTemplate>
+                            <ContentControl.Resources>
                                 <DataTemplate DataType="{x:Type vm:MapsPackViewModel}">
                                     <StackPanel Margin="0,16,0,8">
                                         <Border BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="0,20,0,0">
@@ -199,7 +231,7 @@
                                                    Visibility="{Binding HasStatus, Converter={StaticResource Visible}}" />
                                     </StackPanel>
                                 </DataTemplate>
-                            </ContentControl.ContentTemplate>
+                            </ContentControl.Resources>
                         </ContentControl>
 
                         <!-- Fix sections -->
@@ -260,7 +292,7 @@
         </Grid>
 
         <!-- Account page -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False"
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False"
                       Visibility="{Binding DataContext.IsAccount, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Visible}}" DataContext="{Binding Account}">
             <StackPanel Margin="48,36,48,48" MaxWidth="760" HorizontalAlignment="Left">
                 <TextBlock Text="Account" Style="{StaticResource SectionHeading}" FontSize="26" />
@@ -340,7 +372,7 @@
         </ScrollViewer>
 
         <!-- Settings page -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False"
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False"
                       Visibility="{Binding DataContext.IsSettings, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Visible}}" DataContext="{Binding Settings}">
             <StackPanel Margin="48,36,48,48" MaxWidth="760" HorizontalAlignment="Left">
                 <TextBlock Text="Settings" Style="{StaticResource SectionHeading}" FontSize="26" />

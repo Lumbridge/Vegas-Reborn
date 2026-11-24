@@ -89,6 +89,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(IsGames));
                 OnPropertyChanged(nameof(IsAccount));
                 OnPropertyChanged(nameof(IsSettings));
+                Settings.PageChanged();
             }
         }
     }
