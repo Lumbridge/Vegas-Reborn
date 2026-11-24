@@ -20,9 +20,9 @@ public sealed class ServiceAndCarrierTests
         foreach (var invalid in new[] { Config(new string('a', 47)), Config(new string('A', 48)), Config(new string('a', 48) + "\n"), Config(new string('a', 48), 3080), "[]", "{" })
         {
             File.WriteAllText(path, invalid);
-            Assert.Equal("Invalid companion service configuration", Assert.Throws<LaunchException>(() => ServiceConfiguration.Load(path)).Message);
+            Assert.Equal("Invalid launcher service configuration", Assert.Throws<LaunchException>(() => ServiceConfiguration.Load(path)).Message);
         }
         File.WriteAllText(path, Config(new string('a', 48), sha: new string('0', 64)));
-        Assert.Equal("Companion public key failed its integrity check", Assert.Throws<LaunchException>(() => ServiceConfiguration.Load(path)).Message);
+        Assert.Equal("Launcher public key failed its integrity check", Assert.Throws<LaunchException>(() => ServiceConfiguration.Load(path)).Message);
     }
 }

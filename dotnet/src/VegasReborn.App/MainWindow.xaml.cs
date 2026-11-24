@@ -35,7 +35,7 @@ public partial class MainWindow : Window
         // The companion saves the character after the game exits; closing now would skip that.
         if (model.IsBusy)
         {
-            MessageBox.Show(this, "Close the game first so the companion can save your character.", "Vegas Reborn",
+            MessageBox.Show(this, "Close the game first so the launcher can save your character.", "Vegas Reborn",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             e.Cancel = true;
         }

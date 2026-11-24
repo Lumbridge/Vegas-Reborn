@@ -27,11 +27,11 @@ public static class UpdateInstaller
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or FormatException)
             {
-                throw new UpdateException("Could not verify the installed companion version");
+                throw new UpdateException("Could not verify the installed launcher version");
             }
             if (ReleaseVersion.Parse(release.Version) <= ReleaseVersion.Parse(current))
             {
-                throw new UpdateException("This update is not newer than the installed companion");
+                throw new UpdateException("This update is not newer than the installed launcher");
             }
         }
         if ((gamesRunning ?? GameProcesses.AnyRunning)())
@@ -111,7 +111,7 @@ public static class UpdateInstaller
             {
                 throw;
             }
-            throw new UpdateException("Update could not be installed. The previous app was restored; close other companion windows and retry.");
+            throw new UpdateException("Update could not be installed. The previous app was restored; close other launcher windows and retry.");
         }
     }
 

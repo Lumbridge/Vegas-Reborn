@@ -154,7 +154,7 @@ public static class ParentProcess
     {
         if (!OperatingSystem.IsWindows() || processId <= 0)
         {
-            throw new UpdateException("The updater requires a Windows companion process");
+            throw new UpdateException("The updater requires a Windows launcher process");
         }
         var handle = api.Open(NativeMethods.ProcessQueryLimitedInformation | NativeMethods.Synchronize, processId, out var error);
         if (handle == 0)
@@ -163,7 +163,7 @@ public static class ParentProcess
             {
                 return; // Parent already exited.
             }
-            throw new UpdateException("Could not wait for the companion to close");
+            throw new UpdateException("Could not wait for the launcher to close");
         }
         try
         {
@@ -180,15 +180,15 @@ public static class ParentProcess
                 {
                     return;
                 }
-                throw new UpdateException("Could not identify the companion process before updating");
+                throw new UpdateException("Could not identify the launcher process before updating");
             }
             if (!SafePaths.Same(SafePaths.Resolve(image), Path.Combine(SafePaths.Resolve(root), "VegasReborn.exe")))
             {
-                throw new UpdateException("The updater parent is not this companion installation");
+                throw new UpdateException("The updater parent is not this launcher installation");
             }
             if (api.Wait(handle, 90000) != NativeMethods.WaitObject0)
             {
-                throw new UpdateException("The companion did not close. The update was not installed.");
+                throw new UpdateException("The launcher did not close. The update was not installed.");
             }
         }
         finally

@@ -92,7 +92,7 @@ public sealed class CoordinatorTests
         _operations.Latest = Release("0.5.1");
         await coordinator.CheckAsync();
         await coordinator.UpdateAndRestartAsync();
-        Assert.Equal("Run the packaged companion to install updates. Source checkouts update through Git.", coordinator.Status);
+        Assert.Equal("Run the packaged launcher to install updates. Source checkouts update through Git.", coordinator.Status);
         Assert.Null(_operations.Prepared);
     }
 

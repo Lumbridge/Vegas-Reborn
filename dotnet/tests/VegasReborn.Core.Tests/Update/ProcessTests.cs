@@ -132,7 +132,7 @@ public sealed class ParentProcessTests : IDisposable
         {
             var timer = Stopwatch.StartNew();
             var error = Assert.Throws<UpdateException>(() => ParentProcess.WaitForExit(child.Id, Path.Combine(_fixture.Root, "installation")));
-            Assert.Equal("The updater parent is not this companion installation", error.Message);
+            Assert.Equal("The updater parent is not this launcher installation", error.Message);
             Assert.True(timer.Elapsed < TimeSpan.FromSeconds(10));
         }
         finally
@@ -145,7 +145,7 @@ public sealed class ParentProcessTests : IDisposable
     [Fact]
     public void MissingParentPidIsRefused()
     {
-        Assert.Equal("The updater requires a Windows companion process",
+        Assert.Equal("The updater requires a Windows launcher process",
             Assert.Throws<UpdateException>(() => ParentProcess.WaitForExit(0, _fixture.Root)).Message);
     }
 

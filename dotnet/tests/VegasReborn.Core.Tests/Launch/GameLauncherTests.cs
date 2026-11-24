@@ -348,11 +348,11 @@ public sealed class GameLauncherTests : IDisposable
             (await Assert.ThrowsAsync<LaunchException>(() => Launcher().PlayAsync(Request(title)))).Message);
         _system.Running = false;
         _system.MutexHeld = true;
-        Assert.Equal("Another companion is already launching the game",
+        Assert.Equal("Another launcher is already launching the game",
             (await Assert.ThrowsAsync<LaunchException>(() => Launcher().PlayAsync(Request(title)))).Message);
         _system.MutexHeld = false;
         _credentials.Account = new LaunchAccount("199999999999999999", null, true, true);
-        Assert.Equal("Choose your player name in the companion before playing",
+        Assert.Equal("Choose your player name in the launcher before playing",
             (await Assert.ThrowsAsync<LaunchException>(() => Launcher().PlayAsync(Request(title)))).Message);
         _credentials.Account = new LaunchAccount("199999999999999999");
         _system.SteamPid = null;

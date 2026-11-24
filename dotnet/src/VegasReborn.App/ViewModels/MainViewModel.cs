@@ -136,7 +136,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            Message = "Settings could not be saved. Check that the companion folder is writable.";
+            Message = "Settings could not be saved. Check that the launcher folder is writable.";
         }
     }
 

@@ -33,7 +33,7 @@ internal static partial class GamePreparer
         if (!PrivateFile.IsWithin(destination, paths.Local) || PrivateFile.IsWithin(source, destination)
             || PrivateFile.IsWithin(destination, source))
         {
-            throw new LaunchException("The companion game copy must be separate from the installation");
+            throw new LaunchException("The launcher's game copy must be separate from the installation");
         }
         var executable = Path.Combine(source, title.ClientExecutable);
         if (!File.Exists(executable))
@@ -59,7 +59,7 @@ internal static partial class GamePreparer
         }
         if (await Task.Run(() => PrivateFile.Sha256(Path.Combine(destination, title.ClientExecutable)), cancellationToken).ConfigureAwait(false) != title.ClientSha256)
         {
-            throw new LaunchException("The companion game copy failed its integrity check");
+            throw new LaunchException("The launcher's game copy failed its integrity check");
         }
         foreach (var (relative, expected) in profile.PinnedFiles)
         {
@@ -186,7 +186,7 @@ internal static partial class GamePreparer
                 // The original is a 270-byte DER RSA-2048 public key (PKCS#1).
                 if (data.Length is < 200 or > 600 || data[0] != 0x30)
                 {
-                    throw new LaunchException("The companion's public key is not a supported RSA key. Reinstall a complete official release.");
+                    throw new LaunchException("The launcher's public key is not a supported RSA key. Reinstall a complete official release.");
                 }
                 var target = Path.Combine(game, "KellerGame/Config/PC/signature.pub");
                 var current = File.Exists(target) ? PrivateFile.Sha256(target) : null;

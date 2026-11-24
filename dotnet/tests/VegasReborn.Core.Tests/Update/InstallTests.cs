@@ -68,7 +68,7 @@ public sealed class InstallTests : IDisposable
         using (new FileStream(Path.Combine(root, "VegasReborn.exe"), FileMode.Open, FileAccess.Read, FileShare.Read))
         {
             var error = Assert.Throws<UpdateException>(() => UpdateInstaller.Install(root, payload, release, () => false));
-            Assert.Equal("Update could not be installed. The previous app was restored; close other companion windows and retry.", error.Message);
+            Assert.Equal("Update could not be installed. The previous app was restored; close other launcher windows and retry.", error.Message);
         }
         Assert.Equal("old readme", File.ReadAllText(Path.Combine(root, "README.txt")));
         Assert.Equal("old companion", File.ReadAllText(Path.Combine(root, "VegasReborn.exe")));
@@ -95,7 +95,7 @@ public sealed class InstallTests : IDisposable
         File.WriteAllText(Path.Combine(root, "version.json"), """{"version":"0.5.1"}""");
         Assert.Throws<UpdateException>(() => UpdateInstaller.Install(root, payload, release, () => false));
         File.WriteAllText(Path.Combine(root, "version.json"), "not json");
-        Assert.Equal("Could not verify the installed companion version",
+        Assert.Equal("Could not verify the installed launcher version",
             Assert.Throws<UpdateException>(() => UpdateInstaller.Install(root, payload, release, () => false)).Message);
         Assert.Equal("old companion", File.ReadAllText(Path.Combine(root, "VegasReborn.exe")));
     }

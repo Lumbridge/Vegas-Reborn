@@ -122,9 +122,9 @@ public static class UpdaterOnlyPackage
 {
     public const string Title = "Install Vegas Reborn";
     public const string Message =
-        "For first-time setup, extract the full 0.4.13 Windows download into a new folder. "
-        + "Open that Companion and choose Updates to install 0.4.14.\n\nOpen the full download page?";
-    public static readonly Uri FullDownloadPage = new("https://github.com/Lumbridge/Vegas-Reborn/releases/tag/v0.4.13");
+        "For first-time setup, extract the full Windows download into a new folder "
+        + "and open VegasReborn.exe.\n\nOpen the download page?";
+    public static readonly Uri FullDownloadPage = new("https://github.com/Lumbridge/Vegas-Reborn/releases/latest");
 
     /// <summary>Launch helpers an updater-only package expects to find already installed.</summary>
     public static IReadOnlyList<string> RequiredHelpers { get; } = ["VegasInjector.exe", "VegasSteamGate.dll", "VegasSteamControl.exe"];

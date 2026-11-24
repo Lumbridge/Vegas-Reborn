@@ -123,7 +123,7 @@ public sealed class UpdateCoordinator
         }
         if (!_isPackaged)
         {
-            SetStatus("Run the packaged companion to install updates. Source checkouts update through Git.");
+            SetStatus("Run the packaged launcher to install updates. Source checkouts update through Git.");
             return Task.CompletedTask;
         }
         if (StagedPlan is not null)

@@ -106,7 +106,7 @@ public sealed class GameViewModel : ObservableObject
         // to the copy's MovieLoading.ini for both titles, so it is listed with the game fixes.
         skipIntrosRow = new FixViewModel("Skip intro movies",
             "Go straight to the menu. Loading screens and gameplay movies still play.",
-            "Turns off the [INTRO] movie in the companion copy's MovieLoading.ini. Off restores the original setting. This setting is shared by every game.",
+            "Turns off the [INTRO] movie in MovieLoading.ini in the launcher's game copy. Off restores the original setting. This setting is shared by every game.",
             isToggle: true, () => preferences.SkipIntros, value => SkipIntros = value);
         foreach (var (section, heading, lead) in SectionText)
         {

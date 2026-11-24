@@ -36,12 +36,12 @@ public sealed partial record ServiceConfiguration(
                 || !TryString(value, "nativeLicenseId", out license) || !LicensePattern().IsMatch(license)
                 || !TryString(value, "rootPublicSha256", out rootSha) || !ShaPattern().IsMatch(rootSha))
             {
-                throw new LaunchException("Invalid companion service configuration");
+                throw new LaunchException("Invalid launcher service configuration");
             }
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
         {
-            throw new LaunchException("Invalid companion service configuration");
+            throw new LaunchException("Invalid launcher service configuration");
         }
         var publicKey = Path.Combine(Path.GetDirectoryName(path)!, "root-public.der");
         string actual;
@@ -51,11 +51,11 @@ public sealed partial record ServiceConfiguration(
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            throw new LaunchException("Companion public key failed its integrity check");
+            throw new LaunchException("Launcher public key failed its integrity check");
         }
         if (actual != rootSha)
         {
-            throw new LaunchException("Companion public key failed its integrity check");
+            throw new LaunchException("Launcher public key failed its integrity check");
         }
         return new ServiceConfiguration(host, port, license, rootSha, publicKey);
     }

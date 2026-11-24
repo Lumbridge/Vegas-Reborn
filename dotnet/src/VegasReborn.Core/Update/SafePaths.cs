@@ -42,7 +42,7 @@ public static class SafePaths
         var prefix = resolvedRoot.EndsWith(Path.DirectorySeparatorChar) ? resolvedRoot : resolvedRoot + Path.DirectorySeparatorChar;
         if (target.Length <= prefix.Length || !target.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
         {
-            throw new UpdateException("An update path escaped the companion folder");
+            throw new UpdateException("An update path escaped the launcher folder");
         }
         return target;
     }

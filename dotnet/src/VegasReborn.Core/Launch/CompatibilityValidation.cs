@@ -12,7 +12,7 @@ namespace VegasReborn.Core.Launch;
 /// </summary>
 public static class CompatibilityValidation
 {
-    private const string UpdateModule = "Update the companion's online compatibility module before playing";
+    private const string UpdateModule = "Update the launcher's online compatibility module before playing";
 
     /// <summary>Toggle fix id to the readiness field the Vegas 1 adapter reports for it.</summary>
     public static IReadOnlyDictionary<string, string> NativeFeatureFields { get; } = new Dictionary<string, string>
@@ -54,7 +54,7 @@ public static class CompatibilityValidation
             {
                 throw new LaunchException("The game did not finish preparing its executable code. Close the game and retry launching.");
             }
-            throw new LaunchException("The game's code matched, but compatibility setup failed. Update the companion and retry.");
+            throw new LaunchException("The game's code matched, but compatibility setup failed. Update the launcher and retry.");
         }
         if (!NumberEquals(compatibility["nativeVersion"], title.NativeVersion)
             || RequiredVegas1Fields.Any(key => !Truthy(compatibility[key])))
@@ -80,11 +80,11 @@ public static class CompatibilityValidation
         if (!string.IsNullOrEmpty(claimedName)
             && (!Truthy(compatibility["claimedNameVerified"]) || !Truthy(compatibility["claimedSessionNameVerified"])))
         {
-            throw new LaunchException("The game's player-name setup was not verified; update the companion and retry");
+            throw new LaunchException("The game's player-name setup was not verified; update the launcher and retry");
         }
         if (displayMode == DisplayMode.Borderless && !Truthy(compatibility["displayStyleVerified"]))
         {
-            throw new LaunchException("Borderless setup was not verified. Update the companion's native compatibility module, then retry.");
+            throw new LaunchException("Borderless setup was not verified. Update the launcher's native compatibility module, then retry.");
         }
     }
 
@@ -101,7 +101,7 @@ public static class CompatibilityValidation
     {
         if (!Truthy(compatibility["ready"]))
         {
-            throw new LaunchException("The game's compatibility setup failed. Update the companion and retry.");
+            throw new LaunchException("The game's compatibility setup failed. Update the launcher and retry.");
         }
         if (!NumberEquals(compatibility["nativeVersion"], title.NativeVersion)
             || compatibility["title"] is not JsonValue value || !value.TryGetValue<string>(out var key) || key != title.Key)
@@ -118,7 +118,7 @@ public static class CompatibilityValidation
         if (!string.IsNullOrEmpty(claimedName) && title.Fix(TitleCatalog.ClaimedName) is not null
             && !Truthy(compatibility["claimedNameVerified"]))
         {
-            throw new LaunchException("The game's player-name setup was not verified; update the companion and retry");
+            throw new LaunchException("The game's player-name setup was not verified; update the launcher and retry");
         }
         if (skipIntros && !Truthy(compatibility["skipIntrosVerified"]))
         {
@@ -126,11 +126,11 @@ public static class CompatibilityValidation
         }
         if (displayMode is DisplayMode.Windowed or DisplayMode.Borderless && !Truthy(compatibility["displayViewportVerified"]))
         {
-            throw new LaunchException("The game's display setup was not verified. Update the companion's native compatibility module, then retry.");
+            throw new LaunchException("The game's display setup was not verified. Update the launcher's native compatibility module, then retry.");
         }
         if (displayMode == DisplayMode.Borderless && !Truthy(compatibility["displayStyleVerified"]))
         {
-            throw new LaunchException("Borderless setup was not verified. Update the companion's native compatibility module, then retry.");
+            throw new LaunchException("Borderless setup was not verified. Update the launcher's native compatibility module, then retry.");
         }
     }
 
@@ -139,7 +139,7 @@ public static class CompatibilityValidation
     {
         if (Truthy(report["hookFailed"]))
         {
-            throw new LaunchException("The game's requested display settings could not be installed. Update the companion and retry.");
+            throw new LaunchException("The game's requested display settings could not be installed. Update the launcher and retry.");
         }
         if (skipIntros && !Truthy(report["introSequenceHookInstalled"]))
         {

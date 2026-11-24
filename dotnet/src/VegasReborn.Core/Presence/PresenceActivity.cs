@@ -25,7 +25,7 @@ public sealed record PresenceActivity(string Details, string State, long? StartT
         long? started = null)
     {
         title ??= TitleCatalog.Vegas1;
-        var details = playing ? "Original PC game" : "Vegas Reborn Companion";
+        var details = playing ? "Original PC game" : "Vegas Reborn Launcher";
         var state = playing ? "Playing " + title.DisplayName : "Ready to play";
         if (hosting)
         {

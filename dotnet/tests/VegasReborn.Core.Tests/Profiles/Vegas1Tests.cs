@@ -78,7 +78,7 @@ public sealed class Vegas1Tests
             {
                 File.WriteAllText(Path.Combine(owned, ".companion-ready.json"), """{"version":1,"sourceSha256":"other"}""");
                 var error = Assert.Throws<InvalidDataException>(() => MatchmakingCarrier.Ensure(root, owned));
-                Assert.Equal("The destination is not a supported companion-owned game copy", error.Message);
+                Assert.Equal("The destination is not a supported launcher-owned game copy", error.Message);
             }
             finally
             {

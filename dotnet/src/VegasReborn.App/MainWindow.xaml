@@ -278,14 +278,14 @@
                       Visibility="{Binding DataContext.IsSettings, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Visible}}" DataContext="{Binding Settings}">
             <StackPanel Margin="48,36,48,48" MaxWidth="760" HorizontalAlignment="Left">
                 <TextBlock Text="Settings" Style="{StaticResource SectionHeading}" FontSize="26" />
-                <TextBlock Text="Companion behaviour and updates. Display options are on each game's page." Style="{StaticResource SectionLead}" />
+                <TextBlock Text="Launcher behaviour and updates. Display options are on each game's page." Style="{StaticResource SectionLead}" />
 
                 <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,14" Margin="0,16,0,0">
                     <DockPanel>
                         <CheckBox DockPanel.Dock="Right" Style="{StaticResource Switch}" IsChecked="{Binding MinimizeOnPlay}" AutomationProperties.Name="Minimise while playing" />
                         <StackPanel>
                             <TextBlock Text="Minimise while playing" FontWeight="SemiBold" FontSize="15" />
-                            <TextBlock Text="The companion comes back when the game closes." Style="{StaticResource MutedText}" FontSize="13" Margin="0,2,0,0" />
+                            <TextBlock Text="The launcher comes back when the game closes." Style="{StaticResource MutedText}" FontSize="13" Margin="0,2,0,0" />
                         </StackPanel>
                     </DockPanel>
                 </Border>

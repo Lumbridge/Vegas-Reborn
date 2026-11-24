@@ -228,7 +228,7 @@ public static class MatchmakingCarrier
                 || !root.TryGetProperty("sourceSha256", out var source) || source.ValueKind != JsonValueKind.String
                 || source.GetString() != title.ClientSha256)
             {
-                throw new InvalidDataException("The destination is not a supported companion-owned game copy");
+                throw new InvalidDataException("The destination is not a supported launcher-owned game copy");
             }
         }
         var executable = PlainPath(Path.Combine(owned, Native(title.ClientExecutable)));

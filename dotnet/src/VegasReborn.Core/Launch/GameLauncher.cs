@@ -73,7 +73,7 @@ public sealed class GameLauncher
         NativeComponents.RequireComponents(_paths.NativeBin, title, adapter);
         if (Interlocked.Exchange(ref _running, 1) != 0)
         {
-            throw new LaunchException("Another companion is already launching the game");
+            throw new LaunchException("Another launcher is already launching the game");
         }
         IDisposable? mutex = null;
         CredentialIpc? ipc = null;
@@ -85,7 +85,7 @@ public sealed class GameLauncher
         var gateDll = "";
         try
         {
-            mutex = _system.TryAcquireLaunchMutex() ?? throw new LaunchException("Another companion is already launching the game");
+            mutex = _system.TryAcquireLaunchMutex() ?? throw new LaunchException("Another launcher is already launching the game");
             var source = Path.GetFullPath(request.GameFolder);
             var disabled = DisabledToggles(title, request.DisabledFixes);
             var hasSaves = title.SaveSlots.Count > 0;
@@ -98,7 +98,7 @@ public sealed class GameLauncher
             var account = await _credentials.RefreshAccountAsync(cancellationToken).ConfigureAwait(false);
             if (account.NameClaimsEnabled && account.ClaimRequired)
             {
-                throw new LaunchException("Choose your player name in the companion before playing");
+                throw new LaunchException("Choose your player name in the launcher before playing");
             }
             if (hasSaves)
             {

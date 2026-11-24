@@ -142,7 +142,7 @@ public sealed class DiscordPresenceTests : IDisposable
     public void ActivityTextIsTitleAware()
     {
         Assert.Equal("Ready to play", PresenceActivity.For().State);
-        Assert.Equal("Vegas Reborn Companion", PresenceActivity.For().Details);
+        Assert.Equal("Vegas Reborn Launcher", PresenceActivity.For().Details);
         Assert.Equal("Playing Rainbow Six Vegas", PresenceActivity.For(playing: true).State);
         Assert.Equal("Playing Rainbow Six Vegas 2", PresenceActivity.For(TitleCatalog.Vegas2, playing: true).State);
         Assert.Equal("Original PC game", PresenceActivity.For(TitleCatalog.Vegas2, playing: true).Details);
