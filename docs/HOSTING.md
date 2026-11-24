@@ -56,9 +56,11 @@ to check the setup on one PC.
 `install` downloads Ubisoft's official Maps Pack (about 727 MB), verifies it
 and adds it to the server's game copy on the next run. It also adds Terrorist
 Hunt, Deathmatch, Team Deathmatch and Attack & Defend to the story missions, for
-up to 16 players. Players need the pack in their launcher to join those maps.
-Stop the server before installing or removing it. The pack is shared with the
-launcher on the same PC, so it is downloaded once.
+up to 16 players. The added modes have not been tested in a full online match yet. Players need the pack in their
+launcher to join those maps. Stop the server before installing or removing it.
+The pack is shared with the launcher on the same PC, so it is downloaded once:
+`install` does nothing when the published version is already installed. Use
+`install --force` to download it again.
 
 ## Settings
 

@@ -160,7 +160,7 @@
                                             <StackPanel>
                                                 <TextBlock Text="Maps Pack" Style="{StaticResource SectionHeading}" />
                                                 <TextBlock Style="{StaticResource SectionLead}"
-                                                           Text="Kitchen, Roof, Ruined, Trains, Neon, Presidio, Mexico, Streets, Killhouse Double, Tower. Adds Terrorist Hunt, Deathmatch, Team Deathmatch and Attack &amp; Defend to story missions." />
+                                                           Text="Kitchen, Roof, Ruined, Trains, Neon, Presidio, Mexico, Streets, Killhouse Double, Tower. Adds Terrorist Hunt, Deathmatch, Team Deathmatch and Attack &amp; Defend to story missions. The added modes have not been tested in a full online match yet." />
                                                 <TextBlock Style="{StaticResource MutedText}" FontSize="13" Margin="0,0,0,8" TextWrapping="Wrap"
                                                            Text="Players need the Maps Pack to join matches that use these maps." />
                                             </StackPanel>
