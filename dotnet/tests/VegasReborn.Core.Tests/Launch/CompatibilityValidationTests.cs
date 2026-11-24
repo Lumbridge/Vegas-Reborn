@@ -98,7 +98,7 @@ public sealed class CompatibilityValidationTests
         CompatibilityValidation.Validate(title, report);
         report["nativeVersion"] = 2;
         Assert.Throws<LaunchException>(() => CompatibilityValidation.Validate(title, report));
-        foreach (var field in new[] { "proceduralAnimationVerified", "discordSignInVerified", "soloMatchVerified", "fullXpVerified" })
+        foreach (var field in new[] { "proceduralAnimationVerified", "discordSignInVerified", "soloMatchVerified", "fullXpVerified", "punkBusterRemovedVerified" })
         {
             var missing = Reports.Vegas2Ready();
             missing[field] = false;

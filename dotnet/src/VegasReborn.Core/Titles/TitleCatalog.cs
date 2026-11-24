@@ -24,6 +24,7 @@ public static class TitleCatalog
     public const string LargeAddressAware = "large-address-aware";
     public const string FireSoundLoop = "fire-sound-loop";
     public const string Controller = "controller";
+    public const string PunkBusterRemoved = "punkbuster-removed";
 
     public static GameTitle Vegas1 { get; } = new()
     {
@@ -169,6 +170,11 @@ public static class TitleCatalog
             new(FullXp, "Full match XP",
                 "Earn full XP online whatever the player count or team balance.",
                 "Online, the original game cuts XP when there are few players or the teams are uneven, down to 1%, and shows the cut as XP MODIFIER in the lobby. This keeps both factors at 100%.",
+                FixSection.GameFixes, FixKind.AlwaysOn),
+            // The adapter reports punkBusterRemovedVerified (settings menu row 2).
+            new(PunkBusterRemoved, "PunkBuster setting removed",
+                "Remove the Enable PunkBuster Server option and keep it off.",
+                "PunkBuster's online service no longer exists. This removes the Enable PunkBuster Server row from the settings menu and runs the game's own routine to turn the PunkBuster server off each time the menu opens.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             // Same Joysticks.ini table as Vegas 1; the adapter reports gamepadVerified.
             new(Controller, "Controller support",

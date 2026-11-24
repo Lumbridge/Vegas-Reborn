@@ -28,6 +28,7 @@
 #include "native_xp_modifier_vegas2.h"
 #include "native_skip_intros_vegas2.h"
 #include "native_display_vegas2.h"
+#include "native_punkbuster_vegas2.h"
 #include "native_gamepad.h"
 
 static bool RedirectedHost(const char* name){
@@ -166,6 +167,7 @@ static void WriteStatus(bool ready,unsigned gameHooks){
         "\"soloMatchVerified\":%s,\"soloMatchStatus\":\"%s\","
         "\"fullXpVerified\":%s,\"fullXpStatus\":\"%s\","
         "\"skipIntrosRequested\":%s,\"skipIntrosVerified\":%s,\"skipIntrosStatus\":\"%s\","
+        "\"punkBusterRemovedVerified\":%s,\"punkBusterRemovedStatus\":\"%s\","
         "\"gamepadVerified\":%s,\"gamepadStatus\":\"%s\","
         "\"windowedRequested\":%s,\"borderlessRequested\":%s,\"displayViewportVerified\":%s,\"displayStyleVerified\":%s,\"displayStatus\":\"%s\"}\n",
         ready?"true":"false",gameHooks,
@@ -175,6 +177,7 @@ static void WriteStatus(bool ready,unsigned gameHooks){
         NativeSoloMatchVegas2::Verified?"true":"false",NativeSoloMatchVegas2::Error,
         NativeXpModifierVegas2::Verified?"true":"false",NativeXpModifierVegas2::Error,
         NativeSkipIntrosVegas2::Requested?"true":"false",NativeSkipIntrosVegas2::Verified?"true":"false",NativeSkipIntrosVegas2::Error,
+        NativePunkBusterVegas2::Verified?"true":"false",NativePunkBusterVegas2::Error,
         NativeGamepad::Verified?"true":"false",NativeGamepad::Error,
         NativeDisplayVegas2::Windowed?"true":"false",NativeDisplayVegas2::Borderless?"true":"false",
         NativeDisplayVegas2::ViewportArmed?"true":"false",NativeDisplayVegas2::StyleVerified?"true":"false",NativeDisplayVegas2::Error);
@@ -191,7 +194,7 @@ static DWORD WINAPI NativeInitialize(LPVOID){
     for(unsigned attempt=0;attempt<600&&!codeReady;++attempt){
         codeReady=NativeProceduralAnimationVegas2::CodeReady(base)&&NativeLoginVegas2::CodeReady(base)&&
             NativeClaimedNameVegas2::CodeReady(base)&&NativeSoloMatchVegas2::CodeReady(base)&&
-            NativeXpModifierVegas2::CodeReady(base)&&
+            NativeXpModifierVegas2::CodeReady(base)&&NativePunkBusterVegas2::CodeReady(base)&&
             NativeReadiness::Executable(base+(NativeLoginVegas2::LoginAddress-NativeLoginVegas2::Preferred))&&
             NativeReadiness::Executable(base+(NativeProceduralAnimationVegas2::InitAddress-NativeProceduralAnimationVegas2::Preferred));
         if(!codeReady)Sleep(100);
@@ -204,13 +207,15 @@ static DWORD WINAPI NativeInitialize(LPVOID){
     const bool xp=NativeXpModifierVegas2::Install(base);
     const bool intros=NativeSkipIntrosVegas2::Install(base,Output);
     const bool display=NativeDisplayVegas2::Install(base);
-    Trace("game hooks: animation %s, sign-in %s, name %s, solo %s, xp %s, intros %s, display %s",NativeProceduralAnimationVegas2::Error,
+    const bool punkBuster=NativePunkBusterVegas2::Install(base);
+    Trace("game hooks: animation %s, sign-in %s, name %s, solo %s, xp %s, intros %s, display %s, punkbuster %s",NativeProceduralAnimationVegas2::Error,
         NativeLoginVegas2::Error,NativeClaimedNameVegas2::Error,NativeSoloMatchVegas2::Error,NativeXpModifierVegas2::Error,
-        NativeSkipIntrosVegas2::Error,NativeDisplayVegas2::Error);
-    const bool ready=animation&&login&&name&&solo&&xp&&intros&&display;
+        NativeSkipIntrosVegas2::Error,NativeDisplayVegas2::Error,NativePunkBusterVegas2::Error);
+    const bool ready=animation&&login&&name&&solo&&xp&&intros&&display&&punkBuster;
     WriteStatus(ready,(animation?NativeProceduralAnimationVegas2::MethodCount+1:0)+(login?2:0)+
         (NativeClaimedNameVegas2::Verified?NativeClaimedNameVegas2::Count:0)+(solo?NativeSoloMatchVegas2::Count:0)+(xp?2:0)+
-        (NativeSkipIntrosVegas2::Verified?2:0)+(NativeDisplayVegas2::ViewportArmed?1:0)+(NativeDisplayVegas2::StyleVerified?1:0));
+        (NativeSkipIntrosVegas2::Verified?2:0)+(NativeDisplayVegas2::ViewportArmed?1:0)+(NativeDisplayVegas2::StyleVerified?1:0)+
+        (punkBuster?NativePunkBusterVegas2::HookCount:0));
     return ready?1:0;
 }
 

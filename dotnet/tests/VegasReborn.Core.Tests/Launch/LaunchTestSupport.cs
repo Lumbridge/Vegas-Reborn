@@ -280,6 +280,8 @@ internal static class Reports
         ["fullXpVerified"] = true,
         ["skipIntrosVerified"] = true,
         ["fullXpStatus"] = "ok",
+        ["punkBusterRemovedVerified"] = true,
+        ["punkBusterRemovedStatus"] = "ok",
     };
 
     public static JsonObject Vegas1Ready() => new()
