@@ -59,7 +59,9 @@ static bool ManagerArray(BYTE* manager){
     if(!Readable(manager,0x50))return false;
     const int count=*reinterpret_cast<int*>(manager+0x38),capacity=*reinterpret_cast<int*>(manager+0x3c);
     BYTE* data=Pointer(manager+0x34);
-    return count>=1&&count<=2&&capacity>=count&&capacity<=16&&Readable(data,size_t(count)*4);
+    // The retail client keeps one options entry per local player slot (4 observed live);
+    // the policy itself only manages slots 0 and 1 (see Slot).
+    return count>=1&&count<=4&&capacity>=count&&capacity<=16&&Readable(data,size_t(count)*4);
 }
 static BYTE* Manager(){
     BYTE* game=Pointer(Image+Rva(0x123c1a28));
@@ -72,7 +74,7 @@ static bool Slot(BYTE* manager,int index){
 static int IndexOf(BYTE* options){
     BYTE* manager=Manager();if(!manager)return -1;
     BYTE* data=Pointer(manager+0x34);
-    for(int i=0;i<*reinterpret_cast<int*>(manager+0x38);++i)if(Pointer(data+i*4)==options)return i;
+    for(int i=0;i<*reinterpret_cast<int*>(manager+0x38)&&Slot(manager,i);++i)if(Pointer(data+i*4)==options)return i;
     return -1;
 }
 static bool PecReady(BYTE* manager,int index){
