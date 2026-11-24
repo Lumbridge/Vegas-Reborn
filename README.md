@@ -1,16 +1,11 @@
 # Vegas Reborn
 
-Companion app for the **original PC Rainbow Six Vegas**, with account sign-in,
-character synchronization, display settings, Discord activity and game launching.
-The account and matchmaking backend are maintained separately.
+Launcher for the original PC **Rainbow Six Vegas** and **Rainbow Six Vegas 2**,
+with account sign-in, online play, character synchronization, display settings,
+Discord activity and game launching. The account and matchmaking backend are
+maintained separately.
 
-**[First-time Windows download](https://github.com/Lumbridge/Vegas-Reborn/releases/download/v0.4.13/VegasReborn-0.4.13-win64.zip)**
-
-Vegas Reborn is experimental. Sign-in, character creation, customization and
-save/reload have been demonstrated with the original game, along with server
-browsing and joining a dedicated lobby. Full multiplayer matches and play across
-different networks are still being verified. Discord join invites are not yet
-available.
+**[Download the latest Windows release](https://github.com/Lumbridge/Vegas-Reborn/releases/latest)**
 
 ## What you need
 
@@ -18,69 +13,69 @@ available.
   **Rainbow Six Vegas 2**.
 - Steam running and signed in.
 - A Discord account and an internet connection for sign-in and character sync.
-- A writable folder for the companion and its separate game copy.
+- A writable folder for the launcher and its separate game copy.
 
 The download includes the runtime: you do not need to install Python or build
-tools. Original game files are not included. Support currently targets the
-specific original PC build used in testing; other game versions are unverified.
+tools. Original game files are not included. Support targets the specific
+original PC build of each game used in testing; other game versions are
+unverified.
 
 ## Get started
 
-1. Download the [full 0.4.13 Windows ZIP](https://github.com/Lumbridge/Vegas-Reborn/releases/download/v0.4.13/VegasReborn-0.4.13-win64.zip).
+1. Download `VegasReborn-<version>-win64.zip` from the
+   [latest release](https://github.com/Lumbridge/Vegas-Reborn/releases/latest).
 2. Extract the entire `VegasReborn` folder to a writable location, then open
-   `VegasReborn.exe`. Choose **Updates** to install 0.4.14.
-3. Open **Display & game** and use **Browse** to select your installed game folder.
+   `VegasReborn.exe`.
+3. Open **Games**, choose your game and use **Browse** to select its installed folder.
 4. Open **Account**, choose **Sign in with Discord**, and complete sign-in in your browser. Claim
    your player name if prompted.
-5. Open **Play** and choose **Launch game**. In the game, select **Multiplayer > Online > Login**.
-   The companion handles game sign-in; never enter your Discord password in the
-   game.
-6. When you finish playing, close the game normally and leave the companion open
+5. Open **Games** and choose **Launch game**. In Rainbow Six Vegas, select
+   **Multiplayer > Online > Login**. In Rainbow Six Vegas 2, choose **Login**
+   from the main menu. The launcher handles game sign-in; never enter your
+   Discord password in the game.
+6. When you finish playing, close the game normally and leave the launcher open
    until it confirms **Character saved to your account**.
 
-The companion prepares its own game copy and account-specific character folder.
+The launcher prepares its own game copy and account-specific character folder.
 Your installed game and its existing profiles are preserved.
 
-**Skip intro movies** is available in **Display & game** and applies on the next
-launch. It is enabled by default for new or unset preferences and bypasses the startup logo and splash sequence,
-including its waits. Loading screens, the menu background and gameplay movies
-are retained. Turning it off restores the original startup behavior.
+## Game fixes
+
+Each game's page lists its fixes. Changes apply the next time you launch the game.
+
+- **Display mode:** **Borderless** (default), **Windowed**, **Fullscreen** or
+  **Game default**. Borderless fills your selected monitor without keeping the
+  game always on top.
+- **Monitor:** where the game window opens.
+- **Skip intro movies:** enabled by default. Bypasses the startup logo and
+  splash sequence, including its waits. Loading screens, the menu background
+  and gameplay movies are retained. Turning it off restores the original
+  startup behavior.
 
 ## Your character and settings
 
 Your account's saved character is downloaded before you play. When the game
-closes, the companion uploads your character and progression. If the local and
-account copies conflict, the app lets you choose the appearance while preserving
-the higher XP. Complete match-earned XP and unlock behavior are still being
-verified.
+closes, the launcher uploads your character and progression. If the local and
+account copies conflict, the app lets you choose which character to keep while
+preserving the higher XP.
 
-Use **Sync character** to sync without starting the game, or **Character folder**
-to open your local character files.
+Use **Sync now** on the **Account** page to sync without starting the game.
 
-Display options include **Borderless**, **Windowed**, **Fullscreen** and
-**Game default**. Borderless fills your selected monitor without keeping the
-game always on top. Changes apply the next time you launch the game; Alt-Tab and
-multi-monitor gameplay testing are still in progress. You can also have the
-companion minimize when the game starts.
-
-**Share my Vegas Reborn activity on Discord** is optional. Turn it off in the app
-if you do not want to share your activity. Discord desktop activity sharing is
-separate from signing in with your Discord account.
+**Settings** has **Minimise while playing**, **Discord activity** and
+**Check for updates at startup**. Discord activity is optional and separate
+from signing in with your Discord account. Discord join invites are not
+available.
 
 ## Hosting
 
 Use **Create Match in the game** for normal hosting. Dedicated hosting is a
-separate process and is not in the companion's normal navigation. Operators can
+separate process and is not in the launcher's normal navigation. Operators can
 use `python tools/host_server.py` from a prepared source checkout. The explicit
 legacy `--host` argument remains supported for existing shortcuts.
 
-Hosting is experimental: reaching a server lobby has been demonstrated, but
-hosting a complete match and connecting across different networks are not yet
-verified. Starting a server does not guarantee that other players can join.
+## Keep the launcher up to date
 
-## Keep the companion up to date
-
-The companion checks for updates when it starts. Choose **Update and restart**
+The launcher checks for updates when it starts. Choose **Update and restart**
 to download one while you play. Installation waits for games to close. If a
 game blocks it, close the game normally or choose **Force-close games and
 update**. Force-close ends running original Vegas games and servers; unsaved
@@ -88,26 +83,26 @@ match progress may be lost. Progress is shown through download, verification,
 game closing, installation and restart.
 
 Updates are verified before installation and preserve your game copy, character,
-settings and saved sign-in. You can disable startup update checks in the app.
+settings and saved sign-in. You can disable startup update checks in **Settings**.
 
 ## If something goes wrong
 
 - **The game will not launch:** check that Steam is running and signed in, and
-  that **Browse** points to your installed original Rainbow Six Vegas folder.
-- **Game sign-in fails:** sign in with Discord again in the companion, then retry
-  **Multiplayer > Online > Login** in the game.
+  that **Browse** points to your installed original game folder.
+- **Game sign-in fails:** sign in with Discord again in the launcher, then retry
+  **Login** in the game.
 - **Borderless mode does not work as expected:** select **Windowed** and launch
   the game again.
-- **Your character has not synced:** keep the companion open after the game exits
-  and check its status message. Use **Sync character** to retry once the game is
+- **Your character has not synced:** keep the launcher open after the game exits
+  and check its status message. Use **Sync now** to retry once the game is
   closed.
 
 To report a problem, [open an issue](https://github.com/Lumbridge/Vegas-Reborn/issues)
-with your companion version, what you were doing and the error shown. Do not
+with your launcher version, what you were doing and the error shown. Do not
 attach account sessions, tokens or private character files.
 
 ## For contributors
 
 See [Development and releases](docs/DEVELOPMENT.md) for source setup, native
 helper builds, tests and release signing. This repository contains the Windows
-companion; the account and matchmaking backend are maintained separately.
+launcher; the account and matchmaking backend are maintained separately.

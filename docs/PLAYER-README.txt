@@ -5,8 +5,8 @@ VegasReborn.exe. The .NET runtime it needs is included; nothing else has to
 be installed on the playing PC. You must own and install the original PC
 Rainbow Six Vegas or Rainbow Six Vegas 2 and run Steam.
 
-Choose the game in Play, choose its installed folder, sign in, claim your player name if prompted,
-and choose Launch game in Play. In-game, choose Multiplayer > Online > Login. The
+Choose the game in Games, choose its installed folder, sign in, claim your player name if prompted,
+and choose Launch game. In-game, choose Multiplayer > Online > Login. The
 companion supplies a short-lived native credential. Never enter your Discord
 password in the game. Keep the companion open until the game closes so your
 character can synchronize. Use Create Match in the game for normal hosting.
@@ -17,13 +17,13 @@ multiplayer matches can be started with one player, and match XP is awarded
 in full whatever the player count or team balance.
 Display mode, monitor and Skip intro movies work for both games.
 
-The interface has Play, Account, Display & Game, Connections and Updates
+The interface has Games, Account and Settings
 pages. Switching pages preserves the selected window size and position.
 
 Borderless is the default display mode and fills the selected monitor without keeping the game always on
 top. Display settings apply on the next game launch. Discord desktop activity
 sharing is optional; retail Discord join invites are not available yet.
-Skip intro movies is enabled by default in Display & game to bypass the startup logo and splash
+Skip intro movies is enabled by default on each game's page to bypass the startup logo and splash
 sequence and continue to the menu without its intro-length waits.
 Existing saved preferences are respected. Turning it off restores the original setting
 in the companion's game copy. Loading screens and gameplay movies are retained.
@@ -47,4 +47,4 @@ this account. Single-player appearance is unchanged.
 Only companion files are distributed. No original game files, profiles, account
 tokens, private update signing keys or backend server are included.
 Retail gameplay, multiplayer and Alt-Tab acceptance are distinct from app and
-updater tests. This experimental client supports the pinned original PC build.
+updater tests. This client supports the pinned original PC build of each game.
