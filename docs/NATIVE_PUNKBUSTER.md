@@ -1,11 +1,14 @@
-# Vegas 1 PunkBuster server setting
+# Vegas 1 PunkBuster settings
 
 PunkBuster's service no longer exists. The Vegas 1 adapter hides the
-"ENABLE PUNKBUSTER SERVER" checkbox in Create Match and keeps the PunkBuster
-server off. Implementation: `tools/companion/native_punkbuster.h`. Vegas 2 is
-covered separately in `NATIVE_PUNKBUSTER_VEGAS2.md`.
+"ENABLE PUNKBUSTER SERVER" checkbox in Create Match and the PunkBuster client
+checkbox in the match browser and Quick Match, and keeps PunkBuster off.
+Implementation: `tools/companion/native_punkbuster.h`. Vegas 2 is covered
+separately in `NATIVE_PUNKBUSTER_VEGAS2.md`.
 
 ## Original evidence (client RVAs, base 0x10900000)
+
+### Server
 
 - `R6Menus.int [ServerOptions] PreGamePunkbuster` and `InGamePunkbuster` are
   the checkbox text. The Create Match menu (`MP_RSMenus.mgb`) binds widgets by
@@ -19,9 +22,28 @@ covered separately in `NATIVE_PUNKBUSTER_VEGAS2.md`.
   `m_bPunkBusterSv` flag (0x65376, 0xaf186, 0x4e77a2). The adapter makes that
   routine do nothing, so the server stays off and the menu's save writes
   `m_bPunkBusterSv=False`.
+
+### Client
+
+- The match browser (two menu vtables sharing init 0xa6c80) binds
+  `CB_PBClientCustomMatch` to menu +0x4c (0xa6c8f, last of its table). Quick
+  Match binds `CB_PBClientQuickMatch` to +0x108 (0xb2a66, last of its table).
+  Both are visible from the menu file; no code shows them.
+- The client routines use the PunkBuster instance at 0x125a9f10 +4: 0x1046a20
+  queries (command 0x71), 0x1046ae0 turns the client on (0x75) and 0x1046b40
+  turns it off (0x76). Turning it on is called by both checkboxes, by both
+  menus' show methods (0xa76c0, 0xb5850) when a profile flag is set, and by
+  PunkBuster's own join path (0x10487a3). A click on a ticked checkbox
+  queries and then turns the client off; the menus save the query result as
+  `m_bPunkBusterCl`.
+- After each show method, the adapter hides that menu's checkbox the same way
+  as the server checkbox and, as unticking it would, turns the client off if
+  the query says it is on. The on routine does nothing.
+
+### Left as is
+
 - The other "PUNKBUSTER" text in Vegas 1 (`PunkBusterLabel`) is a server
-  browser match filter (Any/Yes/No), not a setting that enables the server, and
-  is left as it is.
+  browser match filter (Any/Yes/No), not a setting that turns PunkBuster on.
 
 ## Reading the client code
 
@@ -33,6 +55,6 @@ outside Git; the installed game is not modified.
 ## Not verified
 
 No retail launch was run: there is no established startup-safe private-audio
-route for an automated launch. The byte signatures match the decrypted client
-image, and the adapter reports `nativeSignatureMismatch` if they do not match
-at runtime. The launcher requires `punkBusterRemovedVerified`.
+route for an automated launch. The byte signatures and widget names match the
+decrypted client image, and the adapter reports `nativeSignatureMismatch` if
+they do not match at runtime. The launcher requires `punkBusterRemovedVerified`.

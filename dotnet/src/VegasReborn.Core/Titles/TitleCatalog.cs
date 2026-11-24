@@ -76,9 +76,9 @@ public static class TitleCatalog
                 "Online, the host sends the start and end of another player's automatic fire sound as two messages that can be lost or skipped at a distance. A lost end message leaves the sound looping. When that player has stopped firing and no end arrived, the game's own end sound is played in your game.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             // The adapter reports punkBusterRemovedVerified (Create Match CB_PBServer).
-            new(PunkBusterRemoved, "PunkBuster setting removed",
-                "Remove the Enable PunkBuster Server option and keep it off.",
-                "PunkBuster's online service no longer exists. This hides the Enable PunkBuster Server checkbox in Create Match, as the game already does in one of its own match screens, and stops the game from starting the PunkBuster server.",
+            new(PunkBusterRemoved, "PunkBuster settings removed",
+                "Remove the PunkBuster server and client options and keep PunkBuster off.",
+                "PunkBuster's online service no longer exists. This hides the Enable PunkBuster Server checkbox in Create Match, as the game already does in one of its own match screens, and the PunkBuster client checkbox in the match browser and Quick Match. It stops the game from starting PunkBuster and turns the client off if it was on.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             new(ReportXp, "Match XP report",
                 "Show the XP earned at the end of a match.",
@@ -182,9 +182,9 @@ public static class TitleCatalog
                 "Online, the original game cuts XP when there are few players or the teams are uneven, down to 1%, and shows the cut as XP MODIFIER in the lobby. This keeps both factors at 100%.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             // The adapter reports punkBusterRemovedVerified (settings menu row 2).
-            new(PunkBusterRemoved, "PunkBuster setting removed",
-                "Remove the Enable PunkBuster Server option and keep it off.",
-                "PunkBuster's online service no longer exists. This removes the Enable PunkBuster Server row from the settings menu and runs the game's own routine to turn the PunkBuster server off each time the menu opens.",
+            new(PunkBusterRemoved, "PunkBuster settings removed",
+                "Remove the PunkBuster server and client options and keep PunkBuster off.",
+                "PunkBuster's online service no longer exists. This removes the Enable PunkBuster Server and Enable PunkBuster Client rows from the settings menu, runs the game's own routines to turn them off each time the menu opens, and stops the game from turning the client on.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             // Same Joysticks.ini table as Vegas 1; the adapter reports gamepadVerified.
             new(Controller, "Controller support",
