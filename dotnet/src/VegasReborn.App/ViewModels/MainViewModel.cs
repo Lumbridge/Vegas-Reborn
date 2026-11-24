@@ -51,6 +51,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     public Preferences Preferences { get; }
+    public AppPaths Paths => paths;
     public CompanionAccount CompanionAccount { get; }
     public UpdateCoordinator Updates { get; }
     public AccountViewModel Account { get; }

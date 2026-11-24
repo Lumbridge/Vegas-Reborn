@@ -120,6 +120,10 @@ public sealed class GameViewModel : ObservableObject
                 Sections.Add(new FixSectionViewModel(heading, lead, fixes, section == FixSection.GameFixes ? this : null));
             }
         }
+        if (title.Key == TitleCatalog.Vegas1.Key)
+        {
+            MapsPack = new MapsPackViewModel(owner, owner.Paths);
+        }
         LaunchCommand = new RelayCommand(() => owner.PlayAsync(this), () => !owner.IsBusy);
         BrowseCommand = new RelayCommand(BrowseAsync, () => !owner.IsBusy);
         RefreshStatus();
@@ -140,6 +144,8 @@ public sealed class GameViewModel : ObservableObject
     public bool IsExperimental => Title.Support == TitleSupport.Experimental;
     public ObservableCollection<FixSectionViewModel> Sections { get; } = [];
     public IReadOnlyList<string> DisplayModeNames { get; } = DisplayModes.All.Select(DisplayModes.Name).ToList();
+    /// <summary>The Maps Pack section; null for titles without one.</summary>
+    public MapsPackViewModel? MapsPack { get; }
     public ICommand LaunchCommand { get; }
     public ICommand BrowseCommand { get; }
 

@@ -151,6 +151,57 @@
                             </StackPanel>
                         </DockPanel>
 
+                        <!-- Maps Pack (Vegas 1 only) -->
+                        <ContentControl Content="{Binding MapsPack}" Focusable="False" IsTabStop="False">
+                            <ContentControl.ContentTemplate>
+                                <DataTemplate DataType="{x:Type vm:MapsPackViewModel}">
+                                    <StackPanel Margin="0,16,0,8">
+                                        <Border BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="0,20,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="Maps Pack" Style="{StaticResource SectionHeading}" />
+                                                <TextBlock Style="{StaticResource SectionLead}"
+                                                           Text="Kitchen, Roof, Ruined, Trains, Neon, Presidio, Mexico, Streets, Killhouse Double, Tower. Adds Terrorist Hunt, Deathmatch, Team Deathmatch and Attack &amp; Defend to story missions." />
+                                                <TextBlock Style="{StaticResource MutedText}" FontSize="13" Margin="0,0,0,8" TextWrapping="Wrap"
+                                                           Text="Players need the Maps Pack to join matches that use these maps." />
+                                            </StackPanel>
+                                        </Border>
+                                        <StackPanel ToolTipService.ShowOnDisabled="True" ToolTip="{Binding DisabledReason}">
+                                            <Button Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" Content="{Binding DownloadText}" Command="{Binding DownloadCommand}"
+                                                    Visibility="{Binding ShowDownload, Converter={StaticResource Visible}}" />
+                                            <StackPanel Visibility="{Binding IsDownloading, Converter={StaticResource Visible}}">
+                                                <ProgressBar Maximum="100" Height="8" Margin="0,0,0,8" Background="{StaticResource Line}" Value="{Binding Percent, Mode=OneWay}"
+                                                             AutomationProperties.Name="Maps Pack download progress" />
+                                                <DockPanel>
+                                                    <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Content="Cancel" Margin="12,0,0,0" Command="{Binding CancelCommand}" />
+                                                    <TextBlock Text="{Binding ProgressText}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+                                                </DockPanel>
+                                            </StackPanel>
+                                            <DockPanel Visibility="{Binding ShowInstalled, Converter={StaticResource Visible}}">
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Content="Remove" Margin="12,0,0,0" Command="{Binding RemoveCommand}" />
+                                                <TextBlock Text="Installed" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                            <DockPanel Visibility="{Binding ShowUpdate, Converter={StaticResource Visible}}">
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="12,0,0,0">
+                                                    <Button Style="{StaticResource SecondaryButton}" Content="Update" Command="{Binding UpdateCommand}" />
+                                                    <Button Style="{StaticResource SecondaryButton}" Content="Remove" Margin="8,0,0,0" Command="{Binding RemoveCommand}" />
+                                                </StackPanel>
+                                                <TextBlock Text="A newer Maps Pack is available" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                            </DockPanel>
+                                            <DockPanel Visibility="{Binding ShowDamaged, Converter={StaticResource Visible}}">
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="12,0,0,0">
+                                                    <Button Style="{StaticResource SecondaryButton}" Content="Download again" Command="{Binding DownloadCommand}" />
+                                                    <Button Style="{StaticResource SecondaryButton}" Content="Remove" Margin="8,0,0,0" Command="{Binding RemoveCommand}" />
+                                                </StackPanel>
+                                                <TextBlock Text="The Maps Pack is damaged. Download it again or remove it." VerticalAlignment="Center" TextWrapping="Wrap" />
+                                            </DockPanel>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite"
+                                                   Visibility="{Binding HasStatus, Converter={StaticResource Visible}}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ContentControl.ContentTemplate>
+                        </ContentControl>
+
                         <!-- Fix sections -->
                         <ItemsControl ItemsSource="{Binding Sections}" Focusable="False">
                             <ItemsControl.ItemTemplate>
