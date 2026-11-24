@@ -150,7 +150,20 @@ public sealed class DiscordPresenceTests : IDisposable
         Assert.Equal("Dedicated server running", PresenceActivity.For(hosting: true).State);
         Assert.Equal("Playing · Dedicated server running", PresenceActivity.For(playing: true, hosting: true).State);
         Assert.Null(PresenceActivity.For(started: 123).StartTimestamp);
-        Assert.Equal("{\"details\":\"Original PC game\",\"state\":\"Playing · Dedicated server running\"}",
+        Assert.Equal("{\"details\":\"Original PC game\",\"state\":\"Playing · Dedicated server running\","
+            + "\"buttons\":[{\"label\":\"Get Vegas Reborn\",\"url\":\"https://github.com/Lumbridge/Vegas-Reborn/releases/latest\"}]}",
             PresenceActivity.For(playing: true, hosting: true).ToJson());
+    }
+
+    [Fact]
+    public void ActivityHasOneDownloadButtonAndNoJoinData()
+    {
+        var activity = JsonNode.Parse(PresenceActivity.For(playing: true, started: 5).ToJson())!.AsObject();
+        var buttons = activity["buttons"]!.AsArray();
+        var button = Assert.Single(buttons)!.AsObject();
+        Assert.Equal("Get Vegas Reborn", (string)button["label"]!);
+        Assert.Equal("https://github.com/Lumbridge/Vegas-Reborn/releases/latest", (string)button["url"]!);
+        Assert.False(activity.ContainsKey("secrets"));
+        Assert.False(activity.ContainsKey("party"));
     }
 }

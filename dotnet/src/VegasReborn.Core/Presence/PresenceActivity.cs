@@ -7,10 +7,16 @@ namespace VegasReborn.Core.Presence;
 
 /// <summary>
 /// The Rich Presence activity the companion shares. No join secrets or party data: a
-/// retail join path is not verified.
+/// retail join path is not verified. One link button lets friends get the launcher.
 /// </summary>
 public sealed record PresenceActivity(string Details, string State, long? StartTimestamp = null)
 {
+    /// <summary>The label of the presence button that links to the launcher download.</summary>
+    public const string DownloadLabel = "Get Vegas Reborn";
+
+    /// <summary>The launcher's latest release page.</summary>
+    public const string DownloadUrl = "https://github.com/Lumbridge/Vegas-Reborn/releases/latest";
+
     private static readonly JsonSerializerOptions Compact = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     /// <summary>
@@ -46,6 +52,7 @@ public sealed record PresenceActivity(string Details, string State, long? StartT
         {
             value["timestamps"] = new JsonObject { ["start"] = start };
         }
+        value["buttons"] = new JsonArray(new JsonObject { ["label"] = DownloadLabel, ["url"] = DownloadUrl });
         return value.ToJsonString(Compact);
     }
 }
