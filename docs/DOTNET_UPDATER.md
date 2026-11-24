@@ -51,7 +51,11 @@ release the .NET updater accepts.
 
 The Vegas 2 adapter is loaded from `runtime-<version>/native/`
 (`AppPaths.NativeAdapter`), falling back to `AppPaths.NativeBin` in development
-layouts. 0.5.0 does not ship the dedicated modules (`VegasDedicated*.dll`).
+layouts. 0.5.0 to 0.5.2 do not ship the dedicated modules. Later releases ship
+the dedicated server host as `runtime-<version>/VegasServer.exe` (a
+framework-dependent single file using `runtime-<version>/dotnet`) and the
+Vegas 1 server module as `local/companion/bin/VegasDedicated-4.dll`, a name
+0.4.14 accepts.
 
 Because each runtime folder is versioned, the staged helper runs entirely from
 its payload (`payload/runtime-<version>/dotnet`) without a system .NET install,

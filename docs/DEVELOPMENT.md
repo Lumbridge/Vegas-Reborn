@@ -28,8 +28,10 @@ retail key in a configuration or commit a user's account session.
 launch and synchronization operations, and `ui/` owns the pages, theme and
 graphics. Background workers communicate with the UI through queued events.
 The normal navigation has Play, Account, Display & Game, Connections and
-Updates. Dedicated hosting is a separate operator tool (`tools/host_server.py`);
-the legacy explicit `--host` path remains available.
+Updates. Dedicated hosting is a separate console program,
+`dotnet/src/VegasReborn.Server` (`VegasServer.exe`, see `docs/HOSTING.md`). The
+Python operator tool (`tools/host_server.py`) and the legacy explicit `--host`
+path remain available.
 
 UI text is functional: no slogans or quips. Page changes preserve window size
 and position. Content scrolls inside the fixed content area. Button styles must

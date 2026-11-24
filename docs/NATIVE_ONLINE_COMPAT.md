@@ -53,18 +53,15 @@ rather than an invented reward table.
 
 `Build-Companion.ps1` produces the fresh versioned adapter names and includes
 the compatibility headers in its source-hash record. `tools/build_release.py`
-packages client9 alongside the existing native tools, and places dedicated4 at
-`runtime-<VERSION>/native/VegasDedicated-4.dll`. Existing 0.4.5 updaters already
-allow that versioned runtime subtree; they would reject a new versioned
-dedicated DLL under `local/companion/bin` before installing updated verifier
-code. The frozen dedicated loader uses `sys._MEIPASS/native`; development uses
-the local native build directory. The new updater also permits versioned
-dedicated names under the native-bin boundary for future layouts, with the
-existing signed-manifest and file-hash checks.
+builds the client, Vegas 2 and dedicated adapters and ships dedicated4 as
+`local/companion/bin/VegasDedicated-4.dll`, which the 0.4.14 updater's
+versioned-name rule accepts. The .NET host (`VegasServer.exe`) loads it through
+`AppPaths.NativeAdapter`; development uses the local native build directory.
 Game copies, accounts, preferences and saves remain outside update ownership.
 
-Normal hosting remains in the game's Create Match flow. Dedicated hosting
-remains a separate operator tool with its existing explicit CLI support.
+Normal hosting remains in the game's Create Match flow. Dedicated hosting is a
+separate console program (`VegasServer.exe`, see `docs/HOSTING.md`); the
+Python operator tool and explicit legacy CLI remain supported.
 
 ## Review scope
 

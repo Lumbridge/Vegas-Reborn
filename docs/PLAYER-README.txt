@@ -10,7 +10,9 @@ and choose Launch game. In-game, choose Multiplayer > Online > Login. The
 companion supplies a short-lived native credential. Never enter your Discord
 password in the game. Keep the companion open until the game closes so your
 character can synchronize. Use Create Match in the game for normal hosting.
-Dedicated hosting is not included in this version.
+Dedicated servers for Rainbow Six Vegas run from
+runtime-<version>\VegasServer.exe. Run it with help for its commands; setup is
+described at https://github.com/Lumbridge/Vegas-Reborn/blob/main/docs/HOSTING.md
 
 Rainbow Six Vegas 2 uses the same sign-in and claimed player name. Unranked
 multiplayer matches can be started with one player, and match XP is awarded

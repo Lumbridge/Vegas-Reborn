@@ -68,9 +68,11 @@ available.
 
 ## Hosting
 
-Use **Create Match in the game** for normal hosting. Dedicated hosting is a
-separate process and is not in the launcher's normal navigation. Operators can
-use `python tools/host_server.py` from a prepared source checkout. The explicit
+Use **Create Match in the game** for normal hosting. Dedicated servers run
+from a separate console program, `runtime-<version>\VegasServer.exe`, that is
+not in the launcher's normal navigation. Rainbow Six Vegas is supported; see
+[docs/HOSTING.md](docs/HOSTING.md). Operators can still use
+`python tools/host_server.py` from a prepared source checkout, and the explicit
 legacy `--host` argument remains supported for existing shortcuts.
 
 ## Keep the launcher up to date

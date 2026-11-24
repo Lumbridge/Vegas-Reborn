@@ -26,8 +26,8 @@ from release_version import VERSION
 DOTNET_ROOT = Path(r"C:\Program Files\dotnet")
 FRAMEWORKS = ("Microsoft.NETCore.App", "Microsoft.WindowsDesktop.App")
 # Names the 0.4.x updater accepts under local/companion/bin.
-BIN_NAMES = ("VegasCompanion.dll", "VegasCompanion-13.dll", "VegasInjector.exe", "VegasSteamGate.dll",
-             "VegasSteamControl.exe", "build.json")
+BIN_NAMES = ("VegasCompanion.dll", "VegasCompanion-13.dll", "VegasDedicated-4.dll", "VegasInjector.exe",
+             "VegasSteamGate.dll", "VegasSteamControl.exe", "build.json")
 # Native modules whose names 0.4.x does not accept there; loaded from runtime-<version>/native.
 RUNTIME_NATIVE_NAMES = ("VegasCompanionVegas2.dll",)
 TARGET_ARCHIVE = 60 * 1024 * 1024
@@ -60,23 +60,29 @@ def build_native(work):
         shutil.rmtree(native)
     relative = native.relative_to(ROOT).as_posix()
     script = ROOT / "tools/companion/Build-Companion.ps1"
-    for flag in ([], ["-Vegas2"]):
+    for flag in ([], ["-Vegas2"], ["-Dedicated"]):
         subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script),
                         "-OutputDirectory", relative, *flag], check=True, cwd=ROOT)
     return native
 
 
-def publish_app(work, version):
-    publish = work / "publish"
+def publish_app(work, version, project="VegasReborn.App", output="publish", dotnet_relative=None):
+    """Framework-dependent single file that runs on the release's private runtime-<version>/dotnet."""
+    publish = work / output
     if publish.exists():
         shutil.rmtree(publish)
-    subprocess.run(["dotnet", "publish", str(ROOT / "dotnet/src/VegasReborn.App/VegasReborn.App.csproj"),
+    subprocess.run(["dotnet", "publish", str(ROOT / "dotnet/src" / project / (project + ".csproj")),
                     "-c", "Release", "-r", "win-x64", "--self-contained", "false",
                     "-p:PublishSingleFile=true", "-p:AppHostDotNetSearch=AppRelative",
-                    "-p:AppHostRelativeDotNet=runtime-" + version + "\\dotnet",
+                    "-p:AppHostRelativeDotNet=" + (dotnet_relative or "runtime-" + version + "\\dotnet"),
                     "-p:DebugType=none", "-p:Version=" + version,
                     "--artifacts-path", str(work / "artifacts"), "-o", str(publish)], check=True, cwd=ROOT / "dotnet")
     return publish
+
+
+def publish_server(work, version):
+    """VegasServer.exe lives in runtime-<version>/, next to its dotnet folder."""
+    return publish_app(work, version, "VegasReborn.Server", "publish-server", "dotnet")
 
 
 def notices(runtime):
@@ -89,10 +95,13 @@ def notices(runtime):
     return "\n\n".join(parts)
 
 
-def assemble(app, publish, native, runtime, version, args):
+def assemble(app, publish, server, native, runtime, version, args):
     published = sorted(p.name for p in publish.iterdir())
     if published != ["VegasReborn.exe"]:
         raise RuntimeError("Unexpected published files: " + ", ".join(published))
+    published = sorted(p.name for p in server.iterdir())
+    if published != ["VegasServer.exe"]:
+        raise RuntimeError("Unexpected published server files: " + ", ".join(published))
     app.mkdir(parents=True)
     shutil.copy2(publish / "VegasReborn.exe", app / "VegasReborn.exe")
     runtime_root = app / ("runtime-" + version)
@@ -101,6 +110,7 @@ def assemble(app, publish, native, runtime, version, args):
     for name in FRAMEWORKS:
         shutil.copytree(DOTNET_ROOT / "shared" / name / runtime, dotnet / "shared" / name / runtime)
     shutil.copy2(DOTNET_ROOT / "LICENSE.txt", dotnet / "LICENSE.txt")
+    shutil.copy2(server / "VegasServer.exe", runtime_root / "VegasServer.exe")
     (runtime_root / "native").mkdir()
     for name in RUNTIME_NATIVE_NAMES:
         shutil.copy2(native / name, runtime_root / "native" / name)
@@ -168,12 +178,13 @@ def main():
     work.mkdir(parents=True, exist_ok=True)
     native = build_native(work)
     publish = publish_app(work, VERSION)
+    server = publish_server(work, VERSION)
     runtime = runtime_version(publish)
     output.mkdir(parents=True)
     app = work / "app/VegasReborn"
     if app.exists():
         shutil.rmtree(app)
-    assemble(app, publish, native, runtime, VERSION, args)
+    assemble(app, publish, server, native, runtime, VERSION, args)
     files, archive = package(app, output, VERSION)
     size = archive.stat().st_size
     if size > TARGET_ARCHIVE:

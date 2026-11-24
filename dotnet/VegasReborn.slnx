@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/VegasReborn.App/VegasReborn.App.csproj" />
     <Project Path="src/VegasReborn.Core/VegasReborn.Core.csproj" />
+    <Project Path="src/VegasReborn.Server/VegasReborn.Server.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/VegasReborn.Core.Tests/VegasReborn.Core.Tests.csproj" />
