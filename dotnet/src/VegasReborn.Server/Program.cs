@@ -25,7 +25,8 @@ public static class Program
           login                       Sign in with Discord for online hosting
           run [--local-test]          Run the server until Ctrl+C or 'stop'
           stop                        Ask a running server to stop
-          maps-pack install|remove|status   Manage the Vegas 1 Maps Pack
+          maps-pack install [--force] Install the Vegas 1 Maps Pack (--force reinstalls it)
+          maps-pack remove|status     Remove the Maps Pack or show its state
 
         Options:
           --game vegas1|vegas2        Which game (default vegas1)
@@ -155,7 +156,8 @@ public static class Program
             () => new MapsPackInstaller(paths, downloader),
             Console.Out,
             Console.Error,
-            cancel.Token).ConfigureAwait(false);
+            cancel.Token,
+            options.Force).ConfigureAwait(false);
     }
 
     /// <summary>Ctrl+C, Ctrl+Break, console close and service/container termination cancel the token.</summary>
@@ -205,7 +207,7 @@ public static class Program
 
     internal sealed class UsageException(string message) : Exception(message);
 
-    internal sealed record Options(string Command, GameTitle Title, string? GameFolder, string? Root, bool LocalTest, string? Verb = null)
+    internal sealed record Options(string Command, GameTitle Title, string? GameFolder, string? Root, bool LocalTest, string? Verb = null, bool Force = false)
     {
         public static Options Parse(string[] args)
         {
@@ -216,6 +218,7 @@ public static class Program
             var title = TitleCatalog.Vegas1;
             string? folder = null, root = null;
             var localTest = false;
+            var force = false;
             string? verb = null;
             var first = 1;
             if (args[0] == "maps-pack")
@@ -246,6 +249,9 @@ public static class Program
                     case "--local-test":
                         localTest = true;
                         break;
+                    case "--force" when verb == "install":
+                        force = true;
+                        break;
                     default:
                         throw new UsageException($"Unknown option: {args[index]}");
                 }
@@ -254,7 +260,7 @@ public static class Program
             {
                 throw new UsageException("The Maps Pack is only for Rainbow Six Vegas");
             }
-            return new Options(args[0], title, folder, root, localTest, verb);
+            return new Options(args[0], title, folder, root, localTest, verb, force);
         }
 
         private static string Value(string[] args, ref int index) =>

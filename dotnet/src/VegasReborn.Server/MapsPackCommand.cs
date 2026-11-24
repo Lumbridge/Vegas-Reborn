@@ -4,15 +4,17 @@ using VegasReborn.Core.Content;
 namespace VegasReborn.Server;
 
 /// <summary>
-/// <c>VegasServer maps-pack install|remove|status</c>: manages the Vegas 1 Maps Pack in the
+/// <c>VegasServer maps-pack install [--force]|remove|status</c>: manages the Vegas 1 Maps Pack in the
 /// installation's content store. The server's game copy picks it up on its next start.
 /// </summary>
 internal static class MapsPackCommand
 {
     internal const string StopFirst = "Stop the server first.";
+    internal const string DamagedText = "The Maps Pack is damaged. Download it again or remove it.";
 
     /// <param name="acquireHostLock">The Vegas 1 server's host lock for this installation, or null while a server holds it.</param>
     /// <param name="createInstaller">Only called for install and remove, after the host lock is held.</param>
+    /// <param name="force">Install even when the published version is already installed.</param>
     public static async Task<int> RunAsync(
         string verb,
         AppPaths paths,
@@ -20,7 +22,8 @@ internal static class MapsPackCommand
         Func<MapsPackInstaller> createInstaller,
         TextWriter output,
         TextWriter error,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool force = false)
     {
         switch (verb)
         {
@@ -43,6 +46,15 @@ internal static class MapsPackCommand
                         output.WriteLine("Maps Pack removed.");
                         return 0;
                     }
+                    if (!force && MapsPackRecord.CheckQuick(paths, out var current) == MapsPackState.Installed)
+                    {
+                        var release = await installer.FetchAsync(cancellationToken).ConfigureAwait(false);
+                        if (current!.Version >= release.Version)
+                        {
+                            output.WriteLine($"Maps Pack already installed (version {current.Version}).");
+                            return 0;
+                        }
+                    }
                     var last = -1;
                     // Callbacks run synchronously on the downloader's thread, so lines keep their order.
                     var progress = new SynchronousProgress<MapsPackProgress>(value =>
@@ -63,14 +75,28 @@ internal static class MapsPackCommand
                         error.WriteLine("Cancelled.");
                         return 1;
                     }
-                    var state = MapsPackRecord.CheckQuick(paths, out var installed);
-                    output.WriteLine(state == MapsPackState.Installed
-                        ? $"Maps Pack {Describe(state, installed)}. It is used the next time the server starts."
-                        : $"Maps Pack: {Describe(state, installed)}");
-                    return 0;
+                    return ReportInstall(paths, output, error);
                 }
             default:
                 throw new ArgumentException($"Unknown maps-pack command: {verb}", nameof(verb));
+        }
+    }
+
+    /// <summary>Checks the store after an install; anything but installed is a failure.</summary>
+    internal static int ReportInstall(AppPaths paths, TextWriter output, TextWriter error)
+    {
+        var state = MapsPackRecord.CheckQuick(paths, out var installed);
+        switch (state)
+        {
+            case MapsPackState.Installed:
+                output.WriteLine($"Maps Pack {Describe(state, installed)}. It is used the next time the server starts.");
+                return 0;
+            case MapsPackState.Damaged:
+                error.WriteLine(DamagedText);
+                return 1;
+            default:
+                error.WriteLine($"Maps Pack: {Describe(state, installed)}");
+                return 1;
         }
     }
 
