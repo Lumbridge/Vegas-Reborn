@@ -22,6 +22,7 @@ public static class TitleCatalog
     public const string FullXp = "full-xp";
     public const string SixteenPlayers = "sixteen-players";
     public const string LargeAddressAware = "large-address-aware";
+    public const string FireSoundLoop = "fire-sound-loop";
 
     public static GameTitle Vegas1 { get; } = new()
     {
@@ -66,6 +67,10 @@ public static class TitleCatalog
             new(SixteenPlayers, "16-player matches",
                 "Host Terrorist Hunt and adversarial matches for up to 16 players.",
                 "The original limits Terrorist Hunt to 4 players and adversarial matches hosted from the game to 14. This raises both to 16 in the launcher's game copy, including the Terrorist Hunt team size. Story co-op is unchanged.",
+                FixSection.GameFixes, FixKind.AlwaysOn),
+            new(FireSoundLoop, "Stuck gunfire sound",
+                "Stop other players' automatic fire sounds from looping after they stop shooting.",
+                "Online, the host sends the start and end of another player's automatic fire sound as two messages that can be lost or skipped at a distance. A lost end message leaves the sound looping. When that player has stopped firing and no end arrived, the game's own end sound is played in your game.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             new(ReportXp, "Match XP report",
                 "Show the XP earned at the end of a match.",

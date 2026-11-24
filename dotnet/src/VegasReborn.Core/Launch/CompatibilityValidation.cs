@@ -23,6 +23,7 @@ public static class CompatibilityValidation
         [TitleCatalog.PlayerRank] = "nativeRankVerified",
         [TitleCatalog.RankedAccess] = "rankedAccessVerified",
         [TitleCatalog.SixteenPlayers] = "playerLimitVerified",
+        [TitleCatalog.FireSoundLoop] = "fireSoundLoopVerified",
     };
 
     private static readonly string[] RequiredVegas1Fields =

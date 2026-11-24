@@ -297,6 +297,7 @@ internal static class Reports
         ["nativeRankVerified"] = true,
         ["rankedAccessVerified"] = true,
         ["playerLimitVerified"] = true,
+        ["fireSoundLoopVerified"] = true,
         ["disabledFeatures"] = new JsonArray(),
     };
 
