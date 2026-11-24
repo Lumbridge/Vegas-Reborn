@@ -24,6 +24,17 @@
     <SolidColorBrush x:Key="HoverFill" Color="#202B24" />
     <SolidColorBrush x:Key="SelectedFill" Color="#262E22" />
 
+    <!-- VR logo, drawn from Assets/vegas-reborn.svg so it stays sharp at any size. -->
+    <DrawingImage x:Key="LogoImage">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="{StaticResource Bg}" Geometry="M0 0H256V256H0Z" />
+                <GeometryDrawing Brush="{StaticResource Accent}" Geometry="F1 M23.4 24.5H68.5L90.2 163.8L111.7 24.5H112V230.8H67Z" />
+                <GeometryDrawing Brush="{StaticResource Text}" Geometry="F0 M111.9 24.5H178.3C203.5 24.5 230.5 45.7 230.5 86C230.5 110.8 220.7 128.6 204.2 138.7L232.9 230.8H190.4L166.1 145H153.5V230.8H111.9ZM153.5 60H168.7C180.1 60 188.8 70 188.8 87C188.8 102.2 180.8 113.2 168.7 113.2H153.5Z" />
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
     <FontFamily x:Key="DisplayFont">Bahnschrift</FontFamily>
     <FontFamily x:Key="BodyFont">Segoe UI</FontFamily>
 

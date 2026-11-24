@@ -57,7 +57,7 @@
         <Border Background="{StaticResource Sidebar}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="20,12">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center" Margin="0,0,36,0">
-                    <Image Source="Assets/vegas-reborn.png" Width="30" Height="30" Margin="0,0,10,0" />
+                    <Image Source="{StaticResource LogoImage}" Width="30" Height="30" Margin="0,0,10,0" />
                     <TextBlock Text="Vegas Reborn" FontFamily="{StaticResource DisplayFont}" FontWeight="SemiBold" FontSize="20" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding Version}" Style="{StaticResource MutedText}" FontSize="12" VerticalAlignment="Bottom" Margin="8,0,0,3" />
                 </StackPanel>

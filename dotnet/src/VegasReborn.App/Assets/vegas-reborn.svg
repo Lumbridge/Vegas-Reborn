@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="1024" height="1024">
+  <title>Vegas Reborn</title>
+  <rect width="256" height="256" fill="#111513"/>
+  <path fill="#D6ED80" d="M23.4 24.5H68.5L90.2 163.8L111.7 24.5H112V230.8H67Z"/>
+  <path fill="#E9EDE8" fill-rule="evenodd" d="M111.9 24.5H178.3C203.5 24.5 230.5 45.7 230.5 86C230.5 110.8 220.7 128.6 204.2 138.7L232.9 230.8H190.4L166.1 145H153.5V230.8H111.9ZM153.5 60H168.7C180.1 60 188.8 70 188.8 87C188.8 102.2 180.8 113.2 168.7 113.2H153.5Z"/>
+</svg>
