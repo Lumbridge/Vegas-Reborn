@@ -232,7 +232,8 @@ public static class MatchmakingCarrier
             }
         }
         var executable = PlainPath(Path.Combine(owned, Native(title.ClientExecutable)));
-        if (Sha(File.ReadAllBytes(executable)) != title.ClientSha256)
+        // The launcher marks its copy large-address aware (LargeAddressAware); code is unchanged.
+        if (!Launch.LargeAddressAware.Matches(File.ReadAllBytes(executable), title.ClientSha256))
         {
             throw new InvalidDataException("The owned game executable failed its identity check");
         }

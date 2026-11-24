@@ -20,6 +20,8 @@ public static class TitleCatalog
     public const string LeaderboardStatistics = "leaderboard-statistics";
     public const string SoloMatch = "solo-match";
     public const string FullXp = "full-xp";
+    public const string SixteenPlayers = "sixteen-players";
+    public const string LargeAddressAware = "large-address-aware";
 
     public static GameTitle Vegas1 { get; } = new()
     {
@@ -33,8 +35,8 @@ public static class TitleCatalog
         ServerExecutable = "Binaries/R6VegasServer.exe",
         ServerSha256 = "f4388d309da94b010fb23999c09c8ba92270831d0fd2432b78a21299bd6684cb",
         ProfileSubdirectory = "Ubisoft/R6Vegas",
-        NativeAdapter = "VegasCompanion-13.dll",
-        NativeVersion = 13,
+        NativeAdapter = "VegasCompanion-14.dll",
+        NativeVersion = 14,
         LaunchArguments = "Menu?GAME=R6Game.R6MenuGameInfo?PB=0 -NoHomeDir",
         TrustKey = TrustKeyKind.AgoraConfigLua,
         RedirectedHosts =
@@ -61,6 +63,10 @@ public static class TitleCatalog
                 "Start an online Coop Terrorist Hunt with one player.",
                 "The original Coop Terrorist Hunt inherits a two-player launch check. This lets one qualifying player start it. Lobby, ready checks and authority stay as in the original.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
+            new(SixteenPlayers, "16-player matches",
+                "Host Terrorist Hunt and adversarial matches for up to 16 players.",
+                "The original limits Terrorist Hunt to 4 players and adversarial matches hosted from the game to 14. This raises both to 16 in the launcher's game copy, including the Terrorist Hunt team size. Story co-op is unchanged.",
+                FixSection.GameFixes, FixKind.AlwaysOn),
             new(ReportXp, "Match XP report",
                 "Show the XP earned at the end of a match.",
                 "Reads your character's XP before and after the original end-of-match award and shows the difference. It does not change rewards.",
@@ -80,6 +86,10 @@ public static class TitleCatalog
             new(PhysicsLoader, "PhysX loader",
                 "Load the PhysX version the game ships with.",
                 "The game ships the correct PhysX 2.5.1 core, but its loader otherwise requires an obsolete AGEIA system install. The launcher enables the loader's own attempt to use the copy next to it.",
+                FixSection.KeptFromCrashing, FixKind.AlwaysOn),
+            new(LargeAddressAware, "4 GB memory limit",
+                "Let the game use up to 4 GB of memory.",
+                "The original executable is limited to 2 GB of memory and can crash when it runs out. The launcher marks its own copy large-address aware, which raises the limit to 4 GB on 64-bit Windows. The game's code is unchanged and the installed game is not modified.",
                 FixSection.KeptFromCrashing, FixKind.AlwaysOn),
             new(StartupReadiness, "Wait for Steam at startup",
                 "Wait until Steam has finished preparing the game before changing anything.",

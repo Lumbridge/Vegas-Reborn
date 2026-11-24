@@ -1,0 +1,89 @@
+using VegasReborn.Core.Launch;
+
+namespace VegasReborn.Core.Tests.Launch;
+
+/// <summary>Copy-only 16-player mission limits and the large-address-aware flag.</summary>
+public sealed class Vegas1MatchFixesTests
+{
+    // Shape of the shipped MP map files (MP_Casino_01.ini, CRLF).
+    private const string Shipped = "[R6Game.R6MissionConfig]\r\nm_iId=5\r\n\r\n"
+        + "[GameMode0]\r\nm_eGameMode=GAMEMODE_DEATHMATCH\r\nm_iMissionOrderId=2\r\nm_iMaxPlayers=16\r\nm_iMaxPlayersListenServer=14\r\n\r\n"
+        + "[GameMode6]\r\nm_eGameMode=GAMEMODE_TERROHUNT\r\nm_iMaxPlayers=4\r\nm_iMissionOrderId=2\r\n\r\n"
+        + "[GameMode7]\r\nm_eGameMode=GAMEMODE_CONQUEST\r\nm_iMissionOrderId=2\r\nm_iMaxPlayers=16\r\nm_iMaxPlayersListenServer=14\r\n\r\n"
+        + "[Sound]\r\nm_bBinarizeSound = TRUE\r\n";
+
+    [Fact]
+    public void RaisesTerroristHuntAndHostedAdversarialLimitsOnly()
+    {
+        var raised = MissionPlayerLimits.Raise(Shipped);
+
+        Assert.Equal(Shipped
+            .Replace("m_iMaxPlayersListenServer=14", "m_iMaxPlayersListenServer=16")
+            .Replace("m_iMaxPlayers=4\r\n", "m_iMaxPlayers=16\r\nm_iMaxPlayersListenServer=16\r\n"), raised);
+    }
+
+    [Fact]
+    public void StoryCoopAndUnexpectedValuesAreLeftAsShipped()
+    {
+        const string story = "[GameMode1]\nm_eGameMode=GAMEMODE_STORY\nm_iMaxPlayers=4\n";
+        const string custom = "[GameMode0]\nm_eGameMode=GAMEMODE_TERROHUNT\nm_iMaxPlayers=6\n"
+            + "[GameMode1]\nm_eGameMode=GAMEMODE_DEATHMATCH\nm_iMaxPlayers=12\nm_iMaxPlayersListenServer=10\n";
+
+        Assert.Null(MissionPlayerLimits.Raise(story));
+        Assert.Null(MissionPlayerLimits.Raise(custom));
+        Assert.Null(MissionPlayerLimits.Raise("[R6Game.R6MissionConfig]\nm_iId=1\n"));
+    }
+
+    [Fact]
+    public void ApplyRebuildsCopiedFilesFromTheInstalledOriginal()
+    {
+        using var root = new TestDirectory();
+        root.File("install/KellerGame/Content/CookedPc/Maps/MP_Casino/MP_Casino_01.ini", Shipped);
+        root.File("install/KellerGame/Content/CookedPc/Maps/01_Mexico/01_Mexico_01.ini", "[GameMode1]\r\nm_eGameMode=GAMEMODE_STORY\r\nm_iMaxPlayers=4\r\n");
+        root.File("game/KellerGame/Content/CookedPc/Maps/MP_Casino/MP_Casino_01.ini", Shipped);
+        root.File("game/KellerGame/Content/CookedPc/Maps/01_Mexico/01_Mexico_01.ini", "[GameMode1]\r\nm_eGameMode=GAMEMODE_STORY\r\nm_iMaxPlayers=4\r\n");
+        var copy = Path.Combine(root.Path, "game");
+
+        MissionPlayerLimits.Apply(copy, Path.Combine(root.Path, "install"));
+        MissionPlayerLimits.Apply(copy, Path.Combine(root.Path, "install"));
+
+        var expected = MissionPlayerLimits.Raise(Shipped);
+        Assert.Equal(expected, File.ReadAllText(Path.Combine(copy, "KellerGame/Content/CookedPc/Maps/MP_Casino/MP_Casino_01.ini")));
+        Assert.Equal(Shipped, File.ReadAllText(Path.Combine(root.Path, "install/KellerGame/Content/CookedPc/Maps/MP_Casino/MP_Casino_01.ini")));
+        Assert.Equal("[GameMode1]\r\nm_eGameMode=GAMEMODE_STORY\r\nm_iMaxPlayers=4\r\n",
+            File.ReadAllText(Path.Combine(copy, "KellerGame/Content/CookedPc/Maps/01_Mexico/01_Mexico_01.ini")));
+    }
+
+    [Fact]
+    public void LargeAddressAwareSetsOnlyTheFlagAndKeepsTheIdentity()
+    {
+        using var root = new TestDirectory();
+        var original = Synthetic.PeImage("client");
+        var path = root.Bytes("game/client.exe", original);
+
+        Assert.False(LargeAddressAware.IsSet(original));
+        Assert.True(LargeAddressAware.Apply(path));
+        Assert.True(LargeAddressAware.Apply(path));
+
+        var patched = File.ReadAllBytes(path);
+        Assert.True(LargeAddressAware.IsSet(patched));
+        var differences = Enumerable.Range(0, original.Length).Where(i => original[i] != patched[i]).ToArray();
+        Assert.Equal([0x96], differences);
+        Assert.Equal(0x2e, patched[0x96]);
+        Assert.True(LargeAddressAware.Matches(patched, Synthetic.Sha(original)));
+        Assert.True(LargeAddressAware.Matches(original, Synthetic.Sha(original)));
+        patched[^1] ^= 1;
+        Assert.False(LargeAddressAware.Matches(patched, Synthetic.Sha(original)));
+    }
+
+    [Fact]
+    public void NonPeFilesAreNotChanged()
+    {
+        using var root = new TestDirectory();
+        var path = root.Bytes("game/client.exe", "not an executable"u8.ToArray());
+
+        Assert.False(LargeAddressAware.Apply(path));
+        Assert.Equal("not an executable"u8.ToArray(), File.ReadAllBytes(path));
+        Assert.False(LargeAddressAware.Matches("MZ"u8.ToArray(), Synthetic.Sha("other"u8.ToArray())));
+    }
+}

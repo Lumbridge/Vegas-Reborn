@@ -29,7 +29,7 @@ if($LASTEXITCODE -ne 0){throw 'Retail companion adapter build failed'}
 if($Vegas2){Get-FileHash -LiteralPath (Join-Path $OutputDirectory 'VegasCompanionVegas2.dll') -Algorithm SHA256;return}
 if($Dedicated){Copy-Item -LiteralPath (Join-Path $OutputDirectory 'VegasDedicated.dll') -Destination (Join-Path $OutputDirectory 'VegasDedicated-4.dll') -Force;Get-FileHash -LiteralPath (Join-Path $OutputDirectory 'VegasDedicated.dll') -Algorithm SHA256;return}
 Get-FileHash -LiteralPath (Join-Path $OutputDirectory 'VegasCompanion.dll') -Algorithm SHA256
-Copy-Item -LiteralPath (Join-Path $OutputDirectory 'VegasCompanion.dll') -Destination (Join-Path $OutputDirectory 'VegasCompanion-13.dll') -Force
+Copy-Item -LiteralPath (Join-Path $OutputDirectory 'VegasCompanion.dll') -Destination (Join-Path $OutputDirectory 'VegasCompanion-14.dll') -Force
 $Injector=@('/nologo','/std:c++17','/EHsc','/MT','/O2',('/I'+(Join-Path $Compiler 'include')),('/I'+(Join-Path $Sdk "Include/$SdkVersion/ucrt")),('/I'+(Join-Path $Sdk "Include/$SdkVersion/shared")),('/I'+(Join-Path $Sdk "Include/$SdkVersion/um")),(Join-Path $PSScriptRoot 'injector.cpp'),('/Fo'+(Join-Path $OutputDirectory 'retail_injector.obj')),'/link',('/OUT:'+(Join-Path $OutputDirectory 'VegasInjector.exe')),('/LIBPATH:'+(Join-Path $Compiler 'lib/x86')),('/LIBPATH:'+(Join-Path $Sdk "Lib/$SdkVersion/ucrt/x86")),('/LIBPATH:'+(Join-Path $Sdk "Lib/$SdkVersion/um/x86")),'kernel32.lib')
 & $Cl @Injector
 if($LASTEXITCODE -ne 0){throw 'Retail injector build failed'}

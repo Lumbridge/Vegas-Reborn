@@ -9,7 +9,9 @@ namespace VegasReborn.Core.Tests.Launch;
 /// <summary>Launch lifecycle with fake Steam, gate, injector and adapter; no retail launch.</summary>
 public sealed class GameLauncherTests : IDisposable
 {
-    private static readonly byte[] Vegas1Exe = Encoding.ASCII.GetBytes("synthetic vegas 1 client");
+    private static readonly byte[] Vegas1Exe = Synthetic.PeImage("synthetic vegas 1 client");
+    private const string MissionIni = "[R6Game.R6MissionConfig]\r\nm_iId=5\r\n\r\n[GameMode0]\r\nm_eGameMode=GAMEMODE_TEAMDEATHMATCH\r\nm_iMaxPlayers=16\r\nm_iMaxPlayersListenServer=14\r\n\r\n"
+        + "[GameMode1]\r\nm_eGameMode=GAMEMODE_TERROHUNT\r\nm_iMaxPlayers=4\r\nm_iMissionOrderId=2\r\n";
     private static readonly byte[] Vegas2Exe = Encoding.ASCII.GetBytes("synthetic vegas 2 client");
     private static readonly byte[] OriginalSignature = Encoding.ASCII.GetBytes("0 synthetic original signature.pub");
     private const string AgoraConfig = "-- Agora\r\nUbiSigKeyPub = \"original.der\";\r\nOther = 1;\r\n";
@@ -58,6 +60,7 @@ public sealed class GameLauncherTests : IDisposable
         _root.File("install/KellerGame/Config/PCKellerEngine.ini", EngineIni);
         _root.File("install/KellerGame/Config/MovieLoading.ini", "[INTRO]\r\nEnable=TRUE\r\n");
         _root.File("install/KellerGame/Config/PC/MovieLoading.ini", "[INTRO]\r\nEnable=TRUE\r\n");
+        _root.File("install/KellerGame/Content/CookedPc/Maps/MP_Casino/MP_Casino_01.ini", MissionIni);
     }
 
     private void InstallVegas2()
@@ -130,6 +133,13 @@ public sealed class GameLauncherTests : IDisposable
         Assert.Contains("[URL]\nMap=Menu.rmpc\nLocalMap=Menu.rmpc\nMapExt=rmpc\n", engine);
         Assert.Contains("DisableOcclusion=True\n", engine);
         Assert.Equal(EngineIni, File.ReadAllText(Path.Combine(_install, "KellerGame/Config/PCKellerEngine.ini")));
+        // 16-player limits and the 4 GB flag only in the copy.
+        Assert.Equal(MissionIni.Replace("ListenServer=14", "ListenServer=16")
+                .Replace("m_iMaxPlayers=4\r\n", "m_iMaxPlayers=16\r\nm_iMaxPlayersListenServer=16\r\n"),
+            File.ReadAllText(Path.Combine(game, "KellerGame/Content/CookedPc/Maps/MP_Casino/MP_Casino_01.ini")));
+        Assert.Equal(MissionIni, File.ReadAllText(Path.Combine(_install, "KellerGame/Content/CookedPc/Maps/MP_Casino/MP_Casino_01.ini")));
+        Assert.True(LargeAddressAware.IsSet(File.ReadAllBytes(Path.Combine(game, "Binaries/R6Vegas_Game.exe"))));
+        Assert.Equal(Vegas1Exe, File.ReadAllBytes(Path.Combine(_install, "Binaries/R6Vegas_Game.exe")));
         // Native output folder.
         Assert.Equal("[CDKEY]\nKEYID=" + new string('a', 48) + "\n", File.ReadAllText(Path.Combine(output, "profile/Ubisoft/R6Vegas/PlayerProfile.ini")));
         Assert.Equal("native\n", File.ReadAllText(Path.Combine(output, "display-mode.txt")));
@@ -151,7 +161,7 @@ public sealed class GameLauncherTests : IDisposable
         Assert.Equal("--configure", _system.Components[0][1]);
         Assert.Equal("4321", _system.Components[0][2]);
         Assert.StartsWith(_system.Cache, _system.Components[0][3]);
-        Assert.Equal(["42", "7", Path.Combine(_paths.NativeBin, "VegasCompanion-13.dll"), output, game, _install], _system.Components[1].Skip(1));
+        Assert.Equal(["42", "7", Path.Combine(_paths.NativeBin, "VegasCompanion-14.dll"), output, game, _install], _system.Components[1].Skip(1));
         Assert.Equal(["--stop-gate", "4321", "140703128616960"], _system.Components[2].Skip(1).Take(3));
         Assert.Empty(_system.Terminated);
         Assert.Contains("Game running. Choose Multiplayer > Online and click Login. Sign-in is automatic.", _messages.Items);

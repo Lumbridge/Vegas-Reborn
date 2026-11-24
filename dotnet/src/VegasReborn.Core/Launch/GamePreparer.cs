@@ -57,9 +57,21 @@ internal static partial class GamePreparer
                 ? $"{{\"version\": 1, \"sourceSha256\": \"{title.ClientSha256}\"}}"
                 : $"{{\"version\": 1, \"title\": \"{title.Key}\", \"sourceSha256\": \"{title.ClientSha256}\"}}");
         }
-        if (await Task.Run(() => PrivateFile.Sha256(Path.Combine(destination, title.ClientExecutable)), cancellationToken).ConfigureAwait(false) != title.ClientSha256)
+        var copiedExecutable = Path.Combine(destination, title.ClientExecutable);
+        var largeAddressAware = title.Fix(TitleCatalog.LargeAddressAware) is not null;
+        if (!await Task.Run(() => largeAddressAware
+                ? LargeAddressAware.Matches(File.ReadAllBytes(copiedExecutable), title.ClientSha256)
+                : PrivateFile.Sha256(copiedExecutable) == title.ClientSha256, cancellationToken).ConfigureAwait(false))
         {
             throw new LaunchException("The launcher's game copy failed its integrity check");
+        }
+        if (largeAddressAware && !await Task.Run(() => LargeAddressAware.Apply(copiedExecutable), cancellationToken).ConfigureAwait(false))
+        {
+            throw new LaunchException("The launcher's game copy failed its integrity check");
+        }
+        if (title.Fix(TitleCatalog.SixteenPlayers) is not null)
+        {
+            await Task.Run(() => MissionPlayerLimits.Apply(destination, source), cancellationToken).ConfigureAwait(false);
         }
         foreach (var (relative, expected) in profile.PinnedFiles)
         {

@@ -25,6 +25,7 @@
 #include "native_procedural_animation.h"
 #include "native_unlock_policy.h"
 #include "native_pec_defaults.h"
+#include "native_player_limit.h"
 
 #include "companion_core.h"
 
@@ -40,7 +41,7 @@ static constexpr bool Dedicated=false;
 // per line. Absent file: every feature is installed. Unknown and companion-side
 // (ini) ids are ignored. Only the toggleable features below are affected.
 static bool ProceduralAnimationDisabled=false,SoloHuntDisabled=false,ReportXpDisabled=false,
-    RankDisabled=false,RankedAccessDisabled=false;
+    RankDisabled=false,RankedAccessDisabled=false,PlayerLimitDisabled=false;
 static void ReadNativeFeatures(){
     FILE* features=nullptr;
     if(_wfopen_s(&features,(Output+L"\\native-features.txt").c_str(),L"rb")||!features)return;
@@ -51,6 +52,7 @@ static void ReadNativeFeatures(){
         else if(!strcmp(id,"report-xp"))ReportXpDisabled=true;
         else if(!strcmp(id,"player-rank"))RankDisabled=true;
         else if(!strcmp(id,"ranked-access"))RankedAccessDisabled=true;
+        else if(!strcmp(id,"sixteen-players"))PlayerLimitDisabled=true;
     }
     fclose(features);
 }
@@ -58,7 +60,8 @@ static std::string DisabledFeatures(){
     std::string list;
     const struct {bool disabled;const char* id;} features[]{
         {ProceduralAnimationDisabled,"procedural-animation"},{SoloHuntDisabled,"solo-terrorist-hunt"},
-        {ReportXpDisabled,"report-xp"},{RankDisabled,"player-rank"},{RankedAccessDisabled,"ranked-access"}};
+        {ReportXpDisabled,"report-xp"},{RankDisabled,"player-rank"},{RankedAccessDisabled,"ranked-access"},
+        {PlayerLimitDisabled,"sixteen-players"}};
     for(const auto& feature:features){
         if(!feature.disabled)continue;
         if(!list.empty())list+=',';
@@ -204,7 +207,8 @@ static DWORD WINAPI NativeInitialize(LPVOID){
                 NativeReadiness::Executable(base+NativeRankedAccess::CreateRva)&&NativeReadiness::Executable(base+NativeRankedAccess::FiltersRva)&&
                 NativeReadiness::Executable(base+0x56a300)&&
                 NativeReadiness::Executable(base+NativeReportXp::CalculateRva)&&
-                NativeReadiness::Executable(base+NativeReportXp::CoopRva)&&NativeReadiness::Executable(base+NativeReportXp::VersusRva);
+                NativeReadiness::Executable(base+NativeReportXp::CoopRva)&&NativeReadiness::Executable(base+NativeReportXp::VersusRva)&&
+                NativeReadiness::Executable(base+NativePlayerLimit::MaxPlayersRva)&&NativeReadiness::Executable(base+NativePlayerLimit::ConstructorRva);
             if(!Dedicated){
                 for(unsigned rva:NativeClaimedSessionName::Sites)
                     executablePagesReady=executablePagesReady&&NativeReadiness::Executable(base+rva);
@@ -272,12 +276,13 @@ static DWORD WINAPI NativeInitialize(LPVOID){
             if(ready)ready=NativeRankedHost::Install(base,Dedicated);
             if(ready&&!SoloHuntDisabled)ready=NativeSoloHunt::Install(base,Dedicated);
             if(ready&&!Dedicated&&!ProceduralAnimationDisabled)ready=NativeProceduralAnimation::Install(base);
+            if(ready&&!Dedicated&&!PlayerLimitDisabled)ready=NativePlayerLimit::Install(base);
             break;
         }
         Sleep(100);
     }
     FILE* status=nullptr;_wfopen_s(&status,(Output+L"\\compat-status.tmp").c_str(),L"wb");
-    if(status){fprintf(status,"{\"ready\":%s,\"executablePagesReady\":%s,\"unlockTargetProtection\":%lu,\"unlockDetourProtection\":%lu,\"displayStyleVerified\":%s,\"claimedNameVerified\":%s,\"claimedNameInstalled\":%s,\"claimedNameStatus\":\"%s\",\"claimedSessionNameVerified\":%s,\"claimedSessionNameStatus\":\"%s\",\"reportXpVerified\":%s,\"reportXpStatus\":\"%s\",\"nativeRankVerified\":%s,\"remotePipelineRecognized\":%s,\"nativeRankStatus\":\"%s\",\"rankedAccessVerified\":%s,\"rankedAccessStatus\":\"%s\",\"nativeSoloHuntVerified\":%s,\"nativeSoloHuntStatus\":\"%s\",\"nativeStatisticsVerified\":%s,\"nativeRankedHostVerified\":%s,\"nativeRankedHostStatus\":\"%s\",\"nativePecDefaultsVerified\":%s,\"nativePecDefaultsStatus\":\"%s\",\"proceduralAnimationVerified\":%s,\"proceduralAnimationStatus\":\"%s\",\"nativeVersion\":%u,\"signatures\":%u,\"taskHookStatus\":%d,\"prefillHookStatus\":%d,\"unlockHookStatus\":%d,\"nativeUnlockPolicyVerified\":%s,\"nativeUnlockPolicyStatus\":\"%s\",\"unlockVerified\":%s,\"moduleBase\":%lu,\"progression\":\"%s\",\"unlockPolicy\":\"%s\",\"disabledFeatures\":[%s]}\n",ready?"true":"false",executablePagesReady?"true":"false",unlockTargetProtection,unlockDetourProtection,displayStyleVerified?"true":"false",ClaimedName::Verified?"true":"false",ClaimedName::Installed?"true":"false",Dedicated?"notApplicable":ClaimedName::Error,NativeClaimedSessionName::Verified?"true":"false",Dedicated?"notApplicable":NativeClaimedSessionName::LastError(),NativeReportXp::Verified?"true":"false",Dedicated?"notApplicable":NativeReportXp::LastError(),NativeRank::Verified?"true":"false",NativeRank::RemotePipelineRecognized?"true":"false",Dedicated?"notApplicable":NativeRank::LastError(),NativeRankedAccess::Verified?"true":"false",Dedicated?"notApplicable":NativeRankedAccess::LastError(),NativeSoloHunt::Verified?"true":"false",NativeSoloHunt::LastError(),NativeHostStatistics::Verified?"true":"false",NativeRankedHost::Verified?"true":"false",NativeRankedHost::LastError(),NativePecDefaults::Verified?"true":"false",Dedicated?"notApplicable":NativePecDefaults::LastError(),NativeProceduralAnimation::Verified?"true":"false",Dedicated?"notApplicable":NativeProceduralAnimation::Error,Dedicated?4u:13u,signatures,taskStatus,prefillStatus,unlockStatus,NativeUnlockPolicy::Verified?"true":"false",Dedicated?"notApplicable":NativeUnlockPolicy::LastError(),unlockVerified?"true":"false",DWORD(reinterpret_cast<ULONG_PTR>(base)),Dedicated?"nativeDedicatedDefaults":"nativeRawXp",Dedicated?"nativeDedicatedDefaults":"nativeItemBundleAvailability",DisabledFeatures().c_str());fclose(status);MoveFileExW((Output+L"\\compat-status.tmp").c_str(),(Output+L"\\compat-status.json").c_str(),MOVEFILE_REPLACE_EXISTING);}
+    if(status){fprintf(status,"{\"ready\":%s,\"executablePagesReady\":%s,\"unlockTargetProtection\":%lu,\"unlockDetourProtection\":%lu,\"displayStyleVerified\":%s,\"claimedNameVerified\":%s,\"claimedNameInstalled\":%s,\"claimedNameStatus\":\"%s\",\"claimedSessionNameVerified\":%s,\"claimedSessionNameStatus\":\"%s\",\"reportXpVerified\":%s,\"reportXpStatus\":\"%s\",\"nativeRankVerified\":%s,\"remotePipelineRecognized\":%s,\"nativeRankStatus\":\"%s\",\"rankedAccessVerified\":%s,\"rankedAccessStatus\":\"%s\",\"nativeSoloHuntVerified\":%s,\"nativeSoloHuntStatus\":\"%s\",\"nativeStatisticsVerified\":%s,\"nativeRankedHostVerified\":%s,\"nativeRankedHostStatus\":\"%s\",\"nativePecDefaultsVerified\":%s,\"nativePecDefaultsStatus\":\"%s\",\"proceduralAnimationVerified\":%s,\"proceduralAnimationStatus\":\"%s\",\"playerLimitVerified\":%s,\"playerLimitStatus\":\"%s\",\"nativeVersion\":%u,\"signatures\":%u,\"taskHookStatus\":%d,\"prefillHookStatus\":%d,\"unlockHookStatus\":%d,\"nativeUnlockPolicyVerified\":%s,\"nativeUnlockPolicyStatus\":\"%s\",\"unlockVerified\":%s,\"moduleBase\":%lu,\"progression\":\"%s\",\"unlockPolicy\":\"%s\",\"disabledFeatures\":[%s]}\n",ready?"true":"false",executablePagesReady?"true":"false",unlockTargetProtection,unlockDetourProtection,displayStyleVerified?"true":"false",ClaimedName::Verified?"true":"false",ClaimedName::Installed?"true":"false",Dedicated?"notApplicable":ClaimedName::Error,NativeClaimedSessionName::Verified?"true":"false",Dedicated?"notApplicable":NativeClaimedSessionName::LastError(),NativeReportXp::Verified?"true":"false",Dedicated?"notApplicable":NativeReportXp::LastError(),NativeRank::Verified?"true":"false",NativeRank::RemotePipelineRecognized?"true":"false",Dedicated?"notApplicable":NativeRank::LastError(),NativeRankedAccess::Verified?"true":"false",Dedicated?"notApplicable":NativeRankedAccess::LastError(),NativeSoloHunt::Verified?"true":"false",NativeSoloHunt::LastError(),NativeHostStatistics::Verified?"true":"false",NativeRankedHost::Verified?"true":"false",NativeRankedHost::LastError(),NativePecDefaults::Verified?"true":"false",Dedicated?"notApplicable":NativePecDefaults::LastError(),NativeProceduralAnimation::Verified?"true":"false",Dedicated?"notApplicable":NativeProceduralAnimation::Error,NativePlayerLimit::Verified?"true":"false",Dedicated?"notApplicable":NativePlayerLimit::LastError(),Dedicated?4u:14u,signatures,taskStatus,prefillStatus,unlockStatus,NativeUnlockPolicy::Verified?"true":"false",Dedicated?"notApplicable":NativeUnlockPolicy::LastError(),unlockVerified?"true":"false",DWORD(reinterpret_cast<ULONG_PTR>(base)),Dedicated?"nativeDedicatedDefaults":"nativeRawXp",Dedicated?"nativeDedicatedDefaults":"nativeItemBundleAvailability",DisabledFeatures().c_str());fclose(status);MoveFileExW((Output+L"\\compat-status.tmp").c_str(),(Output+L"\\compat-status.json").c_str(),MOVEFILE_REPLACE_EXISTING);}
     return ready?1:0;
 }
 extern "C" DWORD WINAPI StartCompanion(LPVOID configuration){

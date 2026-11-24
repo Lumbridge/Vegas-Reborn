@@ -52,6 +52,21 @@ internal static class Synthetic
 {
     public static string Sha(byte[] data) => Convert.ToHexStringLower(SHA256.HashData(data));
 
+    /// <summary>A minimal PE header (MZ, e_lfanew, PE signature, COFF header) followed by a marker.</summary>
+    public static byte[] PeImage(string marker)
+    {
+        var data = new byte[0x100];
+        data[0] = (byte)'M';
+        data[1] = (byte)'Z';
+        data[0x3c] = 0x80;
+        "PE"u8.CopyTo(data.AsSpan(0x80));
+        data[0x84] = 0x4c;
+        data[0x85] = 0x01;
+        data[0x96] = 0x0e;
+        data[0x97] = 0x01;
+        return [.. data, .. Encoding.ASCII.GetBytes(marker)];
+    }
+
     public static readonly byte[] KeyDer = MakeKey();
 
     private static byte[] MakeKey()
@@ -271,7 +286,7 @@ internal static class Reports
     {
         ["ready"] = true,
         ["signatures"] = 16383,
-        ["nativeVersion"] = 13,
+        ["nativeVersion"] = 14,
         ["proceduralAnimationVerified"] = true,
         ["nativeStatisticsVerified"] = true,
         ["nativeRankedHostVerified"] = true,
@@ -281,6 +296,7 @@ internal static class Reports
         ["reportXpVerified"] = true,
         ["nativeRankVerified"] = true,
         ["rankedAccessVerified"] = true,
+        ["playerLimitVerified"] = true,
         ["disabledFeatures"] = new JsonArray(),
     };
 

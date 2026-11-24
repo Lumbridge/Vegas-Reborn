@@ -26,7 +26,7 @@ from release_version import VERSION
 DOTNET_ROOT = Path(r"C:\Program Files\dotnet")
 FRAMEWORKS = ("Microsoft.NETCore.App", "Microsoft.WindowsDesktop.App")
 # Names the 0.4.x updater accepts under local/companion/bin.
-BIN_NAMES = ("VegasCompanion.dll", "VegasCompanion-13.dll", "VegasDedicated-4.dll", "VegasInjector.exe",
+BIN_NAMES = ("VegasCompanion.dll", "VegasCompanion-14.dll", "VegasDedicated-4.dll", "VegasInjector.exe",
              "VegasSteamGate.dll", "VegasSteamControl.exe", "build.json")
 # Native modules whose names 0.4.x does not accept there; loaded from runtime-<version>/native.
 RUNTIME_NATIVE_NAMES = ("VegasCompanionVegas2.dll",)
