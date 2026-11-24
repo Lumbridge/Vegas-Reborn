@@ -48,25 +48,34 @@ public static class ReleaseRedirects
 public sealed class ReleaseDownloader : IReleaseDownloader, IDisposable
 {
     private static readonly TimeSpan OperationTimeout = TimeSpan.FromSeconds(20);
-    private static readonly TimeSpan DownloadDeadline = TimeSpan.FromSeconds(180);
+    private static readonly TimeSpan UpdateDeadline = TimeSpan.FromSeconds(180);
+
+    /// <summary>Deadline for large optional content downloads (the Maps Pack is about 1 GB).</summary>
+    public static readonly TimeSpan ContentDeadline = TimeSpan.FromMinutes(30);
     private const int MaxRedirects = 10;
     private const int BlockSize = 1024 * 1024;
 
     private readonly HttpClient _client;
     private readonly string _userAgent;
+    private readonly TimeSpan _downloadDeadline;
 
-    public ReleaseDownloader() : this(new SocketsHttpHandler
+    public ReleaseDownloader() : this(UpdateDeadline)
+    {
+    }
+
+    public ReleaseDownloader(TimeSpan downloadDeadline) : this(new SocketsHttpHandler
     {
         AllowAutoRedirect = false,
         AutomaticDecompression = DecompressionMethods.None,
         UseCookies = false,
         ConnectTimeout = OperationTimeout,
-    })
+    }, downloadDeadline: downloadDeadline)
     {
     }
 
-    internal ReleaseDownloader(HttpMessageHandler handler, string? version = null)
+    internal ReleaseDownloader(HttpMessageHandler handler, string? version = null, TimeSpan? downloadDeadline = null)
     {
+        _downloadDeadline = downloadDeadline ?? UpdateDeadline;
         _client = new HttpClient(handler, disposeHandler: true) { Timeout = Timeout.InfiniteTimeSpan };
         _userAgent = "Vegas-Reborn-Companion/" + (version ?? ReleaseInfo.CurrentVersion);
     }
@@ -89,7 +98,7 @@ public sealed class ReleaseDownloader : IReleaseDownloader, IDisposable
         IProgress<long>? progress, CancellationToken cancellationToken)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(DownloadDeadline);
+        deadline.CancelAfter(_downloadDeadline);
         try
         {
             using var response = await SendAsync(url, deadline.Token).ConfigureAwait(false);

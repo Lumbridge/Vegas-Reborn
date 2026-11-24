@@ -105,6 +105,46 @@ public sealed class DownloadTests : IDisposable
     }
 
     [Fact]
+    public async Task ContentDeadlineIsLongerThanUpdateDeadline()
+    {
+        static HttpResponseMessage Slow() => new(HttpStatusCode.OK) { Content = new StreamContent(new SlowStream(400)) };
+        using var shortDeadline = new ReleaseDownloader(new FakeHandler(_ => Slow()), "0.5.0", TimeSpan.FromMilliseconds(150));
+        Assert.Equal("The update download timed out",
+            (await Assert.ThrowsAsync<UpdateException>(() => shortDeadline.DownloadBytesAsync(new Uri("https://github.com/x"), 64))).Message);
+
+        using var longDeadline = new ReleaseDownloader(new FakeHandler(_ => Slow()), "0.5.0", TimeSpan.FromSeconds(30));
+        Assert.Equal(3, (await longDeadline.DownloadBytesAsync(new Uri("https://github.com/x"), 64)).Length);
+        Assert.True(ReleaseDownloader.ContentDeadline > TimeSpan.FromSeconds(180));
+    }
+
+    private sealed class SlowStream(int delayMilliseconds) : Stream
+    {
+        private int _chunks;
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (_chunks == 3)
+            {
+                return 0;
+            }
+            await Task.Delay(delayMilliseconds, cancellationToken);
+            _chunks++;
+            buffer.Span[0] = 1;
+            return 1;
+        }
+    }
+
+    [Fact]
     public async Task LatestReleaseIsVerifiedAgainstGitHubMetadata()
     {
         var (archive, release) = _fixture.Build();

@@ -107,7 +107,7 @@ public static partial class ReleaseManifest
         }
     }
 
-    private static bool VerifySignature(byte[] data, byte[] signature, string publicKeyHex)
+    internal static bool VerifySignature(byte[] data, byte[] signature, string publicKeyHex)
     {
         try
         {
