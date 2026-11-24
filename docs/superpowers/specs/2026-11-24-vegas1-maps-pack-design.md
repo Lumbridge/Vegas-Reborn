@@ -119,11 +119,16 @@ offered as a separate toggle.
     with cancellation and byte progress;
   - verification of every extracted file against the manifest before anything is
     moved into the game copy;
-  - install by moving verified files into the game copy, then writing an install
-    record (`content/vegas1-maps-pack.json`: version, file list with hashes) last.
-    The game copy is only treated as having the pack once the record exists;
-  - remove by deleting exactly the files in the record, then restoring the map ini
-    edits, then deleting the record.
+  - install by moving verified files into a launcher-owned content store
+    (`local/content/vegas1-maps-pack/files`), then writing the install record
+    (`record.json`: version, file list with hashes) last. The pack only counts as
+    installed once the record exists;
+  - every game-copy prepare (client and server) hard-links the store's files into
+    the copy (copy as fallback), or removes them when the pack is gone, keeping a
+    list of linked paths in the copy. This lets the button work before a game copy
+    exists and lets client and server share one download (planning refinement);
+  - remove by deleting the record, then the store; the next prepare unlinks the
+    files and rebuilds the map inis without the extra modes.
 - **Mode edits:** extend the existing always-on `sixteen-players` fix
   (`Launch/MissionPlayerLimits.cs`) instead of adding a second step that rewrites the
   same files. It already rebuilds every `CookedPc/Maps` ini from the installed
