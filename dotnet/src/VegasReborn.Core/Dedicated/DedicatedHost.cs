@@ -304,8 +304,8 @@ public sealed class DedicatedHost
         PrivateFile.WriteText(Path.Combine(Root(paths, title), StopFileName), "stop\n");
 
     /// <summary>
-    /// Links the installed Extra Maps into the server copy and adds the story-mission versus modes;
-    /// without the pack, unlinks it and restores those story missions to the originals.
+    /// Links the installed Extra Maps into the server copy and rebuilds the mission inis from the
+    /// originals; without the pack, unlinks it and restores the story missions earlier versions extended.
     /// </summary>
     private void LinkMapsPack(string game, string source)
     {
@@ -313,7 +313,7 @@ public sealed class DedicatedHost
         {
             if (MapsPackLink.Apply(_paths, game))
             {
-                MissionPlayerLimits.Apply(game, source, extendModes: true);
+                MissionPlayerLimits.Apply(game, source);
             }
             else
             {

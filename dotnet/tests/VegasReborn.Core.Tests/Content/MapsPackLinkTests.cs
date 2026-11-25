@@ -296,13 +296,13 @@ public sealed class GamePreparerMapsPackTests : IDisposable
     public void Dispose() => _dir.Dispose();
 
     [Fact]
-    public void PackExtendsStoryMissionsUntilItIsRemoved()
+    public void PackLeavesStoryMissionsAtTheOriginalModes()
     {
         MapsPackFixture.Install(_paths, MapsPackFixture.Default());
 
         GamePreparer.ApplyMissionContent(_paths, TitleCatalog.Vegas1, _copy, _source);
 
-        Assert.Contains("m_eGameMode=GAMEMODE_DEATHMATCH", File.ReadAllText(Path.Combine(_copy, Story)));
+        Assert.Equal(MissionPlayerLimits.Raise(StoryText) ?? StoryText, File.ReadAllText(Path.Combine(_copy, Story)));
         Assert.True(MapsPackLink.SameFile(Path.Combine(_copy, MapsPackFixture.Map),
             Path.Combine(_paths.MapsPack, "files", MapsPackFixture.Map)));
 

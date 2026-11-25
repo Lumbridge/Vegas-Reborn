@@ -5,8 +5,7 @@ namespace VegasReborn.Core.Launch;
 /// (KellerGame/Content/CookedPc/Maps/*/*.ini, read into R6MissionConfig's game mode list).
 /// The original allows 4 players in Terrorist Hunt and 14 in adversarial matches hosted
 /// from the game (16 only on dedicated servers). Every file is always rebuilt from the installed
-/// original on each launch: only those exact shipped values change to 16, and when asked,
-/// listed story missions also gain the versus modes from <see cref="MapModeExtension"/>.
+/// original on each launch: only those exact shipped values change to 16.
 /// </summary>
 internal static class MissionPlayerLimits
 {
@@ -17,10 +16,25 @@ internal static class MissionPlayerLimits
     private const string ListenServer = "m_iMaxPlayersListenServer";
 
     /// <summary>
-    /// Rebuild every mission ini under <paramref name="folder"/> in the copy from the original,
-    /// writing the files whose text differs. Modes are added only for the Maps folder.
+    /// Story-mission inis that earlier launcher versions extended with versus modes, keyed by
+    /// forward-slash path relative to the Maps folder. Server copies restore them to the originals.
     /// </summary>
-    public static void Apply(string copy, string source, bool extendModes, string folder = MapsFolder)
+    internal static readonly IReadOnlyList<string> FormerlyExtendedStoryMissions =
+    [
+        "01_Mexico/01_Mexico_04.ini", "01_Mexico/01_Mexico_05.ini", "01_Mexico/01_Mexico_06.ini",
+        "02_Casino/02_Casino_06.ini", "03_Fremont/03_Fremont_02.ini", "03_Fremont/03_Fremont_03B.ini",
+        "04_Tower/04_Tower_02.ini", "05_Dantes/05_Dantes_04.ini", "05_Dantes/05_Dantes_06.ini",
+        "06_HooverDam/06_Dam_02.ini", "06_HooverDam/06_Dam_04.ini", "06_HooverDam/06_Dam_08.ini",
+        "99_HeliRides/99_HeliRides_01In.ini", "99_HeliRides/99_HeliRides_02InNear.ini",
+        "99_HeliRides/99_HeliRides_03InNear.ini", "99_HeliRides/99_HeliRides_04InNear.ini",
+        "99_HeliRides/99_HeliRides_05InNear.ini", "99_HeliRides/99_HeliRides_06In.ini",
+    ];
+
+    /// <summary>
+    /// Rebuild every mission ini under <paramref name="folder"/> in the copy from the original,
+    /// writing the files whose text differs.
+    /// </summary>
+    public static void Apply(string copy, string source, string folder = MapsFolder)
     {
         var maps = Path.Combine(source, folder);
         if (!Directory.Exists(maps))
@@ -36,11 +50,6 @@ internal static class MissionPlayerLimits
                 continue;
             }
             var text = File.ReadAllText(original);
-            var key = Path.GetRelativePath(maps, original).Replace('\\', '/');
-            if (extendModes && folder == MapsFolder && MapModeExtension.OrderIds.TryGetValue(key, out var orderId))
-            {
-                text = MapModeExtension.Extend(text, orderId);
-            }
             var expected = Raise(text) ?? text;
             if (File.ReadAllText(target) != expected)
             {
@@ -50,13 +59,13 @@ internal static class MissionPlayerLimits
     }
 
     /// <summary>
-    /// Puts each story-mission ini listed in <see cref="MapModeExtension.OrderIds"/> back to the
+    /// Puts each story-mission ini in <see cref="FormerlyExtendedStoryMissions"/> back to the
     /// installed original, unchanged, where the copy has it and it differs. Used by the server
     /// copy when Extra Maps is not installed.
     /// </summary>
     public static void RestoreStoryModes(string copy, string source)
     {
-        foreach (var key in MapModeExtension.OrderIds.Keys)
+        foreach (var key in FormerlyExtendedStoryMissions)
         {
             var relative = Path.Combine(MapsFolder, key);
             var original = Path.Combine(source, relative);

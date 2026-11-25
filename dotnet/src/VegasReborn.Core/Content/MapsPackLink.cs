@@ -73,7 +73,7 @@ internal static class MapsPackLink
         Remove(copy, previous.Where(path => !kept.Contains(path)).ToList());
         WriteList(listPath, ReadList(listPath), current);
         // The +Paths=..\KellerGame\Content\CookedPc\MapsPack engine-ini fallback would go here if the retail check shows it is needed.
-        MissionPlayerLimits.Apply(copy, store, extendModes: false, folder: PackFolder);
+        MissionPlayerLimits.Apply(copy, store, folder: PackFolder);
         return true;
     }
 

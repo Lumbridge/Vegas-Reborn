@@ -30,9 +30,7 @@ sharing is optional. While it is on, your Discord status shows a Get Vegas
 Reborn button that opens the launcher's download page. Retail Discord join
 invites are not available yet.
 Download Extra Maps in the Extra Maps section of the Rainbow Six Vegas page adds
-Ubisoft's official extra maps (about 727 MB) to the companion's game copy and
-lets story missions be played as Terrorist Hunt, Deathmatch, Team Deathmatch
-and Attack & Defend for up to 16 players. The added modes have not been tested in a full online match yet.
+Ubisoft's official extra maps (about 727 MB) to the companion's game copy.
 Everyone in a match needs the pack.
 Remove takes it out again.
 Skip intro movies is enabled by default on each game's page to bypass the startup logo and splash

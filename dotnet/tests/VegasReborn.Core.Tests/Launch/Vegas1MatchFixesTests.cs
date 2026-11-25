@@ -44,8 +44,8 @@ public sealed class Vegas1MatchFixesTests
         root.File("game/KellerGame/Content/CookedPc/Maps/01_Mexico/01_Mexico_01.ini", "[GameMode1]\r\nm_eGameMode=GAMEMODE_STORY\r\nm_iMaxPlayers=4\r\n");
         var copy = Path.Combine(root.Path, "game");
 
-        MissionPlayerLimits.Apply(copy, Path.Combine(root.Path, "install"), extendModes: false);
-        MissionPlayerLimits.Apply(copy, Path.Combine(root.Path, "install"), extendModes: false);
+        MissionPlayerLimits.Apply(copy, Path.Combine(root.Path, "install"));
+        MissionPlayerLimits.Apply(copy, Path.Combine(root.Path, "install"));
 
         var expected = MissionPlayerLimits.Raise(Shipped);
         Assert.Equal(expected, File.ReadAllText(Path.Combine(copy, "KellerGame/Content/CookedPc/Maps/MP_Casino/MP_Casino_01.ini")));
@@ -58,31 +58,6 @@ public sealed class Vegas1MatchFixesTests
     private const string MexicoStory = "[GameMode0]\r\r\nm_eGameMode=GAMEMODE_STORY\r\r\nm_iMaxPlayers=4\r\r\nm_iMissionOrderId=2\r\r\n";
 
     [Fact]
-    public void ApplyExtendsListedStoryFilesOnlyWhenAsked()
-    {
-        using var root = new TestDirectory();
-        var install = Path.Combine(root.Path, "install");
-        var copy = Path.Combine(root.Path, "game");
-        foreach (var dir in new[] { "install", "game" })
-        {
-            root.File($"{dir}/{Maps}01_Mexico/01_Mexico_04.ini", MexicoStory);
-            root.File($"{dir}/{Maps}MP_Casino/MP_Casino_01.ini", Shipped);
-        }
-        var mexico = Path.Combine(copy, Maps + "01_Mexico/01_Mexico_04.ini");
-        var casino = Path.Combine(copy, Maps + "MP_Casino/MP_Casino_01.ini");
-
-        MissionPlayerLimits.Apply(copy, install, extendModes: true);
-        Assert.Equal(MapModeExtension.Extend(MexicoStory, 30), File.ReadAllText(mexico));
-        MissionPlayerLimits.Apply(copy, install, extendModes: true);
-        Assert.Equal(MapModeExtension.Extend(MexicoStory, 30), File.ReadAllText(mexico));
-        Assert.Equal(MissionPlayerLimits.Raise(Shipped), File.ReadAllText(casino));
-
-        MissionPlayerLimits.Apply(copy, install, extendModes: false);
-        Assert.Equal(MexicoStory, File.ReadAllText(mexico));
-        Assert.Equal(MissionPlayerLimits.Raise(Shipped), File.ReadAllText(casino));
-    }
-
-    [Fact]
     public void ApplyRestoresAnUnraisableFileToTheOriginal()
     {
         using var root = new TestDirectory();
@@ -90,7 +65,7 @@ public sealed class Vegas1MatchFixesTests
         root.File($"install/{Maps}01_Mexico/01_Mexico_01.ini", original);
         var target = root.File($"game/{Maps}01_Mexico/01_Mexico_01.ini", original + "[GameMode2]\r\r\nm_eGameMode=GAMEMODE_TERROHUNT\r\r\n");
 
-        MissionPlayerLimits.Apply(Path.Combine(root.Path, "game"), Path.Combine(root.Path, "install"), extendModes: false);
+        MissionPlayerLimits.Apply(Path.Combine(root.Path, "game"), Path.Combine(root.Path, "install"));
 
         Assert.Equal(original, File.ReadAllText(target));
     }
@@ -107,7 +82,7 @@ public sealed class Vegas1MatchFixesTests
         root.File($"install/{pack}01_Mexico/01_Mexico_04.ini", MexicoStory);
         var listedTarget = root.File($"game/{pack}01_Mexico/01_Mexico_04.ini", MexicoStory);
 
-        MissionPlayerLimits.Apply(Path.Combine(root.Path, "game"), Path.Combine(root.Path, "install"), extendModes: true, pack.TrimEnd('/'));
+        MissionPlayerLimits.Apply(Path.Combine(root.Path, "game"), Path.Combine(root.Path, "install"), pack.TrimEnd('/'));
 
         Assert.Equal(MissionPlayerLimits.Raise(Shipped), File.ReadAllText(packTarget));
         Assert.Equal(MexicoStory, File.ReadAllText(listedTarget));

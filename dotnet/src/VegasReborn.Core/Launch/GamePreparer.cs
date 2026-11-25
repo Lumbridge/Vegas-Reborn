@@ -98,14 +98,17 @@ internal static partial class GamePreparer
 
     /// <summary>
     /// Vegas 1: links or unlinks Extra Maps. Then, with the 16-player fix, rebuilds the mission
-    /// inis from the originals, adding the story-mission versus modes only while the pack is installed.
+    /// inis from the originals.
     /// </summary>
     internal static void ApplyMissionContent(AppPaths paths, GameTitle title, string destination, string source)
     {
-        var pack = title.Key == TitleCatalog.Vegas1.Key && MapsPackLink.Apply(paths, destination);
+        if (title.Key == TitleCatalog.Vegas1.Key)
+        {
+            MapsPackLink.Apply(paths, destination);
+        }
         if (title.Fix(TitleCatalog.SixteenPlayers) is not null)
         {
-            MissionPlayerLimits.Apply(destination, source, extendModes: pack);
+            MissionPlayerLimits.Apply(destination, source);
         }
         ApplyHuntEnemies(title, destination, source);
     }
