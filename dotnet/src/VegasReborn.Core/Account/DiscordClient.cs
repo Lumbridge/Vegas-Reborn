@@ -247,6 +247,48 @@ public sealed partial class DiscordClient : IDisposable
     public void Dispose() => _http.Dispose();
 
     /// <summary>Builds a session from an account object, validating claim metadata.</summary>
+    /// <summary>
+    /// Starts a guest session. The service adds the tag (OpenSCCT's: four hex characters
+    /// of SHA-256 over <paramref name="installId"/>), so the player only chooses the name.
+    /// </summary>
+    public async Task<AccountSession> PlayAsGuestAsync(string installId, string name, CancellationToken cancellationToken = default)
+    {
+        if (installId is null || !AccountRules.GuestInstallId().IsMatch(installId))
+        {
+            throw new AccountException("invalid_guest_install");
+        }
+        var requested = (name ?? "").Trim();
+        if (requested.Length > 64)
+        {
+            requested = requested[..64];
+        }
+        var (status, response) = await RequestAsync(HttpMethod.Post, "/api/v1/account/guest",
+            Serialize(new GuestRequest(installId, requested), AccountJsonContext.Default.GuestRequest), null, RequestTimeout,
+            cancellationToken).ConfigureAwait(false);
+        var failure = status switch
+        {
+            200 => null,
+            404 or 405 => "guest_unavailable",
+            429 => "guest_capacity",
+            _ => "guest_sign_in_failed",
+        };
+        if (failure is not null)
+        {
+            throw new AccountException(failure);
+        }
+        var token = StrictJson.IsObject(response) ? StrictJson.GetString(StrictJson.Get(response!.Value, "token")) : null;
+        if (!AccountRules.IsToken(token))
+        {
+            throw new AccountException("invalid_account_session");
+        }
+        var session = SessionFromAccount(StrictJson.Get(response!.Value, "account"), token!);
+        if (!session.IsGuest)
+        {
+            throw new AccountException("invalid_account_response");
+        }
+        return session;
+    }
+
     internal static AccountSession SessionFromAccount(JsonElement? value, string token)
     {
         if (!StrictJson.IsObject(value))
@@ -255,6 +297,25 @@ public sealed partial class DiscordClient : IDisposable
         }
         var account = value!.Value;
         var (identifier, name) = ParseAccount(StrictJson.Get(account, "id"), StrictJson.Get(account, "name"));
+        if (StrictJson.Has(account, "guest"))
+        {
+            var guest = StrictJson.GetBool(account.GetProperty("guest"));
+            if (guest is null)
+            {
+                throw new AccountException("invalid_account_response");
+            }
+            if (guest.Value)
+            {
+                // A guest has no name claims; its in-game name is the service's Name.tag.
+                var inGame = StrictJson.GetString(StrictJson.Get(account, "claimedName"));
+                if (StrictJson.GetBool(StrictJson.Get(account, "nameClaimsEnabled")) is not (null or false)
+                    || !AccountRules.IsGuestName(name, inGame))
+                {
+                    throw new AccountException("invalid_account_response");
+                }
+                return new AccountSession(identifier, name, token, inGame, IsGuest: true);
+            }
+        }
         bool enabled;
         if (!StrictJson.Has(account, "nameClaimsEnabled"))
         {

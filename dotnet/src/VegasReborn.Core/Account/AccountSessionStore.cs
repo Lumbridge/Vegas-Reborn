@@ -18,7 +18,7 @@ public static class AccountSessionStore
         ArgumentNullException.ThrowIfNull(session);
         var file = new SessionFile(1,
             new SessionFileAccount(session.DiscordId, session.DisplayName, session.ClaimedName,
-                session.NameClaimsEnabled, session.ClaimRequired, session.NameChangeAllowed),
+                session.NameClaimsEnabled, session.ClaimRequired, session.NameChangeAllowed, session.IsGuest),
             session.Token, Timestamp());
         return WriteNew(path, JsonSerializer.SerializeToUtf8Bytes(file, AccountJsonContext.Default.SessionFile));
     }

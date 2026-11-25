@@ -298,7 +298,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
         if (!CompanionAccount.IsSignedIn)
         {
-            Message = "Sign in with Discord before playing.";
+            Message = "Sign in with Discord or play as a guest before playing.";
             Account.ShowStatus(Message);
             Page = Page.Account;
             return;
@@ -335,6 +335,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var outcome = await launcher.PlayAsync(request with { CopyProgress = copied }, progress);
             Message = outcome.CharacterSaved ? SyncMessages.SavedAfterGame
                 : game.Title.SaveSlots.Count == 0 ? "Game closed."
+                : CompanionAccount.IsGuest ? "Game closed. " + AccountMessages.GuestSaves
                 : SyncMessages.NoCharacterCreated;
         }
         catch (SyncConflictException error)

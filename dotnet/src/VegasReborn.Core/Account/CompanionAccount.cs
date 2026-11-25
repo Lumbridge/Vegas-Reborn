@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using VegasReborn.Core.Launch;
 using VegasReborn.Core.Profiles;
 using VegasReborn.Core.Titles;
@@ -42,6 +43,8 @@ public sealed class CompanionAccount : ICredentialSource, IProfileSync, IDisposa
 
     public bool IsSignedIn => Session is not null;
 
+    public bool IsGuest => Session?.IsGuest == true;
+
     /// <summary>
     /// Titles whose native credentials the account service issues. Leases are
     /// not title-specific: each title's master validates them against the
@@ -59,6 +62,38 @@ public sealed class CompanionAccount : ICredentialSource, IProfileSync, IDisposa
         var session = await _client.SignInAsync(openBrowser, progress, cancellationToken).ConfigureAwait(false);
         Store(session);
         return session;
+    }
+
+    /// <summary>Plays without Discord. The service tags <paramref name="name"/> as Name#tag.</summary>
+    public async Task<AccountSession> PlayAsGuestAsync(string name, CancellationToken cancellationToken)
+    {
+        var session = await _client.PlayAsGuestAsync(GuestInstallId(), name, cancellationToken).ConfigureAwait(false);
+        Store(session);
+        return session;
+    }
+
+    /// <summary>The saved guest install id, created on first use. Its tag stays the same across sign-outs.</summary>
+    public string GuestInstallId()
+    {
+        lock (_gate)
+        {
+            try
+            {
+                var saved = File.ReadAllText(_paths.GuestInstall).Trim();
+                if (AccountRules.GuestInstallId().IsMatch(saved))
+                {
+                    return saved;
+                }
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            {
+                // Missing or unreadable: make a new one below.
+            }
+            var created = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(8));
+            Directory.CreateDirectory(Path.GetDirectoryName(_paths.GuestInstall)!);
+            File.WriteAllText(_paths.GuestInstall, created + "\n");
+            return created;
+        }
     }
 
     public void SignOut()
@@ -80,7 +115,17 @@ public sealed class CompanionAccount : ICredentialSource, IProfileSync, IDisposa
 
     public async Task<AccountSession> RefreshAsync(CancellationToken cancellationToken)
     {
-        var updated = await _client.RefreshAccountAsync(Require(), cancellationToken).ConfigureAwait(false);
+        var current = Require();
+        AccountSession updated;
+        try
+        {
+            updated = await _client.RefreshAccountAsync(current, cancellationToken).ConfigureAwait(false);
+        }
+        catch (AccountException error) when (current.IsGuest && error.Code == "account_session_expired_or_revoked")
+        {
+            // A guest has nothing to re-approve: start a new session with the same name and install.
+            updated = await _client.PlayAsGuestAsync(GuestInstallId(), current.GuestBaseName, cancellationToken).ConfigureAwait(false);
+        }
         Store(updated);
         return updated;
     }
@@ -106,10 +151,10 @@ public sealed class CompanionAccount : ICredentialSource, IProfileSync, IDisposa
 
     /// <summary>Pull then push the title's character. Throws <see cref="SyncConflictException"/> when a choice is needed.</summary>
     public Task<SyncResult> SynchronizeAsync(GameTitle title, IProgress<string>? progress, CancellationToken cancellationToken) =>
-        SyncFor(title).SynchronizeAsync(Require(), progress, cancellationToken);
+        SyncFor(title).SynchronizeAsync(RequireAccount(), progress, cancellationToken);
 
     public Task<SyncResult> ResolveConflictAsync(GameTitle title, ConflictChoice choice, IProgress<string>? progress, CancellationToken cancellationToken) =>
-        SyncFor(title).ResolveConflictAsync(Require(), choice, progress, cancellationToken);
+        SyncFor(title).ResolveConflictAsync(RequireAccount(), choice, progress, cancellationToken);
 
     async Task<LaunchAccount> ICredentialSource.RefreshAccountAsync(CancellationToken cancellationToken)
     {
@@ -125,18 +170,30 @@ public sealed class CompanionAccount : ICredentialSource, IProfileSync, IDisposa
         {
             throw new AccountException("native_credential_mint_failed");
         }
+        var session = Require();
+        if (request.Dedicated && session.IsGuest)
+        {
+            throw new AccountException("guest_dedicated");
+        }
         var purpose = request.Dedicated ? NativeCredentialPurpose.Dedicated : NativeCredentialPurpose.Player;
-        var lease = await _client.MintNativeAsync(Require(), purpose, request.StatisticsCodec, cancellationToken).ConfigureAwait(false);
+        var lease = await _client.MintNativeAsync(session, purpose, request.StatisticsCodec, cancellationToken).ConfigureAwait(false);
         return new NativeCredential(lease.Username, lease.Password);
     }
 
     string IProfileSync.AccountDirectory(GameTitle title) => SyncFor(title).AccountDirectory(Require());
 
-    async Task IProfileSync.PullAsync(GameTitle title, CancellationToken cancellationToken) =>
-        await SyncFor(title).PullAsync(Require(), false, cancellationToken).ConfigureAwait(false);
+    // A guest's character stays in its own folder on this PC; there is no cloud copy.
+    async Task IProfileSync.PullAsync(GameTitle title, CancellationToken cancellationToken)
+    {
+        if (!Require().IsGuest)
+        {
+            await SyncFor(title).PullAsync(Require(), false, cancellationToken).ConfigureAwait(false);
+        }
+    }
 
     async Task<bool> IProfileSync.PushAsync(GameTitle title, CancellationToken cancellationToken) =>
-        await SyncFor(title).SaveAfterGameAsync(Require(), null, cancellationToken).ConfigureAwait(false) is not null;
+        !Require().IsGuest
+        && await SyncFor(title).SaveAfterGameAsync(Require(), null, cancellationToken).ConfigureAwait(false) is not null;
 
     public void Dispose()
     {
@@ -152,6 +209,9 @@ public sealed class CompanionAccount : ICredentialSource, IProfileSync, IDisposa
     }
 
     private AccountSession Require() => Session ?? throw new AccountException("account_session_expired_or_revoked");
+
+    /// <summary>A Discord session, for cloud character operations.</summary>
+    private AccountSession RequireAccount() => Require() is { IsGuest: false } session ? session : throw new AccountException("guest_no_cloud");
 
     private void Store(AccountSession session)
     {

@@ -14,10 +14,17 @@ public sealed record AccountSession(
     string? ClaimedName = null,
     bool NameClaimsEnabled = false,
     bool ClaimRequired = false,
-    string? NameChangeAllowed = null)
+    string? NameChangeAllowed = null,
+    bool IsGuest = false)
 {
-    /// <summary>The name shown in game: the claimed name when present.</summary>
-    public string PlayerName => ClaimedName ?? DisplayName;
+    /// <summary>
+    /// The player's name as the companion shows it: the claimed name when present. A guest
+    /// is shown as Name#tag; the game is given <see cref="ClaimedName"/> (Name.tag).
+    /// </summary>
+    public string PlayerName => IsGuest ? DisplayName : ClaimedName ?? DisplayName;
+
+    /// <summary>The name a guest typed, without its tag. Empty for Discord accounts.</summary>
+    public string GuestBaseName => IsGuest ? DisplayName[..DisplayName.LastIndexOf('#')] : "";
 
     /// <summary>True when the player must choose a name before playing or hosting.</summary>
     public bool NeedsNameClaim => NameClaimsEnabled && ClaimRequired;
@@ -38,7 +45,7 @@ public sealed record AccountSession(
 
     public override string ToString() =>
         $"AccountSession {{ DiscordId = {DiscordId}, DisplayName = {DisplayName}, ClaimedName = {ClaimedName}, " +
-        $"NameClaimsEnabled = {NameClaimsEnabled}, ClaimRequired = {ClaimRequired}, NameChangeAllowed = {NameChangeAllowed} }}";
+        $"NameClaimsEnabled = {NameClaimsEnabled}, ClaimRequired = {ClaimRequired}, NameChangeAllowed = {NameChangeAllowed}, IsGuest = {IsGuest} }}";
 }
 
 /// <summary>
@@ -73,10 +80,12 @@ public static class AccountMessages
     public const string ChooseName = "Choose your player name before playing or hosting.";
     public const string ReadyToPlay = "Ready to play. Steam must be running and signed in.";
     public const string NameSaved = "Player name saved. ";
+    public const string GuestSaves = "Guest characters are saved on this PC only.";
 
     public static string Ready(AccountSession session) => session.NeedsNameClaim ? ChooseName : ReadyToPlay;
 
-    public static string SignedInAs(AccountSession session) => "Signed in as " + session.PlayerName;
+    public static string SignedInAs(AccountSession session) =>
+        (session.IsGuest ? "Playing as guest " : "Signed in as ") + session.PlayerName;
 
     /// <summary>Cooldown notice, shown in the viewer's local time and culture.</summary>
     public static string NextNameChange(DateTimeOffset allowed, TimeZoneInfo zone, CultureInfo culture) =>
@@ -94,6 +103,19 @@ internal static partial class AccountRules
 
     [GeneratedRegex(@"^[0-9]{1,20}\z")]
     public static partial Regex DecimalId();
+
+    /// <summary>The random install id a guest tag is made from (OpenSCCT install_id format).</summary>
+    [GeneratedRegex(@"^[0-9a-f]{16}\z")]
+    public static partial Regex GuestInstallId();
+
+    /// <summary>A guest's in-game name: up to 11 name characters, '.', then the four hex tag.</summary>
+    [GeneratedRegex(@"^[A-Za-z0-9](?:[A-Za-z0-9_.\-]{0,9}[A-Za-z0-9])?\.[0-9a-f]{4}\z")]
+    public static partial Regex GuestInGameName();
+
+    /// <summary>True when <paramref name="display"/> is Name#tag for the in-game Name.tag.</summary>
+    public static bool IsGuestName(string display, string? inGame) =>
+        inGame is not null && GuestInGameName().IsMatch(inGame)
+        && display == inGame[..^5] + "#" + inGame[^4..];
 
     [GeneratedRegex(@"(?:[Zz]|[+\-][0-9]{2}(?::?[0-9]{2}(?::?[0-9]{2}(?:\.[0-9]+)?)?)?)\z")]
     private static partial Regex ZoneSuffix();

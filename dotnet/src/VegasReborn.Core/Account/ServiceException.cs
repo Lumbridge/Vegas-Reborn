@@ -35,6 +35,11 @@ public sealed class AccountException : ServiceException
         "player_name_taken" => "That name is taken or held for its previous owner. Choose another name.",
         "player_name_change_too_soon" => "Names can change every 30 days. Capitalization and separator changes are available sooner.",
         "account_session_expired_or_revoked" => "Your sign-in expired. Sign in with Discord again.",
+        "guest_unavailable" => "Guest play is not available on the server yet. Sign in with Discord to play.",
+        "guest_capacity" => "Too many guests are playing right now. Try again later or sign in with Discord.",
+        "guest_sign_in_failed" => "Guest play could not start. Retry or sign in with Discord.",
+        "guest_no_cloud" => "Guest characters are saved on this PC only. Sign in with Discord to save to your account.",
+        "guest_dedicated" => "Dedicated hosting needs a Discord sign-in.",
         _ => GenericMessage,
     };
 }

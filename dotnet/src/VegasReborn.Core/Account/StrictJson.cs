@@ -72,6 +72,8 @@ internal sealed record LinkPollRequest(string Secret);
 
 internal sealed record ClaimNameRequest(string Name);
 
+internal sealed record GuestRequest(string InstallId, string Name);
+
 internal sealed record MintRequest(string StatisticsCodec);
 
 internal sealed record EmptyRequest;
@@ -82,7 +84,9 @@ internal sealed record SessionFileAccount(
     string? ClaimedName,
     bool NameClaimsEnabled,
     bool ClaimRequired,
-    string? NameChangeAllowed);
+    string? NameChangeAllowed,
+    // Written only for guests, so a Discord session file keeps the Python companion's shape.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Guest = false);
 
 /// <summary>local/companion/account-session.json, shared with the Python companion.</summary>
 internal sealed record SessionFile(int Version, SessionFileAccount Account, string Token, string SavedAt);
@@ -92,6 +96,7 @@ internal sealed record NativeLeaseFile(int Version, string Username, string Pass
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.Never)]
 [JsonSerializable(typeof(LinkPollRequest))]
 [JsonSerializable(typeof(ClaimNameRequest))]
+[JsonSerializable(typeof(GuestRequest))]
 [JsonSerializable(typeof(MintRequest))]
 [JsonSerializable(typeof(EmptyRequest))]
 [JsonSerializable(typeof(SessionFile))]

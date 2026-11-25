@@ -37,6 +37,8 @@ public sealed class AppPaths
     public string ServiceConfig => Path.Combine(CompanionConfig, "service.json");
     public string RootPublicKey => Path.Combine(CompanionConfig, "root-public.der");
     public string AccountSession => Path.Combine(CompanionConfig, "account-session.json");
+    /// <summary>The random id a guest's name tag comes from. Kept after sign-out so the tag stays the same.</summary>
+    public string GuestInstall => Path.Combine(CompanionConfig, "guest-install.txt");
     public string Preferences => Path.Combine(CompanionConfig, "preferences.json");
     public string RetailAccounts => Path.Combine(Local, "retail-accounts");
     /// <summary>Launcher-owned Vegas 1 Extra Maps store: files/, staging/ and record.json.</summary>

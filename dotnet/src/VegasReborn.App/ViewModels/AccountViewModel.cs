@@ -14,6 +14,7 @@ public sealed class AccountViewModel : ObservableObject
     private CancellationTokenSource? signIn;
     private string status = "";
     private string nameInput = "";
+    private string guestNameInput = "";
     private GameTitle? conflictTitle;
 
     public AccountViewModel(MainViewModel owner, CompanionAccount account)
@@ -22,16 +23,18 @@ public sealed class AccountViewModel : ObservableObject
         this.account = account;
         account.Changed += (_, _) => App.Current.Dispatcher.BeginInvoke(Refresh);
         SignInCommand = new RelayCommand(SignInAsync, () => !owner.IsBusy && !IsSignedIn);
+        PlayAsGuestCommand = new RelayCommand(PlayAsGuestAsync, () => !owner.IsBusy && !IsSignedIn && !IsSigningIn);
         CancelSignInCommand = new RelayCommand(() => { signIn?.Cancel(); return Task.CompletedTask; }, () => IsSigningIn);
         SignOutCommand = new RelayCommand(() => { account.SignOut(); Status = ""; return Task.CompletedTask; }, () => !owner.IsBusy && IsSignedIn);
         ClaimNameCommand = new RelayCommand(ClaimNameAsync, () => !owner.IsBusy && CanClaimName && !string.IsNullOrWhiteSpace(NameInput));
-        SyncCommand = new RelayCommand(SyncAsync, () => !owner.IsBusy && IsSignedIn && SyncAvailable);
+        SyncCommand = new RelayCommand(SyncAsync, () => !owner.IsBusy && ShowSync && SyncAvailable);
         KeepCloudCommand = new RelayCommand(() => ResolveAsync(ConflictChoice.KeepCloud), () => !owner.IsBusy && HasConflict);
         KeepLocalCommand = new RelayCommand(() => ResolveAsync(ConflictChoice.KeepLocal), () => !owner.IsBusy && HasConflict);
         Refresh();
     }
 
     public ICommand SignInCommand { get; }
+    public ICommand PlayAsGuestCommand { get; }
     public ICommand CancelSignInCommand { get; }
     public ICommand SignOutCommand { get; }
     public ICommand ClaimNameCommand { get; }
@@ -42,7 +45,11 @@ public sealed class AccountViewModel : ObservableObject
     public bool IsSignedIn => account.IsSignedIn;
     public bool IsSigningIn => signIn is not null;
     public string PlayerName => account.Session?.PlayerName ?? "";
-    public string DiscordName => account.Session is { } session ? "Discord: " + session.DisplayName : "";
+    public bool IsGuest => account.IsGuest;
+    public string DiscordName => account.Session is { } session
+        ? session.IsGuest ? "Guest. " + AccountMessages.GuestSaves : "Discord: " + session.DisplayName
+        : "";
+    public bool ShowSync => IsSignedIn && !IsGuest;
     public bool NeedsNameClaim => account.Session?.NeedsNameClaim == true;
     public bool ShowNameSection => account.Session?.NameClaimsEnabled == true;
     public bool CanClaimName => ShowNameSection && account.Session?.NextNameChange(DateTimeOffset.UtcNow) is null;
@@ -69,6 +76,12 @@ public sealed class AccountViewModel : ObservableObject
         private set => Set(ref status, value);
     }
 
+    public string GuestNameInput
+    {
+        get => guestNameInput;
+        set => Set(ref guestNameInput, value);
+    }
+
     public string NameInput
     {
         get => nameInput;
@@ -85,7 +98,7 @@ public sealed class AccountViewModel : ObservableObject
     {
         foreach (var name in new[]
         {
-            nameof(IsSignedIn), nameof(IsSigningIn), nameof(PlayerName), nameof(DiscordName), nameof(NeedsNameClaim),
+            nameof(IsSignedIn), nameof(IsSigningIn), nameof(IsGuest), nameof(ShowSync), nameof(PlayerName), nameof(DiscordName), nameof(NeedsNameClaim),
             nameof(ShowNameSection), nameof(CanClaimName), nameof(NameHelp), nameof(SyncTitle), nameof(SyncAvailable), nameof(SyncHelp),
             nameof(HasConflict), nameof(ConflictText),
         })
@@ -158,6 +171,29 @@ public sealed class AccountViewModel : ObservableObject
             signIn = null;
             Refresh();
         }
+    }
+
+    private async Task PlayAsGuestAsync()
+    {
+        try
+        {
+            await owner.RunBusyAsync(async _ =>
+            {
+                Status = "Starting guest play...";
+                var session = await account.PlayAsGuestAsync(GuestNameInput, CancellationToken.None);
+                Status = AccountMessages.SignedInAs(session) + ". " + AccountMessages.ReadyToPlay;
+                owner.ShowMessage("");
+            });
+        }
+        catch (ServiceException error)
+        {
+            Status = error.Message;
+        }
+        catch (Exception)
+        {
+            Status = AccountException.MessageFor("guest_sign_in_failed");
+        }
+        Refresh();
     }
 
     private async Task ClaimNameAsync()

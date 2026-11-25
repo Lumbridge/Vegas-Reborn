@@ -315,6 +315,19 @@
                         <Button Style="{StaticResource SecondaryButton}" Content="Cancel" Margin="12,0,0,0" Command="{Binding CancelSignInCommand}"
                                 Visibility="{Binding IsSigningIn, Converter={StaticResource Visible}}" />
                     </StackPanel>
+
+                    <!-- Guest -->
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="0,18,0,0" Margin="0,28,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Play as a guest" FontWeight="SemiBold" FontSize="15" />
+                            <TextBlock Style="{StaticResource MutedText}" FontSize="13" Margin="0,2,0,0" TextWrapping="Wrap"
+                                       Text="Play online without Discord. Your name gets a tag, like Name#1a2b, which shows as Name.1a2b in game. Guest characters are saved on this PC only and do not appear on leaderboards." />
+                            <DockPanel Margin="0,10,0,0">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Content="Play as guest" Margin="12,0,0,0" Command="{Binding PlayAsGuestCommand}" />
+                                <TextBox Text="{Binding GuestNameInput, UpdateSourceTrigger=PropertyChanged}" MaxLength="11" AutomationProperties.Name="Guest name" />
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <!-- Signed in -->
@@ -342,7 +355,7 @@
                     </Border>
 
                     <!-- Character sync -->
-                    <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,18">
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="0,18" Visibility="{Binding ShowSync, Converter={StaticResource Visible}}">
                         <DockPanel>
                             <Button DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" Content="Sync now" VerticalAlignment="Top" Margin="24,0,0,0"
                                     Command="{Binding SyncCommand}" Visibility="{Binding SyncAvailable, Converter={StaticResource Visible}}" />
