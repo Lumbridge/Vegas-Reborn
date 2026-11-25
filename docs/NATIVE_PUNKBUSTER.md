@@ -52,9 +52,14 @@ separately in `NATIVE_PUNKBUSTER_VEGAS2.md`.
 - The option's value maps through 0x120935ec to -1 (Any), 0 or 1. Its own
   load (vtable slot 14, 0x951760) reads the saved value from the profile; its
   save (slot 13, 0x951730) writes it back. The search reads the option.
-- After init, the adapter drops the trailing PunkBuster entry from the shown
-  filters. Its load sets the value to Any and saves that with the original
-  save routine.
+- After init, the adapter drops the PunkBuster entry from the shown filters.
+  Its load sets the value to Any and saves that with the original save routine.
+- The ranked access module (`native_ranked_access.h`) hooks the same init and
+  appends the game type filter after the PunkBuster entry. MinHook allows one
+  hook per function, so while that hook is installed the PunkBuster removal
+  runs from it and checks for its jump instead of the original prologue.
+  Launcher 0.5.6 to 0.5.9 checked the original prologue after ranked access had
+  hooked it, reported `nativeSignatureMismatch` and could not launch the game.
 
 ### Match list column
 

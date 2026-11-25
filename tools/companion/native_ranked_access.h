@@ -22,6 +22,11 @@ using ValueFn=int(__thiscall*)(void*);
 static CreateFn OriginalCreate=nullptr;
 static FiltersFn OriginalFilters=nullptr;
 static AddFn Add=nullptr;
+// The filters init is also where the PunkBuster filter is removed. MinHook
+// allows one hook per target, so while this hook owns the init, the PunkBuster
+// module registers its post-init step here instead of hooking it again.
+using AfterFiltersFn=void(*)(void*,int);
+static AfterFiltersFn volatile AfterFilters=nullptr;
 
 static const char* LastError(){
     switch(InterlockedCompareExchange(&ErrorCode,0,0)){
@@ -81,8 +86,7 @@ static void __fastcall Create(void* self,void*){
     if(AppendExisting(reinterpret_cast<Vector*>(implementation+8),gameType))
         InterlockedIncrement(&CreateRowsAdded);
 }
-static void __fastcall Filters(void* self,void*,int callerMode){
-    OriginalFilters(self,callerMode);
+static void AddGameTypeFilter(void* self,int callerMode){
     if(callerMode!=1)return; // Custom Match only; Quick Match remains original.
     BYTE* manager=static_cast<BYTE*>(self);
     if(!HasTable(manager,0x1793ca4)||!Accessible(manager,0x28))return;
@@ -92,6 +96,11 @@ static void __fastcall Filters(void* self,void*,int callerMode){
     if(!HasTable(gameType,0x1793b00)||!Accessible(gameType,0x10))return;
     if(AppendExisting(reinterpret_cast<Vector*>(manager+0x14),gameType))
         InterlockedIncrement(&FilterRowsAdded);
+}
+static void __fastcall Filters(void* self,void*,int callerMode){
+    OriginalFilters(self,callerMode);
+    AddGameTypeFilter(self,callerMode);
+    if(const AfterFiltersFn after=AfterFilters)after(self,callerMode);
 }
 static bool IsJumpTo(BYTE* at,const void* target){
     if(!Accessible(at,5)||at[0]!=0xe9)return false;

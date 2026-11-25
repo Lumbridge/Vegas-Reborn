@@ -48,8 +48,10 @@
 //   own load (vtable slot 14, 0x951760) reads the saved value from the
 //   profile ([+0x38]+0x50); its save (slot 13, 0x951730) writes it back. The
 //   search reads the value from the option.
-// After init, the adapter drops the trailing PunkBuster entry from the shown
-// filters. Its load sets the value to Any and saves that with the original
+// After init, the adapter drops the PunkBuster entry from the shown filters.
+// The ranked access module hooks the same init and appends the game type
+// filter after it; while that hook is installed, this module runs from it
+// (NativeRankedAccess::AfterFilters) instead of hooking the init again. Its load sets the value to Any and saves that with the original
 // save routine instead of reading the saved value.
 //
 // Column: the match list's PunkBuster column.
@@ -74,6 +76,7 @@
 #include <cstdint>
 #include <cstring>
 #include "MinHook.h"
+#include "native_ranked_access.h"
 
 #pragma intrinsic(_ReturnAddress)
 
@@ -208,16 +211,25 @@ template<unsigned Index> static void __fastcall ShowClientMenu(void* menu,void*,
     if(reinterpret_cast<ClientFn>(Image+ClientQueryRva)())reinterpret_cast<ClientFn>(Image+ClientOffRva)();
 }
 static int __cdecl KeepClientOff(){return 0;}
-static void __fastcall InitFilters(void* manager,void*,int mode){
-    OriginalFilterInit(manager,mode);
+// The init appends the PunkBuster option last, but the ranked access module
+// can append the game type filter after it, so find it in the shown list.
+static void RemoveShownFilter(void* manager,int mode){
     if(mode!=int(FilterShownMode))return;
     BYTE* const fields=static_cast<BYTE*>(manager);
     if(!Readable(fields+FilterShownList,8))return;
     void** const shown=*reinterpret_cast<void***>(fields+FilterShownList);
     int& count=*reinterpret_cast<int*>(fields+FilterShownCount);
-    if(count<=0||!Readable(shown+count-1,4))return;
-    void* const last=shown[count-1];
-    if(Readable(last,4)&&*static_cast<void**>(last)==Image+FilterVtableRva)--count;
+    if(count<=0||count>32||!Readable(shown,size_t(count)*4))return;
+    for(int i=count-1;i>=0;--i){
+        if(!Readable(shown[i],4)||*static_cast<void**>(shown[i])!=Image+FilterVtableRva)continue;
+        memmove(shown+i,shown+i+1,size_t(count-1-i)*4);
+        --count;
+        return;
+    }
+}
+static void __fastcall InitFilters(void* manager,void*,int mode){
+    OriginalFilterInit(manager,mode);
+    RemoveShownFilter(manager,mode);
 }
 static void __fastcall LoadPunkBusterFilter(void* option,void*){
     // Any, saved back with the original save in place of the saved value.
@@ -241,7 +253,9 @@ static bool NameIs(BYTE* base,unsigned rva,const char* name){
     const size_t length=strlen(name)+1;
     return Readable(text,length)&&!memcmp(text,name,length);
 }
-static bool Matches(BYTE* base){
+// sharedInit: the ranked access hook already owns the filters init, so its
+// prologue is that hook's jump; ranked access checked the same prologue first.
+static bool Matches(BYTE* base,bool sharedInit){
     for(unsigned i=0;i<SetupCount;++i)if(memcmp(base+SetupRvas[i],SetupPrologues[i],sizeof(SetupPrologues[i])))return false;
     if(memcmp(base+BindRva,BindCode,sizeof(BindCode))||memcmp(base+HideRva,HideCode,sizeof(HideCode))||
        memcmp(base+StartRva,StartCode,sizeof(StartCode))||memcmp(base+StartCommandRva,StartCommand,sizeof(StartCommand)))return false;
@@ -251,7 +265,8 @@ static bool Matches(BYTE* base){
            memcmp(base+ClientBindEndRvas[i],ClientBindEnds[i],sizeof(ClientBindEnds[i]))||
            !NameIs(base,ClientNameRvas[i],ClientNames[i]))return false;
     }
-    if(memcmp(base+FilterInitRva,FilterInitCode,sizeof(FilterInitCode))||
+    if((sharedInit?!NativeRankedAccess::IsJumpTo(base+FilterInitRva,reinterpret_cast<void*>(&NativeRankedAccess::Filters))
+                  :memcmp(base+FilterInitRva,FilterInitCode,sizeof(FilterInitCode))!=0)||
        memcmp(base+FilterLoadRva,FilterLoadCode,sizeof(FilterLoadCode))||
        memcmp(base+FilterSaveRva,FilterSaveCode,sizeof(FilterSaveCode))||
        memcmp(base+FilterSaveStoreRva,FilterSaveStore,sizeof(FilterSaveStore))||
@@ -279,36 +294,41 @@ static bool Matches(BYTE* base){
         !memcmp(base+ClientOnRva+ClientCommandOffset,OnCommand,sizeof(OnCommand))&&
         !memcmp(base+ClientOffRva+ClientCommandOffset,OffCommand,sizeof(OffCommand));
 }
+static_assert(FilterInitRva==NativeRankedAccess::FiltersRva,"Both modules use the same filters init");
 static bool Install(BYTE* base){
     Image=base;
-    if(!Matches(base)){Error=1;return false;}
+    const bool sharedInit=NativeRankedAccess::Verified&&NativeRankedAccess::Image==base;
+    if(!Matches(base,sharedInit)){Error=1;return false;}
+    // The filters init is last so a shared init can leave it out.
+    const unsigned hooks=sharedInit?HookCount-1:HookCount;
     void* const targets[HookCount]{base+SetupRvas[0],base+SetupRvas[1],base+SetupRvas[2],base+StartRva,
-        base+ClientShowRvas[0],base+ClientShowRvas[1],base+ClientOnRva,base+FilterLoadRva,base+FilterInitRva,
-        base+CellImageRva,base+CellTextRva};
+        base+ClientShowRvas[0],base+ClientShowRvas[1],base+ClientOnRva,base+FilterLoadRva,
+        base+CellImageRva,base+CellTextRva,base+FilterInitRva};
     void* const detours[HookCount]{reinterpret_cast<void*>(&Setup<0>),reinterpret_cast<void*>(&Setup<1>),
         reinterpret_cast<void*>(&Setup<2>),reinterpret_cast<void*>(&KeepServerOff),
         reinterpret_cast<void*>(&ShowClientMenu<0>),reinterpret_cast<void*>(&ShowClientMenu<1>),
         reinterpret_cast<void*>(&KeepClientOff),reinterpret_cast<void*>(&LoadPunkBusterFilter),
-        reinterpret_cast<void*>(&InitFilters),reinterpret_cast<void*>(&SetCellImage),
-        reinterpret_cast<void*>(&SetCellText)};
+        reinterpret_cast<void*>(&SetCellImage),reinterpret_cast<void*>(&SetCellText),
+        reinterpret_cast<void*>(&InitFilters)};
     void** const originals[HookCount]{reinterpret_cast<void**>(&OriginalSetups[0]),reinterpret_cast<void**>(&OriginalSetups[1]),
         reinterpret_cast<void**>(&OriginalSetups[2]),reinterpret_cast<void**>(&OriginalStart),
         reinterpret_cast<void**>(&OriginalClientShows[0]),reinterpret_cast<void**>(&OriginalClientShows[1]),
         reinterpret_cast<void**>(&OriginalClientOn),reinterpret_cast<void**>(&OriginalFilterLoad),
-        reinterpret_cast<void**>(&OriginalFilterInit),reinterpret_cast<void**>(&OriginalCellImage),
-        reinterpret_cast<void**>(&OriginalCellText)};
+        reinterpret_cast<void**>(&OriginalCellImage),reinterpret_cast<void**>(&OriginalCellText),
+        reinterpret_cast<void**>(&OriginalFilterInit)};
     unsigned created=0;
-    for(;created<HookCount;++created)if(MH_CreateHook(targets[created],detours[created],originals[created])!=MH_OK)break;
-    if(created<HookCount){while(created)MH_RemoveHook(targets[--created]);Error=2;return false;}
+    for(;created<hooks;++created)if(MH_CreateHook(targets[created],detours[created],originals[created])!=MH_OK)break;
+    if(created<hooks){while(created)MH_RemoveHook(targets[--created]);Error=2;return false;}
     // The on routine first, so a menu shown meanwhile cannot turn the client
     // on; the filter load before init, so shown filters are never filtering.
     static constexpr unsigned Order[HookCount]{6,3,0,1,2,4,5,7,8,9,10};
-    for(unsigned i=0;i<HookCount;++i){
+    for(unsigned i=0;i<hooks;++i){
         if(MH_EnableHook(targets[Order[i]])!=MH_OK){
-            for(unsigned j=0;j<HookCount;++j){MH_DisableHook(targets[j]);MH_RemoveHook(targets[j]);}
+            for(unsigned j=0;j<hooks;++j){MH_DisableHook(targets[j]);MH_RemoveHook(targets[j]);}
             Error=3;return false;
         }
     }
+    if(sharedInit)NativeRankedAccess::AfterFilters=&RemoveShownFilter;
     Verified=true;
     return true;
 }
