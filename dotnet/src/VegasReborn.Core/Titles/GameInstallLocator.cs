@@ -10,7 +10,6 @@ namespace VegasReborn.Core.Titles;
 public enum InstallSource
 {
     Steam,
-    UbisoftConnect,
     Gog,
     Epic,
     /// <summary>A Windows installed-programs entry (retail disc and other installers).</summary>
@@ -26,7 +25,6 @@ public sealed record InstallCandidate(string Folder, InstallSource Source, bool 
     public string SourceName => Source switch
     {
         InstallSource.Steam => "Steam",
-        InstallSource.UbisoftConnect => "Ubisoft Connect",
         InstallSource.Gog => "GOG",
         InstallSource.Epic => "Epic Games",
         InstallSource.InstalledPrograms => "installed programs",
@@ -72,28 +70,25 @@ public sealed class GameInstallLocator
     private readonly IInstallRegistry _registry;
     private readonly Func<IReadOnlyList<string>> _driveRoots;
     private readonly string _programData;
-    private readonly string _localAppData;
     private readonly IReadOnlyList<string> _excluded;
 
     /// <param name="excludedFolders">Folders never reported or searched, such as the launcher's own game copies.</param>
     public GameInstallLocator(IEnumerable<string>? excludedFolders = null)
         : this(new WindowsInstallRegistry(), FixedDriveRoots,
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), excludedFolders)
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), excludedFolders)
     {
     }
 
-    internal GameInstallLocator(IInstallRegistry registry, Func<IReadOnlyList<string>> driveRoots, string programData, string localAppData,
+    internal GameInstallLocator(IInstallRegistry registry, Func<IReadOnlyList<string>> driveRoots, string programData,
         IEnumerable<string>? excludedFolders = null)
     {
         _registry = registry;
         _driveRoots = driveRoots;
         _programData = programData;
-        _localAppData = localAppData;
         _excluded = [.. excludedFolders ?? []];
     }
 
-    /// <summary>Installations recorded by Steam, Ubisoft Connect, GOG, Epic and Windows installers.</summary>
+    /// <summary>Installations recorded by Steam, GOG, Epic and Windows installers.</summary>
     public IReadOnlyList<InstallCandidate> FindRecorded(GameTitle title)
     {
         var found = new List<(string Folder, InstallSource Source)>();
@@ -109,10 +104,6 @@ public sealed class GameInstallLocator
         {
             Add(SteamAppFolder(library, title.SteamAppId), InstallSource.Steam);
             Add(Path.Combine(library, "steamapps", "common", Path.GetFileName(title.DefaultInstallFolder)), InstallSource.Steam);
-        }
-        foreach (var folder in UbisoftFolders())
-        {
-            Add(folder, InstallSource.UbisoftConnect);
         }
         foreach (var root in new[] { Hklm + @"\SOFTWARE\WOW6432Node\GOG.com\Games", Hklm + @"\SOFTWARE\GOG.com\Games" })
         {
@@ -130,7 +121,6 @@ public sealed class GameInstallLocator
             foreach (var name in _registry.SubKeyNames(root))
             {
                 var source = name.StartsWith("Steam App ", StringComparison.OrdinalIgnoreCase) ? InstallSource.Steam
-                    : name.StartsWith("Uplay Install ", StringComparison.OrdinalIgnoreCase) ? InstallSource.UbisoftConnect
                     : InstallSource.InstalledPrograms;
                 Add(_registry.GetString(root + "\\" + name, "InstallLocation"), source);
             }
@@ -287,42 +277,6 @@ public sealed class GameInstallLocator
         var manifest = ReadText(Path.Combine(library, "steamapps", $"appmanifest_{appId}.acf"));
         var match = manifest is null ? null : Regex.Match(manifest, "\"installdir\"\\s+\"([^\"]+)\"");
         return match is { Success: true } ? Path.Combine(library, "steamapps", "common", VdfUnescape(match.Groups[1].Value)) : null;
-    }
-
-    private IEnumerable<string> UbisoftFolders()
-    {
-        var folders = new List<string>();
-        foreach (var root in new[] { Hklm + @"\SOFTWARE\WOW6432Node\Ubisoft\Launcher\Installs", Hklm + @"\SOFTWARE\Ubisoft\Launcher\Installs" })
-        {
-            foreach (var id in _registry.SubKeyNames(root))
-            {
-                if (_registry.GetString(root + "\\" + id, "InstallDir") is { } folder)
-                {
-                    folders.Add(folder);
-                }
-            }
-        }
-        // Games in the launcher's default and configured library folders, including ones the
-        // registry no longer lists after a Windows reinstall.
-        var libraries = new List<string>();
-        foreach (var key in new[] { Hklm + @"\SOFTWARE\WOW6432Node\Ubisoft\Launcher", Hklm + @"\SOFTWARE\Ubisoft\Launcher" })
-        {
-            if (_registry.GetString(key, "InstallDir") is { } launcher)
-            {
-                libraries.Add(Path.Combine(launcher, "games"));
-            }
-        }
-        var settings = ReadText(Path.Combine(_localAppData, "Ubisoft Game Launcher", "settings.yml"));
-        var configured = settings is null ? null : Regex.Match(settings, "^\\s*game_installation_path:\\s*['\"]?([^'\"\\r\\n]+)", RegexOptions.Multiline);
-        if (configured is { Success: true })
-        {
-            libraries.Add(configured.Groups[1].Value.Trim());
-        }
-        foreach (var library in libraries)
-        {
-            folders.AddRange(ChildFolders(library));
-        }
-        return folders;
     }
 
     private IEnumerable<string> EpicFolders()

@@ -39,7 +39,7 @@ public sealed class GameInstallLocatorTests
     }
 
     private static GameInstallLocator Locator(TestDirectory directory, FakeRegistry registry, params string[] roots) =>
-        new(registry, () => roots, Path.Combine(directory.Path, "ProgramData"), Path.Combine(directory.Path, "LocalAppData"),
+        new(registry, () => roots, Path.Combine(directory.Path, "ProgramData"),
             [Path.Combine(directory.Path, "Companion", "local")]);
 
     [Fact]
@@ -69,48 +69,29 @@ public sealed class GameInstallLocatorTests
     }
 
     [Fact]
-    public void FindsUbisoftConnectGogEpicAndInstallerEntries()
+    public void FindsGogEpicAndInstallerEntries()
     {
         using var directory = new TestDirectory();
         var registry = new FakeRegistry();
-        var ubisoft = Install(directory, "Ubisoft Vegas", supported: false);
         var gog = Install(directory, "GOG Vegas", supported: false);
         var epic = Install(directory, "Epic Vegas", supported: false);
         var retail = Install(directory, "Retail Vegas");
         Install(directory, "Unlisted");
         var copy = Install(directory, @"Companion\local\games\vegas2");
         registry.Set(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Copy", "InstallLocation", copy);
-        registry.Set(@"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Ubisoft\Launcher\Installs\999", "InstallDir", ubisoft.Replace('\\', '/') + "/");
-        registry.Set(@"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Ubisoft\Launcher\Installs\998", "InstallDir", Path.Combine(directory.Path, "Missing"));
+        registry.Set(@"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\GOG.com\Games\2", "path", Path.Combine(directory.Path, "Missing"));
         registry.Set(@"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\GOG.com\Games\1", "path", gog);
         directory.File(@"ProgramData\Epic\EpicGamesLauncher\Data\Manifests\a.item",
             "{\"InstallLocation\": \"" + epic.Replace("\\", "\\\\") + "\"}");
         registry.Set(@"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{GUID}", "InstallLocation", retail);
-        registry.Set(@"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Uplay Install 999", "InstallLocation", ubisoft);
+        registry.Set(@"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\GOG 1", "InstallLocation", gog);
 
         var found = Locator(directory, registry).FindRecorded(Title);
 
-        // The supported build is first; the duplicate Ubisoft entry is listed once.
+        // The supported build is first; the duplicate GOG entry is listed once.
         Assert.Equal(
-            [(retail, InstallSource.InstalledPrograms, true), (ubisoft, InstallSource.UbisoftConnect, false),
-             (gog, InstallSource.Gog, false), (epic, InstallSource.Epic, false)],
+            [(retail, InstallSource.InstalledPrograms, true), (gog, InstallSource.Gog, false), (epic, InstallSource.Epic, false)],
             found.Select(candidate => (candidate.Folder, candidate.Source, candidate.Supported)));
-    }
-
-    [Fact]
-    public void FindsGamesInUbisoftLibraryFolders()
-    {
-        using var directory = new TestDirectory();
-        var registry = new FakeRegistry();
-        registry.Set(@"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Ubisoft\Launcher", "InstallDir", Path.Combine(directory.Path, "Launcher"));
-        var inDefault = Install(directory, @"Launcher\games\Vegas 2");
-        var configured = Install(directory, @"D Games\Vegas 2b");
-        directory.File(@"LocalAppData\Ubisoft Game Launcher\settings.yml",
-            "misc:\n  game_installation_path: " + Path.Combine(directory.Path, "D Games").Replace('\\', '/') + "\n");
-
-        var found = Locator(directory, registry).FindRecorded(Title);
-        Assert.Equal([inDefault, configured], found.Select(candidate => candidate.Folder));
-        Assert.All(found, candidate => Assert.Equal(InstallSource.UbisoftConnect, candidate.Source));
     }
 
     [Fact]

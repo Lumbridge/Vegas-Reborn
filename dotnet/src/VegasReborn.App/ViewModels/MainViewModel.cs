@@ -173,7 +173,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// Fills in the folder of each game whose folder has no game executable. Installations
-    /// recorded by Steam, Ubisoft Connect, GOG, Epic or Windows installers are used first; when
+    /// recorded by Steam, GOG, Epic or Windows installers are used first; when
     /// none of the missing games is recorded anywhere, the PC's drives are searched.
     /// </summary>
     public Task DetectInstallsAsync()
