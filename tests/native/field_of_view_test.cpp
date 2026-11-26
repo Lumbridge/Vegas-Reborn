@@ -89,6 +89,33 @@ int main(int argc, char** argv) {
     const LONG delta = 0x40-0x30;
     memcpy(image.data()+0x2c,&delta,sizeof(delta));
     assert(CodeMatches(image.data(),calls));
+
+    // The weapon and arms: both games scale the foreground projection call, and
+    // the code checked right after it is the store of its scale into the view.
+    const auto returns_to = [](const Layout& layout, unsigned rva) {
+        for (size_t index = 0; index < layout.returnCount; ++index) if (layout.returns[index] == rva) return true;
+        return false;
+    };
+    const auto checks = [](const Layout& layout, unsigned rva, const BYTE* code) {
+        for (size_t index = 0; index < layout.signatureCount; ++index)
+            if (layout.signatures[index].rva == rva && layout.signatures[index].code == code) return true;
+        return false;
+    };
+    assert(returns_to(Vegas1::Game,0x293418) && checks(Vegas1::Game,0x293418,Vegas1::SceneForeground));
+    assert(checks(Vegas1::Game,0x29329c,Vegas1::SceneForegroundAngle));
+    assert(returns_to(Vegas2::Game,0x8ba72d) && checks(Vegas2::Game,0x8ba72d,Vegas2::SceneForeground));
+    assert(checks(Vegas2::Game,0x8ba66f,Vegas2::SceneForegroundAngle));
+    // The world view keeps its scaling too.
+    assert(returns_to(Vegas1::Game,0x2932f6) && returns_to(Vegas1::Game,0x29339e) && returns_to(Vegas1::Game,0x88b29c));
+    assert(returns_to(Vegas2::Game,0x8ba6ef) && returns_to(Vegas2::Game,0x315035) && returns_to(Vegas2::Game,0x315095));
+    // A foreground angle narrower than the world view keeps its size relative to it.
+    Image = image.data(); Active = &fake;
+    memcpy(image.data()+0x10,&settingsPointer,sizeof(settingsPointer));
+    settings[8] = 59.84f;
+    Requested = 80;
+    const double weapon = std::tan(half(45.0))/std::tan(half(59.84));
+    assert(Near(std::tan(Scale(half(45.0)))/std::tan(Scale(half(59.84))),weapon));
+    assert(degrees(Scale(half(45.0))) > 45.0+5.0);
     std::puts("field_of_view_test ok");
     return 0;
 }

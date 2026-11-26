@@ -24,8 +24,9 @@ vertical and the horizontal angle follows the window's aspect ratio.
   view's `+0x84`, multiplies it by pi/360 (`0x10b93260`) and passes it to the
   routine. The calls return to `0x10b932f6` (camera with a fixed aspect
   ratio, camera `+0x258` bit 1 and `+0x260`) and `0x10b9339e`.
-- The routine's third call in that setup (`0x10b93418`) uses the caller's
-  separate foreground angle and is unchanged.
+- The routine's third call in that setup (returning to `0x10b93418`) builds
+  the foreground projection used for the first-person weapon and arms. See
+  [Weapon and arms](#weapon-and-arms).
 - The camera's view-projection (`0x1118b130`) multiplies the camera's field
   of view (vtable `+0x580`) by pi/360 and returns to `0x1118b29c`.
 - `R6PlayerController::GetFOVAngle` (`0x111c92e0`) multiplies a scope's
@@ -41,13 +42,47 @@ vertical and the horizontal angle follows the window's aspect ratio.
   view (vtable `+0x67c`, argument 0, `0x111ba45e`), clamps it to 1-179 in the
   view's `+0x84`, multiplies it by pi and divides by 360 (`0x111ba64d`), and
   passes it to the routine, returning to `0x111ba6ef`. The second call
-  (`0x111ba72d`) uses the foreground angle and is unchanged.
+  (returning to `0x111ba72d`) builds the foreground projection for the weapon
+  and arms.
 - The camera's view-projection multiplies the camera's field of view (vtable
   `+0x634`) by pi over 360 and returns to `0x10c15035` (fixed aspect ratio)
   or `0x10c15095`.
 - `R6PlayerController::GetFOVAngle` (`0x10c6c9b0`) multiplies a scope's
   modifier by `+0x94` of the settings object at `0x124a8a44`, and uses `+0x94`
   when the view has no angle.
+
+### Weapon and arms
+
+The first-person weapon and arms are drawn with their own projection, so
+changing only the world projection left them at the game's size.
+
+Rainbow Six Vegas:
+
+- The player view setup (`0x10b94110`) copies the viewport's show flags into
+  the view's `+0xe0..+0xec` and adds the player controller's flags (vtable
+  `+0x520`). When `+0xe8` has bit 8, it asks the controller for its field of
+  view with argument 1 (vtable `+0x5c0`, `0x10b94180`), clamps it to 1-179 and
+  passes it to the scene view setup as the foreground angle (`0x10b941d3`).
+  Otherwise it passes -1.
+- `R6PlayerController::GetFOVAngle` (`0x111c92e0`) answers argument 1 with the
+  current weapon's modifier (weapon vtable `+0x688`, argument 1) times the
+  weapons settings' `+0x254`, the default angle. It never uses the view's
+  angle, so the foreground angle does not follow the setting.
+- The scene view setup multiplies the foreground angle by pi/360
+  (`0x10b9329c`), builds a projection with it (call returning to
+  `0x10b93418`), and stores its x and y scale, times `+0x120` of the object at
+  `0x123c1a48`, in the view's `+0x138` and `+0x13c`.
+- The renderer's view (`0x10bcf1eb`) starts from the main projection and, when
+  the view's `+0xe8` has bit 8, replaces its x and y scale with `+0x138` and
+  `+0x13c` (`0x10bcf203`) for the foreground pass.
+
+Rainbow Six Vegas 2 does the same: the player view setup asks the controller
+(vtable `+0x67c`, argument 1) under show flag 8 (`0x111bb99b`),
+`R6PlayerController::GetFOVAngle` (`0x10c6c9b0`) answers with the weapon's
+modifier (vtable `+0x740`) times the settings' `+0x94`, the scene view setup
+multiplies the angle by pi over 360 (`0x111ba66f`), calls the routine
+(returning to `0x111ba72d`) and stores the scale in `+0x13c` and `+0x140`, and
+the renderer's view uses them under the same flag (`0x111e8847`).
 
 ### Default angle
 
@@ -59,11 +94,13 @@ object or its value is not available.
 ## Behavior
 
 - The perspective routine is hooked. Only calls returning to the addresses
-  above are changed; scene captures, shadows and other projections are not.
+  above are changed, the foreground call included; scene captures, shadows and
+  other projections are not.
 - Each half angle is scaled in tangent space by
   `tan(requested/2) / tan(default/2)`. The default view gets the requested
   angle, and zoomed and scoped views keep the same zoom relative to it. The
-  result is limited to 170 degrees.
+  weapon and arms get the same factor, so they keep the game's size relative
+  to the world at every setting. The result is limited to 170 degrees.
 - The view's stored angle (`+0x84`), Vegas 2's zoom sensitivity ratio and
   every other caller of the controller and camera field of view are unchanged.
 - All listed code is compared before installation. Any difference reports
@@ -73,5 +110,6 @@ object or its value is not available.
 
 - `tests/native/field_of_view_test.cpp` covers the request file, the scaling
   and the code checks with a synthetic image.
-- The byte signatures were compared against decrypted copies of both games'
-  executables. The setting has not been tested in a retail game launch.
+- The byte signatures, including the foreground ones, were compared against
+  decrypted copies of both games' executables. The setting, including the
+  weapon and arms, has not been tested in a retail game launch.
