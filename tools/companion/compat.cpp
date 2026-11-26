@@ -28,6 +28,7 @@
 #include "native_pec_defaults.h"
 #include "native_player_limit.h"
 #include "native_fire_sound_loop.h"
+#include "native_host_network_rate.h"
 #include "native_punkbuster.h"
 #include "native_awards.h"
 #include "native_gamepad.h"
@@ -48,7 +49,8 @@ static constexpr bool Dedicated=false;
 // per line. Absent file: every feature is installed. Unknown and companion-side
 // (ini) ids are ignored. Only the toggleable features below are affected.
 static bool ProceduralAnimationDisabled=false,SoloHuntDisabled=false,ReportXpDisabled=false,
-    RankDisabled=false,RankedAccessDisabled=false,PlayerLimitDisabled=false,FireSoundLoopDisabled=false;
+    RankDisabled=false,RankedAccessDisabled=false,PlayerLimitDisabled=false,FireSoundLoopDisabled=false,
+    HostNetworkRateDisabled=false;
 static void ReadNativeFeatures(){
     FILE* features=nullptr;
     if(_wfopen_s(&features,(Output+L"\\native-features.txt").c_str(),L"rb")||!features)return;
@@ -61,6 +63,7 @@ static void ReadNativeFeatures(){
         else if(!strcmp(id,"ranked-access"))RankedAccessDisabled=true;
         else if(!strcmp(id,"sixteen-players"))PlayerLimitDisabled=true;
         else if(!strcmp(id,"fire-sound-loop"))FireSoundLoopDisabled=true;
+        else if(!strcmp(id,"host-network-rate"))HostNetworkRateDisabled=true;
     }
     fclose(features);
 }
@@ -69,7 +72,8 @@ static std::string DisabledFeatures(){
     const struct {bool disabled;const char* id;} features[]{
         {ProceduralAnimationDisabled,"procedural-animation"},{SoloHuntDisabled,"solo-terrorist-hunt"},
         {ReportXpDisabled,"report-xp"},{RankDisabled,"player-rank"},{RankedAccessDisabled,"ranked-access"},
-        {PlayerLimitDisabled,"sixteen-players"},{FireSoundLoopDisabled,"fire-sound-loop"}};
+        {PlayerLimitDisabled,"sixteen-players"},{FireSoundLoopDisabled,"fire-sound-loop"},
+        {HostNetworkRateDisabled,"host-network-rate"}};
     for(const auto& feature:features){
         if(!feature.disabled)continue;
         if(!list.empty())list+=',';
@@ -218,6 +222,7 @@ static DWORD WINAPI NativeInitialize(LPVOID){
                 NativeReadiness::Executable(base+NativeReportXp::CoopRva)&&NativeReadiness::Executable(base+NativeReportXp::VersusRva)&&
                 NativeReadiness::Executable(base+NativePlayerLimit::MaxPlayersRva)&&NativeReadiness::Executable(base+NativePlayerLimit::ConstructorRva)&&
                 NativeReadiness::Executable(base+NativeFireSoundLoop::HandlerRva)&&NativeReadiness::Executable(base+NativeFireSoundLoop::TickRva)&&
+                NativeReadiness::Executable(base+NativeHostNetworkRate::TickFlushRva)&&NativeReadiness::Executable(base+NativeHostNetworkRate::ConnectionTickRva)&&
                 NativeReadiness::Executable(base+NativePunkBuster::SetupRvas[0])&&NativeReadiness::Executable(base+NativePunkBuster::StartRva)&&
                 NativeReadiness::Executable(base+NativeAwards::Rva(NativeAwards::GetterVa))&&NativeReadiness::Executable(base+NativeAwards::Rva(NativeAwards::SerializeVa));
             if(!Dedicated){
@@ -289,6 +294,8 @@ static DWORD WINAPI NativeInitialize(LPVOID){
             if(ready&&!Dedicated&&!ProceduralAnimationDisabled)ready=NativeProceduralAnimation::Install(base);
             if(ready&&!Dedicated&&!PlayerLimitDisabled)ready=NativePlayerLimit::Install(base);
             if(ready&&!Dedicated&&!FireSoundLoopDisabled)ready=NativeFireSoundLoop::Install(base);
+            // Reported on its own: a mismatch keeps the original host send rate.
+            if(ready&&!Dedicated&&!HostNetworkRateDisabled)NativeHostNetworkRate::Install(base);
             if(ready&&!Dedicated)ready=NativePunkBuster::Install(base);
             if(ready&&!Dedicated)ready=NativeAwards::Install(base,Output);
             // A requested field of view is reported on its own; the launcher checks it.
@@ -298,7 +305,7 @@ static DWORD WINAPI NativeInitialize(LPVOID){
         Sleep(100);
     }
     FILE* status=nullptr;_wfopen_s(&status,(Output+L"\\compat-status.tmp").c_str(),L"wb");
-    if(status){fprintf(status,"{\"ready\":%s,\"executablePagesReady\":%s,\"unlockTargetProtection\":%lu,\"unlockDetourProtection\":%lu,\"displayStyleVerified\":%s,\"claimedNameVerified\":%s,\"claimedNameInstalled\":%s,\"claimedNameStatus\":\"%s\",\"claimedSessionNameVerified\":%s,\"claimedSessionNameStatus\":\"%s\",\"reportXpVerified\":%s,\"reportXpStatus\":\"%s\",\"nativeRankVerified\":%s,\"remotePipelineRecognized\":%s,\"nativeRankStatus\":\"%s\",\"rankedAccessVerified\":%s,\"rankedAccessStatus\":\"%s\",\"nativeSoloHuntVerified\":%s,\"nativeSoloHuntStatus\":\"%s\",\"nativeStatisticsVerified\":%s,\"nativeRankedHostVerified\":%s,\"nativeRankedHostStatus\":\"%s\",\"nativePecDefaultsVerified\":%s,\"nativePecDefaultsStatus\":\"%s\",\"proceduralAnimationVerified\":%s,\"proceduralAnimationStatus\":\"%s\",\"playerLimitVerified\":%s,\"playerLimitStatus\":\"%s\",\"fireSoundLoopVerified\":%s,\"fireSoundLoopStatus\":\"%s\",\"punkBusterRemovedVerified\":%s,\"punkBusterRemovedStatus\":\"%s\",\"nativeAwardsVerified\":%s,\"nativeAwardsStatus\":\"%s\",\"gamepadVerified\":%s,\"gamepadStatus\":\"%s\",\"fieldOfViewRequested\":%d,\"fieldOfViewVerified\":%s,\"fieldOfViewStatus\":\"%s\",\"nativeVersion\":%u,\"signatures\":%u,\"taskHookStatus\":%d,\"prefillHookStatus\":%d,\"unlockHookStatus\":%d,\"nativeUnlockPolicyVerified\":%s,\"nativeUnlockPolicyStatus\":\"%s\",\"unlockVerified\":%s,\"moduleBase\":%lu,\"progression\":\"%s\",\"unlockPolicy\":\"%s\",\"disabledFeatures\":[%s]}\n",ready?"true":"false",executablePagesReady?"true":"false",unlockTargetProtection,unlockDetourProtection,displayStyleVerified?"true":"false",ClaimedName::Verified?"true":"false",ClaimedName::Installed?"true":"false",Dedicated?"notApplicable":ClaimedName::Error,NativeClaimedSessionName::Verified?"true":"false",Dedicated?"notApplicable":NativeClaimedSessionName::LastError(),NativeReportXp::Verified?"true":"false",Dedicated?"notApplicable":NativeReportXp::LastError(),NativeRank::Verified?"true":"false",NativeRank::RemotePipelineRecognized?"true":"false",Dedicated?"notApplicable":NativeRank::LastError(),NativeRankedAccess::Verified?"true":"false",Dedicated?"notApplicable":NativeRankedAccess::LastError(),NativeSoloHunt::Verified?"true":"false",NativeSoloHunt::LastError(),NativeHostStatistics::Verified?"true":"false",NativeRankedHost::Verified?"true":"false",NativeRankedHost::LastError(),NativePecDefaults::Verified?"true":"false",Dedicated?"notApplicable":NativePecDefaults::LastError(),NativeProceduralAnimation::Verified?"true":"false",Dedicated?"notApplicable":NativeProceduralAnimation::Error,NativePlayerLimit::Verified?"true":"false",Dedicated?"notApplicable":NativePlayerLimit::LastError(),NativeFireSoundLoop::Verified?"true":"false",Dedicated?"notApplicable":NativeFireSoundLoop::LastError(),NativePunkBuster::Verified?"true":"false",Dedicated?"notApplicable":NativePunkBuster::LastError(),NativeAwards::Verified?"true":"false",Dedicated?"notApplicable":NativeAwards::LastError(),NativeGamepad::Verified?"true":"false",Dedicated?"notApplicable":NativeGamepad::Error,FieldOfViewRequested,NativeFieldOfView::Verified?"true":"false",Dedicated?"notApplicable":NativeFieldOfView::Error,Dedicated?4u:14u,signatures,taskStatus,prefillStatus,unlockStatus,NativeUnlockPolicy::Verified?"true":"false",Dedicated?"notApplicable":NativeUnlockPolicy::LastError(),unlockVerified?"true":"false",DWORD(reinterpret_cast<ULONG_PTR>(base)),Dedicated?"nativeDedicatedDefaults":"nativeRawXp",Dedicated?"nativeDedicatedDefaults":"nativeItemBundleAvailability",DisabledFeatures().c_str());fclose(status);MoveFileExW((Output+L"\\compat-status.tmp").c_str(),(Output+L"\\compat-status.json").c_str(),MOVEFILE_REPLACE_EXISTING);}
+    if(status){fprintf(status,"{\"ready\":%s,\"executablePagesReady\":%s,\"unlockTargetProtection\":%lu,\"unlockDetourProtection\":%lu,\"displayStyleVerified\":%s,\"claimedNameVerified\":%s,\"claimedNameInstalled\":%s,\"claimedNameStatus\":\"%s\",\"claimedSessionNameVerified\":%s,\"claimedSessionNameStatus\":\"%s\",\"reportXpVerified\":%s,\"reportXpStatus\":\"%s\",\"nativeRankVerified\":%s,\"remotePipelineRecognized\":%s,\"nativeRankStatus\":\"%s\",\"rankedAccessVerified\":%s,\"rankedAccessStatus\":\"%s\",\"nativeSoloHuntVerified\":%s,\"nativeSoloHuntStatus\":\"%s\",\"nativeStatisticsVerified\":%s,\"nativeRankedHostVerified\":%s,\"nativeRankedHostStatus\":\"%s\",\"nativePecDefaultsVerified\":%s,\"nativePecDefaultsStatus\":\"%s\",\"proceduralAnimationVerified\":%s,\"proceduralAnimationStatus\":\"%s\",\"playerLimitVerified\":%s,\"playerLimitStatus\":\"%s\",\"fireSoundLoopVerified\":%s,\"fireSoundLoopStatus\":\"%s\",\"punkBusterRemovedVerified\":%s,\"punkBusterRemovedStatus\":\"%s\",\"nativeAwardsVerified\":%s,\"nativeAwardsStatus\":\"%s\",\"gamepadVerified\":%s,\"gamepadStatus\":\"%s\",\"hostNetworkRateVerified\":%s,\"hostNetworkRateStatus\":\"%s\",\"fieldOfViewRequested\":%d,\"fieldOfViewVerified\":%s,\"fieldOfViewStatus\":\"%s\",\"nativeVersion\":%u,\"signatures\":%u,\"taskHookStatus\":%d,\"prefillHookStatus\":%d,\"unlockHookStatus\":%d,\"nativeUnlockPolicyVerified\":%s,\"nativeUnlockPolicyStatus\":\"%s\",\"unlockVerified\":%s,\"moduleBase\":%lu,\"progression\":\"%s\",\"unlockPolicy\":\"%s\",\"disabledFeatures\":[%s]}\n",ready?"true":"false",executablePagesReady?"true":"false",unlockTargetProtection,unlockDetourProtection,displayStyleVerified?"true":"false",ClaimedName::Verified?"true":"false",ClaimedName::Installed?"true":"false",Dedicated?"notApplicable":ClaimedName::Error,NativeClaimedSessionName::Verified?"true":"false",Dedicated?"notApplicable":NativeClaimedSessionName::LastError(),NativeReportXp::Verified?"true":"false",Dedicated?"notApplicable":NativeReportXp::LastError(),NativeRank::Verified?"true":"false",NativeRank::RemotePipelineRecognized?"true":"false",Dedicated?"notApplicable":NativeRank::LastError(),NativeRankedAccess::Verified?"true":"false",Dedicated?"notApplicable":NativeRankedAccess::LastError(),NativeSoloHunt::Verified?"true":"false",NativeSoloHunt::LastError(),NativeHostStatistics::Verified?"true":"false",NativeRankedHost::Verified?"true":"false",NativeRankedHost::LastError(),NativePecDefaults::Verified?"true":"false",Dedicated?"notApplicable":NativePecDefaults::LastError(),NativeProceduralAnimation::Verified?"true":"false",Dedicated?"notApplicable":NativeProceduralAnimation::Error,NativePlayerLimit::Verified?"true":"false",Dedicated?"notApplicable":NativePlayerLimit::LastError(),NativeFireSoundLoop::Verified?"true":"false",Dedicated?"notApplicable":NativeFireSoundLoop::LastError(),NativePunkBuster::Verified?"true":"false",Dedicated?"notApplicable":NativePunkBuster::LastError(),NativeAwards::Verified?"true":"false",Dedicated?"notApplicable":NativeAwards::LastError(),NativeGamepad::Verified?"true":"false",Dedicated?"notApplicable":NativeGamepad::Error,NativeHostNetworkRate::Verified?"true":"false",Dedicated?"notApplicable":NativeHostNetworkRate::LastError(),FieldOfViewRequested,NativeFieldOfView::Verified?"true":"false",Dedicated?"notApplicable":NativeFieldOfView::Error,Dedicated?4u:14u,signatures,taskStatus,prefillStatus,unlockStatus,NativeUnlockPolicy::Verified?"true":"false",Dedicated?"notApplicable":NativeUnlockPolicy::LastError(),unlockVerified?"true":"false",DWORD(reinterpret_cast<ULONG_PTR>(base)),Dedicated?"nativeDedicatedDefaults":"nativeRawXp",Dedicated?"nativeDedicatedDefaults":"nativeItemBundleAvailability",DisabledFeatures().c_str());fclose(status);MoveFileExW((Output+L"\\compat-status.tmp").c_str(),(Output+L"\\compat-status.json").c_str(),MOVEFILE_REPLACE_EXISTING);}
     return ready?1:0;
 }
 extern "C" DWORD WINAPI StartCompanion(LPVOID configuration){

@@ -24,6 +24,7 @@ public static class TitleCatalog
     public const string HuntEnemies = "terrorist-hunt-enemies";
     public const string LargeAddressAware = "large-address-aware";
     public const string FireSoundLoop = "fire-sound-loop";
+    public const string HostNetworkRate = "host-network-rate";
     public const string Controller = "controller";
     public const string PunkBusterRemoved = "punkbuster-removed";
     public const string LeaderboardLabels = "leaderboard-labels";
@@ -80,6 +81,11 @@ public static class TitleCatalog
             new(FireSoundLoop, "Stuck gunfire sound",
                 "Stop other players' automatic fire sounds from looping after they stop shooting.",
                 "Online, the host sends the start and end of another player's automatic fire sound as two messages that can be lost or skipped at a distance. A lost end message leaves the sound looping. When that player has stopped firing and no end arrived, the game's own end sound is played in your game.",
+                FixSection.GameFixes, FixKind.AlwaysOn),
+            // The adapter reports hostNetworkRateVerified. A mismatch keeps the original rate and does not block launch.
+            new(HostNetworkRate, "Host network rate",
+                "When you host, send updates to other players at the game's server rate instead of on every frame.",
+                "A player hosting from Create Match has no network rate limit in the original, so a fast PC sends a small packet to each player on almost every frame. Each packet's overhead counts against that player's 10000 bytes per second, which delays or drops movement, doors, sounds and hit positions for players who joined. When you host, this sends at most at the game's own server rate (NetServerMaxTickRate, 30 by default), as the original does for a dedicated server. Your frame rate is not limited. Players who joined need no change.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             // The adapter reports punkBusterRemovedVerified (Create Match CB_PBServer).
             new(PunkBusterRemoved, "PunkBuster settings removed",
