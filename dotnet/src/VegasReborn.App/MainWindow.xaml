@@ -140,8 +140,12 @@
                           DataContext="{Binding SelectedGame}">
                 <StackPanel>
                     <!-- Game banner -->
-                    <Grid Height="230">
-                        <Image Source="Assets/vegas-night.png" Stretch="UniformToFill" VerticalAlignment="Center" />
+                    <!-- The banner sizes to the title row; the skyline fills it without adding height. -->
+                    <Grid MinHeight="120">
+                        <Grid.Background>
+                            <ImageBrush ImageSource="Assets/vegas-night.png" Stretch="UniformToFill" AlignmentY="Bottom"
+                                        ViewboxUnits="RelativeToBoundingBox" Viewbox="0,0.4,1,0.26" />
+                        </Grid.Background>
                         <Rectangle>
                             <Rectangle.Fill>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
@@ -150,7 +154,7 @@
                                 </LinearGradientBrush>
                             </Rectangle.Fill>
                         </Rectangle>
-                        <DockPanel VerticalAlignment="Bottom" Margin="40,0,40,24">
+                        <DockPanel VerticalAlignment="Bottom" Margin="40,36,40,20">
                             <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Content="Launch game" VerticalAlignment="Bottom" Command="{Binding LaunchCommand}" />
                             <StackPanel>
                                 <TextBlock Text="{Binding Name}" FontFamily="{StaticResource DisplayFont}" FontWeight="Bold" FontSize="38" TextWrapping="Wrap" />
