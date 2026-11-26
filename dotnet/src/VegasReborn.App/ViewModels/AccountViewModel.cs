@@ -105,6 +105,7 @@ public sealed class AccountViewModel : ObservableObject
         {
             OnPropertyChanged(name);
         }
+        owner.RefreshRanks();
         CommandManager.InvalidateRequerySuggested();
     }
 

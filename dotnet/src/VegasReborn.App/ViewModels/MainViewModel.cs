@@ -364,6 +364,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Re-reads each title's saved rank shown in the game list.</summary>
+    public void RefreshRanks()
+    {
+        foreach (var game in Games)
+        {
+            game.RefreshRank(CompanionAccount);
+        }
+    }
+
     /// <summary>Runs an account or sync action under the busy flag, showing its status.</summary>
     public async Task RunBusyAsync(Func<IProgress<string>, Task> action)
     {

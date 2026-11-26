@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -36,12 +37,38 @@ public sealed record RetailRank(
     uint? ExperienceToNext,
     double? ProgressToNext)
 {
+    /// <summary>The rank name in title case, for example "Private Second Class".</summary>
+    public string Title => CultureInfo.InvariantCulture.TextInfo.ToTitleCase(Label.ToLowerInvariant());
+
+    /// <summary>Fill for a progress bar toward the next step, 0 to 1. Full at the maximum rank.</summary>
+    public double BarProgress => Math.Clamp(ProgressToNext ?? 1.0, 0.0, 1.0);
+
+    /// <summary>Pips shown for each rank name: six records per name give subranks 0 to 5.</summary>
+    public const int PipCount = 5;
+
+    /// <summary>
+    /// Fill for each of the five pips, 0 to 1: earned pips are full, the next pip shows
+    /// progress toward the next step, later pips are empty. All full at the maximum rank.
+    /// </summary>
+    public IReadOnlyList<double> PipFill
+    {
+        get
+        {
+            var fill = new double[PipCount];
+            for (var i = 0; i < PipCount; i++)
+            {
+                fill[i] = i < Subrank || ProgressToNext is null ? 1.0 : i == Subrank ? BarProgress : 0.0;
+            }
+            return fill;
+        }
+    }
+
     /// <summary>The companion's rank text, for example "Private First Class  /  1/5\n1,100 XP  ·  400 XP to the next step".</summary>
     public string DisplayText
     {
         get
         {
-            var title = CultureInfo.InvariantCulture.TextInfo.ToTitleCase(Label.ToLowerInvariant());
+            var title = Title;
             var next = ExperienceToNext is { } remaining
                 ? remaining.ToString("N0", CultureInfo.InvariantCulture) + " XP to the next step"
                 : "Maximum rank";
@@ -205,6 +232,36 @@ public sealed class RankTable
     {
         var experience = PecArchive.ReadXp(ReadPrefix(pecFile, PecArchive.MaxBytes + 1));
         return Load(gameRoot).RankForExperience(experience);
+    }
+
+    private static readonly ConcurrentDictionary<string, RankTable> LoadedTables = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The saved character's rank, or null when there is no character file, the game folder
+    /// does not hold the inspected original data, or either file is unreadable. Writes nothing.
+    /// A successfully parsed table is reused for the same game folder.
+    /// </summary>
+    public static RetailRank? TryReadRank(string? pecFile, string? gameRoot)
+    {
+        if (string.IsNullOrEmpty(pecFile) || string.IsNullOrEmpty(gameRoot) || !File.Exists(pecFile))
+        {
+            return null;
+        }
+        try
+        {
+            var key = Path.GetFullPath(gameRoot);
+            if (!LoadedTables.TryGetValue(key, out var table))
+            {
+                table = Load(key);
+                LoadedTables[key] = table;
+            }
+            return ReadRank(pecFile, table);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException
+            or RankSourceException or ArgumentException or NotSupportedException)
+        {
+            return null;
+        }
     }
 
     /// <summary>

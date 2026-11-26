@@ -1,8 +1,13 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Microsoft.Win32;
+using VegasReborn.Core.Account;
 using VegasReborn.Core.Display;
+using VegasReborn.Core.Profiles;
+using VegasReborn.Core.Profiles.Vegas1;
 using VegasReborn.Core.Settings;
 using VegasReborn.Core.Titles;
 
@@ -102,6 +107,9 @@ public sealed class GameViewModel : ObservableObject
     private readonly FixViewModel skipIntrosRow;
     private string status = "";
     private bool isPlaying;
+    private RetailRank? rank;
+    private ImageSource? rankIcon;
+    private static readonly Dictionary<string, ImageSource?> RankIcons = new(StringComparer.OrdinalIgnoreCase);
 
     public GameViewModel(GameTitle title, MainViewModel owner, IFixSettings settings)
     {
@@ -163,6 +171,87 @@ public sealed class GameViewModel : ObservableObject
         private set => Set(ref status, value);
     }
 
+    /// <summary>The signed-in player's saved rank for this title, or null when none is known.</summary>
+    public RetailRank? Rank
+    {
+        get => rank;
+        private set
+        {
+            if (!Equals(rank, value))
+            {
+                rank = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(HasRank));
+                OnPropertyChanged(nameof(RankDetails));
+                OnPropertyChanged(nameof(RankAccessibleName));
+            }
+        }
+    }
+
+    public bool HasRank => Rank is not null;
+
+    /// <summary>The game's insignia for <see cref="Rank"/>, or null when the game folder does not have it.</summary>
+    public ImageSource? RankIcon
+    {
+        get => rankIcon;
+        private set
+        {
+            if (Set(ref rankIcon, value))
+            {
+                OnPropertyChanged(nameof(HasRankIcon));
+            }
+        }
+    }
+
+    public bool HasRankIcon => RankIcon is not null;
+    public string RankDetails => Rank?.DisplayText ?? "";
+    public string RankAccessibleName => Rank is { } r
+        ? $"Rank: {r.Title}, {r.Subrank} of {RetailRank.PipCount} pips, {Math.Round(r.BarProgress * 100)} percent to the next step"
+        : "";
+
+    /// <summary>
+    /// Re-reads the saved character's rank. Only Vegas 1 character saves and rank data are
+    /// decoded; guests and other titles show no rank.
+    /// </summary>
+    public void RefreshRank(CompanionAccount account)
+    {
+        RetailRank? read = null;
+        if (account.Session is { IsGuest: false } session && Title.Key == TitleCatalog.Vegas1.Key)
+        {
+            try
+            {
+                read = RankTable.TryReadRank(account.SyncFor(Title).ProgressionFile(session), GameFolder);
+            }
+            catch (Exception error) when (error is ProfileSyncException or ArgumentException or IOException)
+            {
+                read = null;
+            }
+        }
+        Rank = read;
+        RankIcon = read is null ? null : LoadRankIcon(GameFolder, read.LabelKey);
+    }
+
+    private static ImageSource? LoadRankIcon(string gameFolder, string labelKey)
+    {
+        var path = RankInsignia.PathFor(gameFolder, labelKey);
+        if (RankIcons.TryGetValue(path, out var cached))
+        {
+            return cached;
+        }
+        ImageSource? icon = null;
+        if (RankInsignia.TryLoad(gameFolder, labelKey) is { } image)
+        {
+            var bitmap = BitmapSource.Create(image.Width, image.Height, 96, 96, PixelFormats.Bgra32, null, image.Bgra, image.Width * 4);
+            bitmap.Freeze();
+            icon = bitmap;
+        }
+        if (icon is not null)
+        {
+            RankIcons[path] = icon;
+        }
+        return icon;
+    }
+
     public bool IsPlaying
     {
         get => isPlaying;
@@ -189,6 +278,7 @@ public sealed class GameViewModel : ObservableObject
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(FolderFound));
                 RefreshStatus();
+                RefreshRank(owner.CompanionAccount);
             }
         }
     }

@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Security.Cryptography;
 using VegasReborn.Core.Profiles.Vegas1;
 
@@ -210,5 +211,170 @@ public sealed class Vegas1Tests
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+    [Fact]
+    public void SidebarRankIsNullWithoutCharacterOrOriginalData()
+    {
+        var directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "vr-rank-" + Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            var target = Path.Combine(directory, "R6_PECPEC");
+            File.WriteAllBytes(target, PecArchive.PatchXp(RetailProfileSyncTests.Fixture(), 1100));
+            Assert.Null(RankTable.TryReadRank(null, Reference));
+            Assert.Null(RankTable.TryReadRank(target, null));
+            Assert.Null(RankTable.TryReadRank(Path.Combine(directory, "missing", "R6_PECPEC"), Reference));
+            // A folder without the original rank data.
+            Assert.Null(RankTable.TryReadRank(target, directory));
+            if (!HasReference)
+            {
+                return;
+            }
+            var bad = File.ReadAllBytes(target);
+            bad[17] ^= 1;
+            var corrupt = Path.Combine(directory, "corrupt");
+            File.WriteAllBytes(corrupt, bad);
+            Assert.Null(RankTable.TryReadRank(corrupt, Reference));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void SidebarRankReadsTitleAndProgressFromOriginalThresholds()
+    {
+        if (!HasReference)
+        {
+            return;
+        }
+        var directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "vr-rank-" + Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            var target = Path.Combine(directory, "R6_PECPEC");
+            // 1100 XP: record 2 (1000..1500) in the original table, a fifth of the way to the next step.
+            File.WriteAllBytes(target, PecArchive.PatchXp(RetailProfileSyncTests.Fixture(), 1100));
+            var before = File.ReadAllBytes(target);
+            var rank = RankTable.TryReadRank(target, Reference)!;
+            Assert.Equal("Private Second Class", rank.Title);
+            Assert.Equal(2, rank.Subrank);
+            Assert.Equal(0.2, rank.BarProgress, 9);
+            Assert.Equal(before, File.ReadAllBytes(target));
+
+            // Exactly on a threshold starts the bar empty; the step below it is the previous label's last pip.
+            File.WriteAllBytes(target, PecArchive.PatchXp(RetailProfileSyncTests.Fixture(), 3000));
+            rank = RankTable.TryReadRank(target, Reference)!;
+            Assert.Equal(("Private First Class", 0, 0.0), (rank.Title, rank.Subrank, rank.BarProgress));
+            File.WriteAllBytes(target, PecArchive.PatchXp(RetailProfileSyncTests.Fixture(), 2999));
+            rank = RankTable.TryReadRank(target, Reference)!;
+            Assert.Equal(("Private Second Class", 5), (rank.Title, rank.Subrank));
+            Assert.InRange(rank.BarProgress, 0.99, 1.0);
+
+            // The maximum rank has no next step and shows a full bar.
+            File.WriteAllBytes(target, PecArchive.PatchXp(RetailProfileSyncTests.Fixture(), uint.MaxValue));
+            rank = RankTable.TryReadRank(target, Reference)!;
+            Assert.Equal(("Elite", 1.0), (rank.Title, rank.BarProgress));
+            Assert.Null(rank.ProgressToNext);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void BarProgressIsClampedAndFullAtMaximum()
+    {
+        RetailRank Make(double? progress) => new(0, 0, 1, 0, 0, "RankPrivate2ndclass", "LIEUTENANT COLONEL", 0, null, null, progress);
+        Assert.Equal(1.0, Make(null).BarProgress);
+        Assert.Equal(0.0, Make(-0.5).BarProgress);
+        Assert.Equal(1.0, Make(1.5).BarProgress);
+        Assert.Equal(0.25, Make(0.25).BarProgress);
+        Assert.Equal("Lieutenant Colonel", Make(0).Title);
+    }
+    [Fact]
+    public void PipsFillEarnedStepsThenProgress()
+    {
+        RetailRank Make(int subrank, double? progress) => new(0, 0, 1, 0, subrank, "RankCaptain", "CAPTAIN", 0, null, null, progress);
+        Assert.Equal([0.0, 0.0, 0.0, 0.0, 0.0], Make(0, 0).PipFill);
+        Assert.Equal([1.0, 1.0, 0.25, 0.0, 0.0], Make(2, 0.25).PipFill);
+        Assert.Equal([1.0, 1.0, 1.0, 1.0, 1.0], Make(5, 0.5).PipFill);
+        Assert.Equal([1.0, 1.0, 1.0, 1.0, 1.0], Make(5, null).PipFill);
+    }
+
+    [Fact]
+    public void EveryRankNameHasSixStepsInTheOriginalTable()
+    {
+        if (!HasReference)
+        {
+            return;
+        }
+        var table = RankTable.Load(Reference);
+        var groups = table.Records.GroupBy(row => row.Ordinal).ToList();
+        Assert.Equal(17, groups.Count);
+        Assert.All(groups, group => Assert.Equal(RetailRank.PipCount + 1, group.Count()));
+        Assert.DoesNotContain(table.Records, row => row.Ordinal == 0);
+    }
+
+    private static byte[] Tga(int width, int height, byte descriptor, Func<int, int, byte> shade, int type = 2, int depth = 32)
+    {
+        var data = new byte[18 + width * height * 4];
+        data[2] = (byte)type;
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(12), (ushort)width);
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(14), (ushort)height);
+        data[16] = (byte)depth;
+        data[17] = descriptor;
+        for (var row = 0; row < height; row++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                var at = 18 + (row * width + x) * 4;
+                data[at] = shade(row, x);
+                data[at + 3] = 255;
+            }
+        }
+        return data;
+    }
+
+    [Fact]
+    public void InsigniaDecodesStoredRowOrder()
+    {
+        // Bottom-left origin (descriptor 8): the first stored row is the bottom row.
+        var bottomFirst = RankInsignia.Decode(Tga(2, 2, 8, (row, x) => (byte)(row * 10 + x)));
+        Assert.Equal((2, 2), (bottomFirst.Width, bottomFirst.Height));
+        Assert.Equal([10, 11, 0, 1], new[] { bottomFirst.Bgra[0], bottomFirst.Bgra[4], bottomFirst.Bgra[8], bottomFirst.Bgra[12] });
+        var topFirst = RankInsignia.Decode(Tga(2, 2, 0x28, (row, x) => (byte)(row * 10 + x)));
+        Assert.Equal([0, 1, 10, 11], new[] { topFirst.Bgra[0], topFirst.Bgra[4], topFirst.Bgra[8], topFirst.Bgra[12] });
+        Assert.Equal(255, topFirst.Bgra[3]);
+    }
+
+    [Fact]
+    public void InsigniaRejectsOtherFormats()
+    {
+        Assert.Throws<InvalidDataException>(() => RankInsignia.Decode(new byte[10]));
+        Assert.Throws<InvalidDataException>(() => RankInsignia.Decode(Tga(2, 2, 8, (_, _) => 0, type: 10)));
+        Assert.Throws<InvalidDataException>(() => RankInsignia.Decode(Tga(2, 2, 0, (_, _) => 0)));
+        Assert.Throws<InvalidDataException>(() => RankInsignia.Decode(Tga(2, 2, 8, (_, _) => 0)[..^1]));
+        Assert.Null(RankInsignia.TryLoad(null, "RankCaptain"));
+        Assert.Null(RankInsignia.TryLoad(Path.GetTempPath(), "RankCaptain"));
+        Assert.Null(RankInsignia.TryLoad(Reference, "../../Binaries/R6Vegas_Game"));
+    }
+
+    [Fact]
+    public void InsigniaLoadsForEveryRankThatHasRecords()
+    {
+        if (!HasReference)
+        {
+            return;
+        }
+        foreach (var key in RankTable.RankLabelKeys.Skip(1))
+        {
+            var image = RankInsignia.TryLoad(Reference, key);
+            Assert.NotNull(image);
+            Assert.Equal((48, 48, 48 * 48 * 4), (image.Width, image.Height, image.Bgra.Length));
+            Assert.Contains(image.Bgra.Where((_, i) => i % 4 == 3), alpha => alpha != 0);
+        }
+        // Recruit has no shipped icon.
+        Assert.Null(RankInsignia.TryLoad(Reference, "RankRecruit"));
     }
 }

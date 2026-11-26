@@ -113,9 +113,40 @@
                          AutomationProperties.Name="Games">
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:GameViewModel}">
-                            <StackPanel>
-                                <TextBlock Text="{Binding Name}" FontFamily="{StaticResource DisplayFont}" FontWeight="SemiBold" FontSize="17" TextWrapping="Wrap" />
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="{Binding Name}" FontFamily="{StaticResource DisplayFont}" FontWeight="SemiBold" FontSize="17" TextWrapping="Wrap"
+                                           VerticalAlignment="Center" />
+                                <!-- Saved rank: the game's insignia over five pips. Hidden when no rank is known. -->
+                                <StackPanel Grid.Column="1" Grid.RowSpan="2" Width="46" Margin="10,0,0,0" VerticalAlignment="Center"
+                                            Visibility="{Binding HasRank, Converter={StaticResource Visible}}"
+                                            ToolTip="{Binding RankDetails}" AutomationProperties.Name="{Binding RankAccessibleName}">
+                                    <Image Source="{Binding RankIcon}" Width="32" Height="32" HorizontalAlignment="Center"
+                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                           Visibility="{Binding HasRankIcon, Converter={StaticResource Visible}}" />
+                                    <ItemsControl ItemsSource="{Binding Rank.PipFill}" Margin="0,4,0,0" Focusable="False" IsTabStop="False">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Rows="1" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <ProgressBar Height="4" Margin="1,0" Minimum="0" Maximum="1" Value="{Binding Mode=OneWay}"
+                                                             Background="{StaticResource Line}" Foreground="{StaticResource Accent}"
+                                                             BorderThickness="0" Focusable="False" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                                <DockPanel Grid.Row="1" Margin="0,4,0,0" LastChildFill="True">
                                     <Ellipse Width="7" Height="7" VerticalAlignment="Center" Margin="0,0,7,0">
                                         <Ellipse.Style>
                                             <Style TargetType="Ellipse">
@@ -129,8 +160,11 @@
                                         </Ellipse.Style>
                                     </Ellipse>
                                     <TextBlock Text="{Binding Status}" Style="{StaticResource MutedText}" FontSize="13" />
-                                </StackPanel>
-                            </StackPanel>
+                                    <TextBlock Text="{Binding Rank.Title}" Style="{StaticResource MutedText}" FontSize="12" Margin="10,0,0,0"
+                                               HorizontalAlignment="Right" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               Visibility="{Binding HasRank, Converter={StaticResource Visible}}" />
+                                </DockPanel>
+                            </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
