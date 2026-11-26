@@ -138,23 +138,25 @@
 
             <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False"
                           DataContext="{Binding SelectedGame}">
-                <StackPanel>
-                    <!-- Game banner -->
-                    <!-- The banner sizes to the title row; the skyline fills it without adding height. -->
-                    <Grid MinHeight="120">
-                        <Grid.Background>
-                            <ImageBrush ImageSource="Assets/vegas-night.png" Stretch="UniformToFill" AlignmentY="Bottom"
-                                        ViewboxUnits="RelativeToBoundingBox" Viewbox="0,0.4,1,0.26" />
-                        </Grid.Background>
+                <Grid>
+                    <!-- Skyline backdrop: sits behind the top of the page and fades into the background. -->
+                    <Grid Height="230" VerticalAlignment="Top" IsHitTestVisible="False">
+                        <Image Source="Assets/vegas-night.png" Stretch="UniformToFill" VerticalAlignment="Center" />
                         <Rectangle>
                             <Rectangle.Fill>
                                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                                     <GradientStop Color="#33111513" Offset="0" />
-                                    <GradientStop Color="#F2111513" Offset="1" />
+                                    <GradientStop Color="#99111513" Offset="0.5" />
+                                    <GradientStop Color="#FF111513" Offset="1" />
                                 </LinearGradientBrush>
                             </Rectangle.Fill>
                         </Rectangle>
-                        <DockPanel VerticalAlignment="Bottom" Margin="40,36,40,20">
+                    </Grid>
+
+                <StackPanel>
+                    <!-- Game banner -->
+                    <Grid>
+                        <DockPanel Margin="40,36,40,20">
                             <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Content="Launch game" VerticalAlignment="Bottom" Command="{Binding LaunchCommand}" />
                             <StackPanel>
                                 <TextBlock Text="{Binding Name}" FontFamily="{StaticResource DisplayFont}" FontWeight="Bold" FontSize="38" TextWrapping="Wrap" />
@@ -294,6 +296,7 @@
                         </ItemsControl>
                     </StackPanel>
                 </StackPanel>
+                </Grid>
             </ScrollViewer>
         </Grid>
 
