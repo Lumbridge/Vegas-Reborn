@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <Version>0.5.12</Version>
+    <Version>0.5.13</Version>
     <Company>Vegas Reborn</Company>
     <Product>Vegas Reborn</Product>
     <LangVersion>latest</LangVersion>
