@@ -93,5 +93,4 @@ the companion requires `proceduralAnimationVerified` in its startup report.
 
 The test companion is prepared in a separate worktree with separate game and
 profile directories. No unpublished candidate replaces the normal installed app.
-There is no established startup-safe private-audio route for an automated launch
-of this candidate; its retail launch must be user-operated until one is verified.
+This candidate has not been launched in the retail game.

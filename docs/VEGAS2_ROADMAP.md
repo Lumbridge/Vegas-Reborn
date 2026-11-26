@@ -41,7 +41,7 @@ Exit criterion: the original Vegas 2 client signs in to a local backend.
    isolation, DNS and `connect()` redirect, a `signature.pub` replacement in the
    companion's copy). For the spike, sign in manually with a test credential, so
    no title RVAs are needed yet.
-4. Manual acceptance run with the original client (startup-safe audio route).
+4. Acceptance run with the original client.
    Record which services and operations it calls after sign-in.
 
 ## Phase 2 — Rust backend

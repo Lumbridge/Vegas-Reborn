@@ -84,7 +84,6 @@ addresses `0x280` lower in this range.
 
 ## Not verified
 
-No retail launch was run: there is no established startup-safe private-audio
-route for an automated launch. The byte signatures match the decrypted client
+No retail launch was run. The byte signatures match the decrypted client
 image, and the adapter fails closed (`codeMismatch`) if they do not match at
 runtime.

@@ -93,7 +93,6 @@ outside Git; the installed game is not modified.
 
 ## Not verified
 
-No retail launch was run: there is no established startup-safe private-audio
-route for an automated launch. The byte signatures and widget names match the
+No retail launch was run. The byte signatures and widget names match the
 decrypted client image, and the adapter reports `nativeSignatureMismatch` if
 they do not match at runtime. The launcher requires `punkBusterRemovedVerified`.

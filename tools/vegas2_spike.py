@@ -6,7 +6,7 @@ VegasCompanionVegas2.dll adapter, and starts the copy through Steam. Sign in
 manually in the game with a test credential from the realm. No game code is
 patched. The installed game is read only.
 
-Run it yourself, with the startup-safe private audio route, after building
+Run it after building
 with: tools/companion/Build-Companion.ps1 -Vegas2 (plus the normal build for
 the gate and injector).
 """

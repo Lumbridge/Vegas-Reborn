@@ -21,7 +21,6 @@
 - Content id `vegas1-maps-pack`, title `vegas1`.
 - Added mode sections: keys `m_eGameMode`, `m_szMissionType` (A&D only, `R6ObjectiveExtractionItem`), `m_iMissionOrderId`, `m_iMaxPlayers=16`, `m_iMaxPlayersListenServer=16`. Story co-op stays at 4.
 - Run `dotnet test dotnet/VegasReborn.slnx` after every task. Run `python -m unittest discover -s tests -v` only if Python transport/updater code is touched (it is not, in this plan).
-- Retail launches require the established startup-safe private-audio route for that test.
 - Branch `feature/maps-pack`; finish by merging into `main` (no PR).
 
 ## Review Focus
@@ -42,7 +41,7 @@ Manual, no product code. Decides whether Task 6 needs the `+Paths` fallback.
 
 - [ ] **Step 1:** Extract the user's Maps Pack (`C:\Users\ryans\Desktop\Rainbow-Six-Vegas-One-Extra-Maps.exe`) into a scratch folder outside the repo with `7z x`, then extract `data1.cab`/`data2.cab` with an InstallShield cab tool (e.g. `unshield` or `i6comp`). Do not run `setup.exe`.
 - [ ] **Step 2:** Copy only `KellerGame\Content\CookedPc\MapsPack\`, `KellerGame\Localization\*\PAK_*` and `KellerGame\ImageMap\PAK_*.dds` into the launcher's Vegas 1 game copy (`<root>\local\companion\game`), never the installed game.
-- [ ] **Step 3:** Launch through the launcher with the private-audio route. Expected: pack maps (e.g. Kitchen, Tower) appear in Create Match and one loads.
+- [ ] **Step 3:** Launch through the launcher. Expected: pack maps (e.g. Kitchen, Tower) appear in Create Match and one loads.
 - [ ] **Step 4:** If they do not appear, add `+Paths=..\KellerGame\Content\CookedPc\MapsPack` under the existing `+Paths=` lines in the copy's `KellerGame/Config/PC/DefaultEngine.ini` and retry. Record which variant works.
 - [ ] **Step 5:** Remove the copied files from the game copy (or delete the copy so it is rebuilt). Commit the spec update:
 
@@ -290,6 +289,6 @@ Exact copy:
 
 - [ ] **Step 1:** Ask the user for the public content repository name and confirm it is not `Lumbridge/Vegas-Reborn`. Set `ContentInfo.Repository`.
 - [ ] **Step 2:** In the backend project (not this repo), the user or a backend session publishes release `vegas1-maps-pack-v1`: zips per `MapsPack/PAK_*` folder plus one `PAK_Common.zip` for Localization and ImageMap files, then `content.json` signed with the release key into `content.sig`. Paths, prefixes and schema are as in Task 3.
-- [ ] **Step 3:** Retail checks with the private-audio route, using an isolated acceptance install (never the user's normal app): (1) Download from the button; pack maps appear and load. (2) Each added mode appears on a listed story mission, and one runs. (3) Host with the pack while a second client without it joins; record the result in the spec. (4) Remove, relaunch, and confirm stock maps only.
+- [ ] **Step 3:** Retail checks, using an isolated acceptance install (never the user's normal app): (1) Download from the button; pack maps appear and load. (2) Each added mode appears on a listed story mission, and one runs. (3) Host with the pack while a second client without it joins; record the result in the spec. (4) Remove, relaunch, and confirm stock maps only.
 - [ ] **Step 4:** Update the docs, run the full suite, commit: `git commit -m "Document the Maps Pack"`.
 - [ ] **Step 5:** Merge `feature/maps-pack` into `main` (no PR), per project practice. Releasing the launcher follows `tools/build_release.py` / `tools/publish_release.py` separately.

@@ -226,7 +226,7 @@ offered as a separate toggle.
   identical to before, ini edits are idempotent and reversible.
 - `python -m unittest discover -s tests -v` if any Python transport/updater code is
   touched.
-- **Retail checks** (need the startup-safe private-audio route per AGENTS.md):
+- **Retail checks**:
   1. The supported Steam build lists and loads a pack map.
   2. A story mission appears and runs in each added mode.
   3. Host with the pack, joiner without it: record what happens (clean refusal,

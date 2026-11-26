@@ -90,7 +90,6 @@ readiness requirement. These are synthetic checks, not retail interoperability.
 The ignored research exports are in the separate backend workspace under
 `local/analysis/report-xp/`. Game files and captures are excluded from Git.
 Rendered layout, natural match completion and host/remote-player reports still
-require a live retail check. The current retail harness states that private
-audio is unverified and requires normal-audio authorization. No automated
-retail process was launched, and live acceptance remains open. Signed release publication and installation
+require a live retail check. No retail process was launched, and live
+acceptance remains open. Signed release publication and installation
 are recorded separately from these implementation checks.

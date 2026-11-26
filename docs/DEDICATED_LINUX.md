@@ -44,8 +44,7 @@ which is the same Linux kernel Docker Desktop uses.
 
 ## Audio
 
-AGENTS.md requires a startup-safe private-audio route before automated retail
-launches. Every server run in this spike had audio disabled in two ways:
+Every server run in this spike had audio disabled in two ways:
 
 ```sh
 # once, when creating the prefix
@@ -173,11 +172,8 @@ each run.
 
 Not tested. Three things are needed:
 
-1. **A retail client launch with an established private-audio route.** Joining
-   needs the retail Vegas client running on Windows. AGENTS.md does not allow
-   automated retail launches without a startup-safe private-audio route for that
-   test, and none was set up for this spike. Someone has to run the client by
-   hand or set up that route first.
+1. **A retail client launch.** Joining needs the retail Vegas client running on
+   Windows, and none was launched for this spike.
 2. **A server address the client can reach.** The LAN run uses
    `MULTIHOME=127.0.0.3`, which inside WSL2 or a container is that machine's own
    loopback and cannot be reached from Windows. A run with
