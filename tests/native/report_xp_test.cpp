@@ -44,7 +44,7 @@ int main(){
     auto award=X::ForReport(report);
     ok=ok&&award.known&&award.earned==250&&X::At<unsigned>(Profiles[0],0x10)==250;
     X::CoopReport(report,award);
-    ok=ok&&Labels[label]==L"SCORE / XP EARNED"&&Labels[score]==L"500 / 250 XP";
+    ok=ok&&Labels[label]==L"SCORE / XP"&&Labels[score]==L"500 / 250 XP";
     X::CoopReport(report,award);ok=ok&&Labels[score]==L"500 / 250 XP";
     BYTE failure[0x50]{};Put(report,0xd4,failure+0);Text(failure,nullptr,L"YOUR TEAM WAS ELIMINATED...");
     X::CoopFailure(report,award);X::CoopFailure(report,award);
@@ -61,16 +61,16 @@ int main(){
     Put(report,0xc0,0u);X::Coop(report,nullptr);
     ok=ok&&Labels[failure]==L"YOUR TEAM WAS ELIMINATED...\nXP EARNED: 250 XP";
     Put(report,0,image+0x15b6c44);
-    for(Mode=1;Mode<=6;++Mode){X::Versus(report,nullptr);ok=ok&&Labels[value]==L"250 XP";}
+    for(Mode=1;Mode<=6;++Mode){X::Versus(report,nullptr);ok=ok&&Labels[value]==L"250";}
     // A real zero award replaces the previous match's250, rather than accumulating it.
     Delta=0;X::Calculate(controller,nullptr,0,nullptr);X::VersusReport(report,X::ForReport(report));
-    ok=ok&&Labels[label]==L"XP EARNED"&&Labels[value]==L"0 XP";
+    ok=ok&&Labels[label]==L"XP EARNED"&&Labels[value]==L"0";
     Delta=60;X::Calculate(controller,nullptr,1,nullptr);
     ok=ok&&X::ForReport(report).earned==0;
     Put(persona,0x48,1u);ok=ok&&X::ForReport(report).earned==60;
     // Failed or missing-profile transactions must not display a stale or fabricated zero.
     Succeed=false;X::Calculate(controller,nullptr,1,nullptr);X::VersusReport(report,X::ForReport(report));
-    ok=ok&&!X::ForReport(report).known&&Labels[value]==L"XP unavailable";
+    ok=ok&&!X::ForReport(report).known&&Labels[value]==L"N/A";
     Succeed=true;Missing=true;X::Calculate(controller,nullptr,1,nullptr);
     ok=ok&&!X::ForReport(report).known;
     Missing=false;Delta=1;Put(Profiles[1],0x10,0xffffffffu);X::Calculate(controller,nullptr,1,nullptr);

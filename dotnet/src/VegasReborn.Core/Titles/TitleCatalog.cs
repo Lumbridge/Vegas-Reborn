@@ -94,7 +94,7 @@ public static class TitleCatalog
                 FixSection.GameFixes, FixKind.AlwaysOn),
             new(ReportXp, "Match XP report",
                 "Show the XP earned at the end of a match.",
-                "Reads your character's XP before and after the original end-of-match award and shows the difference. It does not change rewards.",
+                "Reads your character's XP before and after the original end-of-match award and shows the difference. The launcher's game copy widens the co-op score cell so the XP fits beside the score. It does not change rewards.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
             new(LeaderboardLabels, "Leaderboard map labels",
                 "Stop the map names under the leaderboards from overlapping.",

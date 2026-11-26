@@ -3,8 +3,9 @@
 The client adapter adds the local player's actual saved PEC XP award to the
 original co-op and competitive post-game reports. Co-op's successful report
 keeps the original mission score and displays `score / earned XP` in its total
-row. Its failure description retains the original message and adds earned XP
-on a following line. Competitive results label their final award `XP EARNED`.
+row, labelled `SCORE / XP`. Its failure description retains the original message
+and adds earned XP on a following line. Competitive results label their final
+award `XP EARNED` and show the number alone.
 The scope includes competitive modes1–6, co-op story7 and co-op Hunt8, using
 the original game-mode getter. This does not add a reward or change its amount.
 
@@ -44,8 +45,37 @@ Native reports are restricted to their original vtables, multiplayer modes and
 an existing original LAN/Online session. Awards are also bound to that session;
 offline solo reports retain their original text.
 Repeated refreshes replace the XP suffix. Failed or missing observations show
-`XP unavailable`; a successful unchanged profile shows `0 XP`. Declining or
+`XP unavailable` (competitive: `N/A`); a successful unchanged profile shows `0 XP`. Declining or
 wrapped XP is treated as unavailable. There is no account, file or socket write.
+
+## Field widths (fix for `score /` with no XP)
+
+The first release showed only `score /` in the co-op total row. The PC menu
+layout `KellerGame/Content/MenusPC/MP_RSMenus.mgb` (SHA256
+`6c889a78fcec5feca05aaf43fe68be065ae7ccbfaad6814d99c47f1ded041f8b`, big-endian;
+each text element stores x0, x1, y0, y1 as 16-bit values 0x24 bytes before its
+count-prefixed UTF-16BE placeholder, then an alignment word: 0 left, 1 centre,
+2 right) defines the After Action Report rows:
+
+| Element | Rectangle (x, y) | Align | Placeholder |
+| --- | --- | --- | --- |
+| `YOUR TOTAL SCORE` label (+f8) | 32-178, 320-340 | left | `YOUR TOTAL SCORE` |
+| `L_ScoreValue` (+128) | 345-420, 320-340 | right | `= 8,000` |
+| Other rows' points cells | 345-420 | right | `1,000`, `-2,500` |
+| Competitive final value (+13c) | 218-294, 101-119 | right | `9999` |
+| Co-op failure description (+d4) | 166-472, 226-334 | centre | `YOUR TEAM WAS ELIMINATED...` |
+
+`L_ScoreValue` is a 75 px, one-line points cell sized for seven characters, so
+`1234 / 250 XP` did not fit and everything after `1234 /` was lost. Loader
+`10980070` binds names from `122e662c`/`122e6600`/`122e6614`; the score row has
+no middle element, leaving x 179-344 empty. When the fix is enabled, the
+companion rewrites its game copy's `MP_RSMenus.mgb` from the pinned original
+with that element's left edge at x 184 (`ReportXpLayout`). The right edge,
+height and alignment are unchanged, so the game's right-aligned score stays in
+place. A disabled fix or an unpinned original restores the installed file. The
+co-op label is shortened to `SCORE / XP` so it stays inside its 146 px label,
+and the competitive value, in a 76 px cell, is now the number alone, or `N/A`
+when unavailable. The multi-line failure description already had room.
 
 ## Validation and remaining acceptance
 

@@ -124,13 +124,16 @@ static bool ReadText(BYTE* widget,std::wstring& value){
 static void CoopReport(BYTE* report,const Award& award){
     // Resource loader10980070 intentionally does NOT bind a sixth middle
     // value(+110). Keep both totals in its existing, bound score value(+128).
+    // In MP_RSMenus.mgb that element (L_ScoreValue) is a 75 px right-aligned
+    // points cell sized for "= 8,000"; the companion's layout copy widens it
+    // left to the label (ReportXpLayout) so "score / XP" fits on one line.
     wchar_t value[48]{};Format(award,value);
     std::wstring score;
     if(!ReadText(At<BYTE*>(report,0x128),score))return;
     auto suffix=score.find(L" / ");if(suffix!=std::wstring::npos)score.resize(suffix);
     if(score.empty()||score.size()>12||score.find_first_not_of(L"-0123456789")!=std::wstring::npos)return;
     score+=L" / ";score+=value;
-    Set(report,0xf8,L"SCORE / XP EARNED");Set(report,0x128,score.c_str());
+    Set(report,0xf8,L"SCORE / XP");Set(report,0x128,score.c_str());
 }
 static void CoopFailure(BYTE* report,const Award& award){
     std::wstring description;
@@ -141,7 +144,11 @@ static void CoopFailure(BYTE* report,const Award& award){
     Set(report,0xd4,description.c_str());
 }
 static void VersusReport(BYTE* report,const Award& award){
-    wchar_t value[48]{};Format(award,value);
+    // The final results value is a 76 px right-aligned cell sized for "9999";
+    // the label carries the unit so the value stays a short number.
+    wchar_t value[16]{};
+    if(award.known)swprintf_s(value,L"%u",award.earned);
+    else wcscpy_s(value,L"N/A");
     Set(report,0x154,L"XP EARNED");Set(report,0x13c,value);
 }
 static void __fastcall Coop(void* self,void*){

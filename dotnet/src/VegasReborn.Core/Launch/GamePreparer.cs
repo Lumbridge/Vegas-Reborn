@@ -76,6 +76,11 @@ internal static partial class GamePreparer
         {
             await Task.Run(() => LeaderboardLabels.Apply(destination, source), cancellationToken).ConfigureAwait(false);
         }
+        if (title.Key == TitleCatalog.Vegas1.Key && title.Fix(TitleCatalog.ReportXp) is not null)
+        {
+            var enabled = !disabledFixes.Contains(TitleCatalog.ReportXp);
+            await Task.Run(() => ReportXpLayout.Apply(destination, source, enabled), cancellationToken).ConfigureAwait(false);
+        }
         foreach (var (relative, expected) in profile.PinnedFiles)
         {
             if (PrivateFile.Sha256(Path.Combine(destination, relative)) != expected)
