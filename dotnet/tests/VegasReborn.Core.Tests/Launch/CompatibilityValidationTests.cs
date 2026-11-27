@@ -98,7 +98,7 @@ public sealed class CompatibilityValidationTests
         CompatibilityValidation.Validate(title, report);
         report["nativeVersion"] = 2;
         Assert.Throws<LaunchException>(() => CompatibilityValidation.Validate(title, report));
-        foreach (var field in new[] { "proceduralAnimationVerified", "discordSignInVerified", "soloMatchVerified", "fullXpVerified", "punkBusterRemovedVerified" })
+        foreach (var field in new[] { "proceduralAnimationVerified", "discordSignInVerified", "soloMatchVerified", "fullXpVerified", "punkBusterRemovedVerified", "fireSoundLoopVerified" })
         {
             var missing = Reports.Vegas2Ready();
             missing[field] = false;
@@ -107,6 +107,17 @@ public sealed class CompatibilityValidationTests
         var failed = new JsonObject { ["ready"] = false, ["title"] = "vegas2", ["nativeVersion"] = 1 };
         Assert.Contains("setup failed", Assert.Throws<LaunchException>(() => CompatibilityValidation.Validate(title, failed)).Message);
         Assert.Throws<LaunchException>(() => CompatibilityValidation.Validate(title, Reports.Vegas1Ready()));
+    }
+
+    [Fact]
+    public void Vegas2HostNetworkRateMismatchDoesNotBlockLaunch()
+    {
+        var report = Reports.Vegas2Ready();
+        report["hostNetworkRateVerified"] = false;
+        report["hostNetworkRateStatus"] = "codeMismatch";
+        CompatibilityValidation.Validate(TitleCatalog.Vegas2, report);
+        Assert.NotNull(TitleCatalog.Vegas2.Fix(TitleCatalog.HostNetworkRate));
+        Assert.NotNull(TitleCatalog.Vegas2.Fix(TitleCatalog.FireSoundLoop));
     }
 
     [Fact]

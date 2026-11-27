@@ -207,6 +207,17 @@ public static class TitleCatalog
                 "Remove the PunkBuster options, match filter, sort button and server list column and keep PunkBuster off.",
                 "PunkBuster's online service no longer exists. This removes the Enable PunkBuster Server and Enable PunkBuster Client rows from the settings menu, runs the game's own routines to turn them off each time the menu opens, and stops the game from turning the client on. It also hides the PunkBuster match filter, sets it to Any, and hides the PunkBuster sort button and column in the server browser.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
+            // Same cause as Vegas 1, grounded in the Vegas 2 client and Engine.uppc; the adapter
+            // reports fireSoundLoopVerified.
+            new(FireSoundLoop, "Stuck gunfire sound",
+                "Stop other players' automatic fire sounds from looping after they stop shooting.",
+                "Online, the host sends the start and end of another player's automatic fire sound as two messages that can be lost or skipped at a distance. A lost end message leaves the sound looping. When that player has stopped firing and no end arrived, the game's own end sound is played in your game.",
+                FixSection.GameFixes, FixKind.AlwaysOn),
+            // The adapter reports hostNetworkRateVerified. A mismatch keeps the original rate and does not block launch.
+            new(HostNetworkRate, "Host network rate",
+                "When you host, send updates to other players at the game's server rate instead of on every frame.",
+                "A player hosting from Create Match has no network rate limit in the original, so a fast PC sends a small packet to each player on almost every frame. Each packet's overhead counts against that player's 10000 bytes per second, which delays or drops movement, doors, sounds and hit positions for players who joined. When you host, this sends at most at the game's own server rate (NetServerMaxTickRate, 30 by default), as the original does for a dedicated server. Your frame rate is not limited. Players who joined need no change.",
+                FixSection.GameFixes, FixKind.AlwaysOn),
             // Same Joysticks.ini table as Vegas 1; the adapter reports gamepadVerified.
             new(Controller, "Controller support",
                 "Use current Xbox controllers and Steam Input controllers.",

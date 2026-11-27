@@ -282,6 +282,10 @@ internal static class Reports
         ["fullXpStatus"] = "ok",
         ["punkBusterRemovedVerified"] = true,
         ["punkBusterRemovedStatus"] = "ok",
+        ["fireSoundLoopVerified"] = true,
+        ["fireSoundLoopStatus"] = "ok",
+        ["hostNetworkRateVerified"] = true,
+        ["hostNetworkRateStatus"] = "ok",
     };
 
     public static JsonObject Vegas1Ready() => new()

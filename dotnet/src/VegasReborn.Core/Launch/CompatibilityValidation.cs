@@ -110,6 +110,7 @@ public static class CompatibilityValidation
         [TitleCatalog.SoloMatch] = "soloMatchVerified",
         [TitleCatalog.FullXp] = "fullXpVerified",
         [TitleCatalog.PunkBusterRemoved] = "punkBusterRemovedVerified",
+        [TitleCatalog.FireSoundLoop] = "fireSoundLoopVerified",
     };
 
     private static void ValidateGeneric(GameTitle title, JsonObject compatibility, string? claimedName, DisplayMode displayMode, bool skipIntros)
