@@ -11,6 +11,8 @@ namespace VegasReborn.Core.Profiles.Vegas2;
 /// raw version 0x1a, then one flag byte and the raw XP as a u32 at offset 17, the same raw
 /// layout as the Vegas 1 PEC after its checksum. Grounded in a retail save before (XP 0)
 /// and after one online match (XP 30). The Vegas 2 save carries no checksum in this header.
+/// The three A.C.E.S. point totals follow XP as u32 in EACESTYPE order (Marksman, CQB,
+/// Assault), at <see cref="AcesOffset"/>; the same match raised them from 0 to 3, 6 and 0.
 /// </summary>
 public static class PecSave
 {
@@ -18,6 +20,7 @@ public static class PecSave
     public const uint Magic = 0x34;
     public const uint RawVersion = 0x1a;
     public const int XpOffset = 17;
+    public const int AcesOffset = 21;
     public const int MaxBytes = 64 * 1024;
     private const int MinBytes = 21;
 
@@ -40,6 +43,22 @@ public static class PecSave
             throw new InvalidDataException("unsupported Vegas 2 character version");
         }
         return BinaryPrimitives.ReadUInt32LittleEndian(data[XpOffset..]);
+    }
+
+    /// <summary>Validates the save as <see cref="ReadXp"/> does, then returns the Marksman, CQB and Assault points.</summary>
+    public static uint[] ReadAces(ReadOnlySpan<byte> data)
+    {
+        ReadXp(data);
+        if (data.Length < AcesOffset + 12)
+        {
+            throw new InvalidDataException("Vegas 2 save too short for A.C.E.S. points");
+        }
+        return
+        [
+            BinaryPrimitives.ReadUInt32LittleEndian(data[AcesOffset..]),
+            BinaryPrimitives.ReadUInt32LittleEndian(data[(AcesOffset + 4)..]),
+            BinaryPrimitives.ReadUInt32LittleEndian(data[(AcesOffset + 8)..]),
+        ];
     }
 
     public static bool TryReadXp(ReadOnlySpan<byte> data, out uint experience)

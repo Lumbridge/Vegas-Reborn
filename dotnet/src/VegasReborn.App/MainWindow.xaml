@@ -121,6 +121,7 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Text="{Binding Name}" FontFamily="{StaticResource DisplayFont}" FontWeight="SemiBold" FontSize="17" TextWrapping="Wrap"
                                            VerticalAlignment="Center" />
@@ -164,6 +165,32 @@
                                                HorizontalAlignment="Right" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                Visibility="{Binding HasRank, Converter={StaticResource Visible}}" />
                                 </DockPanel>
+                                <!-- Vegas 2 A.C.E.S.: icon, level and progress per category. Hidden when unknown. -->
+                                <ItemsControl Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0" ItemsSource="{Binding Aces}"
+                                              Focusable="False" IsTabStop="False" AutomationProperties.Name="A.C.E.S."
+                                              Visibility="{Binding HasAces, Converter={StaticResource Visible}}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Rows="1" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:AcesItemViewModel}">
+                                            <StackPanel Margin="0,0,8,0" ToolTip="{Binding Details}" Background="Transparent"
+                                                        AutomationProperties.Name="{Binding Details}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Image Source="{Binding Icon}" Width="20" Height="20" Margin="0,0,5,0"
+                                                           RenderOptions.BitmapScalingMode="HighQuality"
+                                                           Visibility="{Binding HasIcon, Converter={StaticResource Visible}}" />
+                                                    <TextBlock Text="{Binding Level}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                                <ProgressBar Height="3" Margin="0,3,0,0" Minimum="0" Maximum="1" Value="{Binding Progress, Mode=OneWay}"
+                                                             Background="{StaticResource Line}" Foreground="{StaticResource Accent}"
+                                                             BorderThickness="0" Focusable="False" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
