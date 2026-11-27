@@ -266,7 +266,8 @@ public sealed class GameLauncherTests : IDisposable
         var outcome = await Launcher().PlayAsync(Request(title, skipIntros: true), _messages);
 
         Assert.False(outcome.CharacterSaved);
-        Assert.Equal((0, 0), (_sync.Pulls, _sync.Pushes));
+        // The cloud character is pulled before launch; nothing is pushed without a character.
+        Assert.Equal((1, 0), (_sync.Pulls, _sync.Pushes));
         Assert.Empty(_credentials.Mints);
         var game = _paths.GameCopy("vegas2");
         Assert.Equal(Path.Combine(_paths.Local, "vegas2", "game"), game);
@@ -293,7 +294,8 @@ public sealed class GameLauncherTests : IDisposable
         Assert.Equal(Path.Combine(_paths.NativeBin, "VegasCompanionVegas2.dll"), _system.Components[1][3]);
         Assert.Contains("Game running. Choose Login from the main menu and click Login. Sign-in is automatic.", _messages.Items);
         Assert.DoesNotContain("being tested", _messages.ToString());
-        Assert.Equal("Game closed.", _messages.Items[^1]);
+        // Vegas 2 has account save slots; this synthetic copy never created a character.
+        Assert.Equal("Game closed. No character was created.", _messages.Items[^1]);
         // A second launch accepts the already-installed key.
         _system.SteamLaunches.Clear();
         await Launcher().PlayAsync(Request(title), _messages);

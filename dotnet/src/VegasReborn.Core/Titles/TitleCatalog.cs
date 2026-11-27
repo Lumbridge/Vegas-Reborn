@@ -178,8 +178,13 @@ public static class TitleCatalog
         TrustKey = TrustKeyKind.SignaturePub,
         RedirectedHosts = ["gconnect.ubi.com", "stun.apac.ubi.com", "stun.emea.ubi.com", "stun.ncsa.ubi.com"],
         RealmPort = 3080,
-        // Account slots are added once the Vegas 2 save format is grounded.
-        SaveSlots = new Dictionary<string, string>(),
+        // The character (appearance and XP) is PROFILE3.DAT; see Profiles.Vegas2.PecSave.
+        // PROFILE1/2.DAT (settings, name) and PlayerProfile.ini (this PC's key id) stay local.
+        SaveSlots = new Dictionary<string, string>
+        {
+            ["Vegas2RetailPEC_v1"] = "PROFILE3.DAT",
+            ["Vegas2RetailEquipment_v1"] = "R6_EquipEquipmentTemplate",
+        },
         Fixes =
         [
             // Same controller as Vegas 1 (UR6AnimNodeFrankHeadControl); the adapter reports

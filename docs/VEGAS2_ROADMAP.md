@@ -88,3 +88,10 @@ Status (`dotnet/`, not yet released):
 Login hook, PEC/character sync, ranks, matchmaking schema from Vegas 2's
 `MatchmakingData`, statistics and leaderboards, dedicated hosting. Each one is
 grounded in the binary or in recorded traffic, as for Vegas 1.
+
+Character sync: the character, XP and A.C.E.S. points are `PROFILE3.DAT` (`Profiles/Vegas2/PecSave.cs`;
+raw XP at offset 17, matched to the in-game CURRENT XP at 30 and 40) and the loadout is
+`R6_EquipEquipmentTemplate`. They sync to the separate Vegas 2 cloud profile
+(`/api/v1/account/profile/vegas2`), which has its own revision and XP. XP and each A.C.E.S.
+total never go down when two PCs merge. Settings
+(`PROFILE1.DAT`), the name (`PROFILE2.DAT`) and `PlayerProfile.ini` stay on the PC.

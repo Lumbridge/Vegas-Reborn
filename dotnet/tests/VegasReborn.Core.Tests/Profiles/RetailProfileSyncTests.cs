@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using VegasReborn.Core.Account;
 using VegasReborn.Core.Profiles;
 using VegasReborn.Core.Profiles.Vegas1;
+using VegasReborn.Core.Profiles.Vegas2;
 using VegasReborn.Core.Titles;
 
 namespace VegasReborn.Core.Tests.Profiles;
@@ -390,24 +391,149 @@ public sealed class RetailProfileSyncTests : IDisposable
         Assert.Equal(SyncOperation.Push, result.Operation);
     }
 
-    [Fact]
-    public async Task Vegas2HasNothingToSyncAndTouchesNothing()
+    private const string Vegas2Pec = "PROFILE3.DAT";
+    private const string Vegas2Route = "/api/v1/account/profile/vegas2";
+
+    private (FakeCloud Cloud, CloudProfileTransport Transport, RetailProfileSync Sync) Vegas2Sync()
     {
-        using var sync = new RetailProfileSync(_paths, TitleCatalog.Vegas2, _owned, _transport, () => throw new InvalidOperationException("not called"));
-        Assert.False(sync.HasSaveSlots);
-        Assert.Null(sync.ProgressionFile(Session));
-        Assert.EndsWith(Path.Combine("profile", "My Games", "Ubisoft", "R6Vegas2"), sync.ProfileDirectory(Session));
-        var pull = await sync.PullAsync(Session);
-        var push = await sync.PushAsync(Session, replaceCloud: true);
-        Assert.False(pull.HasSaveSlots);
-        Assert.False(push.HasSaveSlots);
-        Assert.Empty(pull.FilesChanged);
-        var messages = new List<string>();
-        Assert.False((await sync.SynchronizeAsync(Session, new Progress(messages))).HasSaveSlots);
-        Assert.Equal([SyncMessages.NotAvailable], messages);
-        Assert.Null(await sync.SaveAfterGameAsync(Session));
-        Assert.Empty(_cloud.Calls);
-        Assert.Empty(Directory.EnumerateFileSystemEntries(_owned));
+        var cloud = new FakeCloud(Session.DiscordId, Session.Token);
+        var transport = new CloudProfileTransport("https://vegas.example.invalid", cloud);
+        return (cloud, transport, new RetailProfileSync(_paths, TitleCatalog.Vegas2, _owned, transport, () => false));
+    }
+
+    private static void WriteVegas2(RetailProfileSync sync, string name, byte[] data)
+    {
+        Directory.CreateDirectory(sync.ProfileDirectory(Session));
+        File.WriteAllBytes(Path.Combine(sync.ProfileDirectory(Session), name), data);
+    }
+
+    [Fact]
+    public async Task Vegas2PushUsesItsOwnProfileRouteSlotsAndXp()
+    {
+        var (cloud, transport, sync) = Vegas2Sync();
+        using (transport)
+        using (sync)
+        {
+            Assert.True(sync.HasSaveSlots);
+            Assert.EndsWith(Path.Combine("profile", "My Games", "Ubisoft", "R6Vegas2", Vegas2Pec), sync.ProgressionFile(Session));
+            WriteVegas2(sync, Vegas2Pec, Vegas2RankTests.Save(40));
+            WriteVegas2(sync, Equip, Encoding.ASCII.GetBytes("vegas 2 loadout"));
+            WriteVegas2(sync, "PROFILE1.DAT", [1, 2, 3]);
+            WriteVegas2(sync, "PlayerProfile.ini", Encoding.ASCII.GetBytes("[CDKEY]"));
+            var result = await sync.SynchronizeAsync(Session);
+            Assert.Equal(40u, result.Experience);
+            Assert.All(cloud.Calls.Where(call => call.Path != "/api/v1/account"), call => Assert.Equal(Vegas2Route, call.Path));
+            var put = Assert.Single(cloud.Calls, call => call.Method == "PUT");
+            var files = put.Body!["data"]!["files"]!.AsObject();
+            Assert.Equal(["Vegas2RetailEquipment_v1", "Vegas2RetailPEC_v1"], files.Select(pair => pair.Key).Order(StringComparer.Ordinal));
+            Assert.Equal(40, (long)put.Body["data"]!["progression"]!["totalExperience"]!);
+            Assert.Equal(Vegas2RankTests.Save(40), Convert.FromBase64String((string)files["Vegas2RetailPEC_v1"]!));
+            Assert.True(File.Exists(Path.Combine(_owned, Session.DiscordId, "sync-vegas2.json")));
+            Assert.False(File.Exists(Path.Combine(_owned, Session.DiscordId, "sync.json")));
+        }
+    }
+
+    [Fact]
+    public async Task Vegas2PullRestoresCharacterOnAnotherPcWithCloudXp()
+    {
+        var (cloud, transport, sync) = Vegas2Sync();
+        using (transport)
+        using (sync)
+        {
+            var character = Vegas2RankTests.Save(30);
+            character[200] = 0x7f; // appearance byte
+            cloud.Files["Vegas2RetailPEC_v1"] = Convert.ToBase64String(character);
+            cloud.Files["Vegas2RetailEquipment_v1"] = Convert.ToBase64String(Encoding.ASCII.GetBytes("loadout"));
+            cloud.SetExperience(55);
+            var result = await sync.PullAsync(Session);
+            var saved = File.ReadAllBytes(Path.Combine(sync.ProfileDirectory(Session), Vegas2Pec));
+            Assert.Equal(55u, result.Experience);
+            Assert.Equal(55u, PecSave.ReadXp(saved));
+            Assert.Equal(character[..PecSave.XpOffset], saved[..PecSave.XpOffset]);
+            Assert.Equal(character[(PecSave.XpOffset + 4)..], saved[(PecSave.XpOffset + 4)..]);
+            Assert.Equal("loadout", File.ReadAllText(Path.Combine(sync.ProfileDirectory(Session), Equip)));
+            Assert.Equal([Vegas2Pec, Equip], result.FilesChanged);
+            Assert.All(cloud.Calls, call => Assert.Equal("GET", call.Method));
+        }
+    }
+
+    [Fact]
+    public async Task Vegas2XpOnlyDifferenceKeepsCharacterAndHigherXp()
+    {
+        var (cloud, transport, sync) = Vegas2Sync();
+        using (transport)
+        using (sync)
+        {
+            WriteVegas2(sync, Vegas2Pec, Vegas2RankTests.Save(40));
+            await sync.SynchronizeAsync(Session);
+            // Played elsewhere: the cloud has more XP and A.C.E.S. points and the same character.
+            var elsewhere = Vegas2RankTests.Save(70);
+            BinaryPrimitives.WriteUInt32LittleEndian(elsewhere.AsSpan(PecSave.AcesOffset), 12);
+            cloud.Files["Vegas2RetailPEC_v1"] = Convert.ToBase64String(elsewhere);
+            cloud.SetExperience(70);
+            cloud.Profile["revision"] = 5;
+            WriteVegas2(sync, Vegas2Pec, Vegas2RankTests.Save(45));
+            var result = await sync.SynchronizeAsync(Session);
+            Assert.Equal(70u, result.Experience);
+            var saved = File.ReadAllBytes(Path.Combine(sync.ProfileDirectory(Session), Vegas2Pec));
+            Assert.Equal(70u, PecSave.ReadXp(saved));
+            Assert.Equal([12u, 6u, 0u], PecSave.ReadAces(saved));
+            var uploaded = Convert.FromBase64String((string)cloud.Files["Vegas2RetailPEC_v1"]!);
+            Assert.Equal(saved, uploaded);
+        }
+    }
+
+    [Fact]
+    public async Task Vegas2ChangedCharacterOnBothSidesIsAConflict()
+    {
+        var (cloud, transport, sync) = Vegas2Sync();
+        using (transport)
+        using (sync)
+        {
+            WriteVegas2(sync, Vegas2Pec, Vegas2RankTests.Save(40));
+            await sync.SynchronizeAsync(Session);
+            var other = Vegas2RankTests.Save(40);
+            other[220] = 1;
+            cloud.Files["Vegas2RetailPEC_v1"] = Convert.ToBase64String(other);
+            cloud.Profile["revision"] = 5;
+            var local = Vegas2RankTests.Save(40);
+            local[221] = 2;
+            WriteVegas2(sync, Vegas2Pec, local);
+            await Fails<SyncConflictException>(() => sync.SynchronizeAsync(Session));
+            Assert.Equal(local, File.ReadAllBytes(Path.Combine(sync.ProfileDirectory(Session), Vegas2Pec)));
+        }
+    }
+
+    [Fact]
+    public async Task Vegas2InvalidSavesAreRefused()
+    {
+        var (cloud, transport, sync) = Vegas2Sync();
+        using (transport)
+        using (sync)
+        {
+            var settings = Vegas2RankTests.Save(1);
+            settings[12] = 0x19; // not the Vegas 2 character version
+            WriteVegas2(sync, Vegas2Pec, settings);
+            await Fails<ProfileSyncException>(() => sync.PushAsync(Session), "local_pec_invalid");
+            File.Delete(Path.Combine(sync.ProfileDirectory(Session), Vegas2Pec));
+            cloud.Files["Vegas2RetailPEC_v1"] = Convert.ToBase64String(Fixture(10));
+            await Fails<ProfileSyncException>(() => sync.PullAsync(Session), "cloud_profile_invalid");
+            Assert.False(File.Exists(Path.Combine(sync.ProfileDirectory(Session), Vegas2Pec)));
+        }
+    }
+
+    [Fact]
+    public async Task Vegas2WithoutACharacterUploadsNothing()
+    {
+        var (cloud, transport, sync) = Vegas2Sync();
+        using (transport)
+        using (sync)
+        {
+            WriteVegas2(sync, Equip, Encoding.ASCII.GetBytes("loadout only"));
+            Assert.Null(await sync.SaveAfterGameAsync(Session));
+            await sync.SynchronizeAsync(Session);
+            Assert.DoesNotContain(cloud.Calls, call => call.Method == "PUT");
+        }
     }
 
     [Fact]

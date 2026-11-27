@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using VegasReborn.Core.Account;
 using VegasReborn.Core.Profiles.Vegas1;
+using VegasReborn.Core.Profiles.Vegas2;
 using VegasReborn.Core.Titles;
 
 namespace VegasReborn.Core.Profiles;
@@ -18,19 +19,43 @@ namespace VegasReborn.Core.Profiles;
 /// holds <c>profile/&lt;title profile folder&gt;/</c> (the game's redirected Documents),
 /// <c>sync.json</c> (Vegas 1 manifest), <c>backups/</c> and <c>.sync.lock</c>.
 /// </para>
-/// A title without <see cref="GameTitle.SaveSlots"/> (Vegas 2 today) has nothing to sync:
-/// every operation returns <see cref="SyncResult.NothingToSync"/> without network or disk access.
+/// Each title has its own cloud profile: Vegas 1 uses <c>/api/v1/account/profile</c> (shared
+/// with the remake), Vegas 2 uses <c>/api/v1/account/profile/vegas2</c> with its own XP.
+/// A title without <see cref="GameTitle.SaveSlots"/> has nothing to sync: every operation
+/// returns <see cref="SyncResult.NothingToSync"/> without network or disk access.
 /// </summary>
 public sealed partial class RetailProfileSync : IDisposable
 {
-    private const string PecSlot = "VegasRetailPEC_v1";
     private const int ManifestLimit = 16384;
+    private const int MaxFileBytes = 1024 * 1024;
+
+    /// <summary>A title's grounded character save format and cloud profile route.</summary>
+    private sealed record CharacterFormat(
+        string PecSlot,
+        string Route,
+        Func<byte[], uint> ReadXp,
+        Func<byte[], uint, byte[]> PatchXp,
+        Func<byte[], byte[], bool> SameAppearance,
+        Func<byte[], uint, byte[]?, byte[]?, byte[]> MergeProgression);
+
+    private static readonly CharacterFormat Vegas1Format = new(
+        "VegasRetailPEC_v1", "/api/v1/account/profile",
+        data => PecArchive.ReadXp(data), (data, xp) => PecArchive.PatchXp(data, xp),
+        (first, second) => PecArchive.SameAppearance(first, second),
+        (data, xp, _, _) => PecArchive.PatchXp(data, xp));
+
+    private static readonly CharacterFormat Vegas2Format = new(
+        "Vegas2RetailPEC_v1", "/api/v1/account/profile/vegas2",
+        data => PecSave.ReadXp(data), (data, xp) => PecSave.PatchXp(data, xp),
+        (first, second) => PecSave.SameAppearance(first, second),
+        (data, xp, first, second) => PecSave.MergeProgression(data, xp, first, second));
 
     private readonly CloudProfileTransport _transport;
     private readonly bool _ownsTransport;
     private readonly IReadOnlyList<KeyValuePair<string, string>> _slots;
     private readonly HashSet<string> _fileNames;
     private readonly string? _pec;
+    private readonly CharacterFormat? _format;
 
     /// <param name="paths">Installation layout; the owned root must be inside <see cref="AppPaths.Local"/>.</param>
     /// <param name="title">Game whose saves are synchronised.</param>
@@ -53,8 +78,13 @@ public sealed partial class RetailProfileSync : IDisposable
         GameRunning = gameRunning ?? (() => RetailProcesses.IsRunning(title));
         _slots = [.. title.SaveSlots];
         _fileNames = new HashSet<string>(title.SaveSlots.Values, StringComparer.Ordinal);
-        // Only the Vegas 1 PEC archive format is grounded. Other titles' saves are not decoded.
-        _pec = title.Key == TitleCatalog.Vegas1.Key && title.SaveSlots.TryGetValue(PecSlot, out var pec) ? pec : null;
+        // Only grounded character formats are decoded. A title without one is refused.
+        var format = title.Key == TitleCatalog.Vegas1.Key ? Vegas1Format : title.Key == TitleCatalog.Vegas2.Key ? Vegas2Format : null;
+        if (format is not null && title.SaveSlots.TryGetValue(format.PecSlot, out var pec))
+        {
+            _format = format;
+            _pec = pec;
+        }
     }
 
     public GameTitle Title { get; }
@@ -77,7 +107,7 @@ public sealed partial class RetailProfileSync : IDisposable
     public string ProfileDirectory(AccountSession session) =>
         Safe(Path.Combine(AccountDirectory(session), "profile", Title.ProfileSubdirectory.Replace('/', Path.DirectorySeparatorChar)));
 
-    /// <summary>The save whose presence means a character exists (Vegas 1 <c>R6_PECPEC</c>), or null.</summary>
+    /// <summary>The save whose presence means a character exists (Vegas 1 <c>R6_PECPEC</c>, Vegas 2 <c>PROFILE3.DAT</c>), or null.</summary>
     public string? ProgressionFile(AccountSession session) => _pec is null ? null : Path.Combine(ProfileDirectory(session), _pec);
 
     /// <summary>
@@ -183,7 +213,7 @@ public sealed partial class RetailProfileSync : IDisposable
         var selected = changes.TryGetValue(pec, out var chosen) ? chosen : local[pec];
         if (selected is not null)
         {
-            changes[pec] = PecArchive.PatchXp(selected, xp);
+            changes[pec] = _format!.MergeProgression(selected, xp, local[pec], remote[pec]);
             if (baseline.ContainsKey(pec) && (replaceLocal || local[pec] is null
                 || Hash(local[pec]) == manifest.Baseline.GetValueOrDefault(pec) || SameAppearance(local[pec], remote[pec], pec)))
             {
@@ -248,8 +278,8 @@ public sealed partial class RetailProfileSync : IDisposable
         {
             uploaded[name] = value ?? remote[name];
         }
-        uploaded[pec] = PecArchive.PatchXp(local[pec]!, xp);
-        var (status, response) = await RequestAsync(session, HttpMethod.Put, "/api/v1/account/profile",
+        uploaded[pec] = _format!.MergeProgression(local[pec]!, xp, remote[pec], null);
+        var (status, response) = await RequestAsync(session, HttpMethod.Put, _format.Route,
             UploadBody(revision, uploaded, xp), cancellationToken).ConfigureAwait(false);
         if (status == 409)
         {
@@ -267,7 +297,7 @@ public sealed partial class RetailProfileSync : IDisposable
         var finalXp = Math.Max(xp, acknowledgedXp);
         var final = new Dictionary<string, byte[]?>(local, StringComparer.Ordinal)
         {
-            [pec] = PecArchive.PatchXp(uploaded[pec]!, finalXp),
+            [pec] = _format.PatchXp(uploaded[pec]!, finalXp),
         };
         var current2 = ReadLocal(session);
         var changedDuring = !SameFiles(current2, local);
@@ -290,7 +320,7 @@ public sealed partial class RetailProfileSync : IDisposable
 
     private void RequireSupported()
     {
-        if (_pec is null)
+        if (_pec is null || _format is null)
         {
             // Save slots exist but their format is not grounded; never invent one.
             throw new ProfileSyncException("retail_sync_title_unsupported");
@@ -361,7 +391,7 @@ public sealed partial class RetailProfileSync : IDisposable
 
     private async Task<(long Revision, Dictionary<string, byte[]?> Files, uint Experience)> FetchAsync(AccountSession session, CancellationToken cancellationToken)
     {
-        var (status, response) = await RequestAsync(session, HttpMethod.Get, "/api/v1/account/profile", null, cancellationToken).ConfigureAwait(false);
+        var (status, response) = await RequestAsync(session, HttpMethod.Get, _format!.Route, null, cancellationToken).ConfigureAwait(false);
         if (status != 200)
         {
             throw new ProfileSyncException("cloud_profile_read_failed");
@@ -422,12 +452,12 @@ public sealed partial class RetailProfileSync : IDisposable
                     continue;
                 }
                 var text = encoded.GetString()!;
-                if (text.Length > (PecArchive.MaxBytes + 2) / 3 * 4)
+                if (text.Length > (MaxFileBytes + 2) / 3 * 4)
                 {
                     throw new FormatException();
                 }
                 var bytes = DecodeBase64Strict(text);
-                if (bytes.Length > PecArchive.MaxBytes)
+                if (bytes.Length > MaxFileBytes)
                 {
                     throw new FormatException();
                 }
@@ -435,7 +465,7 @@ public sealed partial class RetailProfileSync : IDisposable
             }
             if (result[_pec!] is { } pec)
             {
-                PecArchive.ReadXp(pec);
+                _format!.ReadXp(pec);
             }
             return (revision, result, (uint)canonical);
         }
@@ -560,11 +590,18 @@ public sealed partial class RetailProfileSync : IDisposable
         var files = new Dictionary<string, byte[]?>(StringComparer.Ordinal);
         foreach (var (_, name) in _slots)
         {
-            files[name] = ReadBounded(Path.Combine(directory, name), PecArchive.MaxBytes);
+            files[name] = ReadBounded(Path.Combine(directory, name), MaxFileBytes);
         }
-        if (files[_pec!] is { } pec && !PecArchive.TryReadXp(pec, out _))
+        if (files[_pec!] is { } pec)
         {
-            throw new ProfileSyncException("local_pec_invalid");
+            try
+            {
+                _format!.ReadXp(pec);
+            }
+            catch (InvalidDataException error)
+            {
+                throw new ProfileSyncException("local_pec_invalid", error);
+            }
         }
         return files;
     }
@@ -741,10 +778,10 @@ public sealed partial class RetailProfileSync : IDisposable
             return first is null && second is null;
         }
         // Both buffers are checksum/version validated before reaching this helper.
-        return name == _pec ? PecArchive.SameAppearance(first, second) : first.AsSpan().SequenceEqual(second);
+        return name == _pec ? _format!.SameAppearance(first, second) : first.AsSpan().SequenceEqual(second);
     }
 
-    private static uint Xp(byte[]? pec) => pec is null ? 0 : PecArchive.ReadXp(pec);
+    private uint Xp(byte[]? pec) => pec is null ? 0 : _format!.ReadXp(pec);
 
     private static bool Equal(byte[]? first, byte[]? second) =>
         first is null || second is null ? first is null && second is null : first.AsSpan().SequenceEqual(second);

@@ -28,6 +28,40 @@ public sealed class Vegas2RankTests
     }
 
     [Fact]
+    public void PatchXpChangesOnlyTheXpBytes()
+    {
+        var original = Save(30);
+        original[200] = 0x5c;
+        var patched = PecSave.PatchXp(original, 675100);
+        Assert.Equal(675100u, PecSave.ReadXp(patched));
+        Assert.Equal(original[..PecSave.XpOffset], patched[..PecSave.XpOffset]);
+        Assert.Equal(original[(PecSave.XpOffset + 4)..], patched[(PecSave.XpOffset + 4)..]);
+        Assert.True(PecSave.SameAppearance(original, patched));
+        var changed = (byte[])patched.Clone();
+        changed[200] = 0x19;
+        Assert.False(PecSave.SameAppearance(patched, changed));
+        Assert.Throws<InvalidDataException>(() => PecSave.PatchXp(original[..20], 1));
+    }
+
+    [Fact]
+    public void AcesPointsAreProgressionNotAppearance()
+    {
+        var here = Save(40);
+        var elsewhere = Save(70);
+        BinaryPrimitives.WriteUInt32LittleEndian(elsewhere.AsSpan(PecSave.AcesOffset), 9);
+        BinaryPrimitives.WriteUInt32LittleEndian(elsewhere.AsSpan(PecSave.AcesOffset + 8), 4);
+        Assert.True(PecSave.SameAppearance(here, elsewhere));
+        var merged = PecSave.MergeProgression(here, 70, elsewhere);
+        Assert.Equal(70u, PecSave.ReadXp(merged));
+        Assert.Equal([9u, 6u, 4u], PecSave.ReadAces(merged));
+        Assert.Equal(here[(PecSave.AcesOffset + 12)..], merged[(PecSave.AcesOffset + 12)..]);
+        var invalid = Save(1);
+        invalid[12] = 0x19;
+        BinaryPrimitives.WriteUInt32LittleEndian(invalid.AsSpan(PecSave.AcesOffset), 999);
+        Assert.Equal([3u, 6u, 0u], PecSave.ReadAces(PecSave.MergeProgression(here, 40, invalid, null)));
+    }
+
+    [Fact]
     public void SaveReadsXpAfterHeaderAndVersion()
     {
         Assert.Equal(30u, PecSave.ReadXp(Save(30)));
