@@ -11,8 +11,9 @@ public sealed record RankImage(int Width, int Height, byte[] Bgra);
 /// <c>Ic_RankCaptain</c>), in ordinal order beside the label keys in R6Vegas_Game.exe, and
 /// ships them as loose 48x48 32-bit uncompressed TGA files listed in
 /// <c>MosaicFiles/CommonTex.mos.xml</c>. Recruit (ordinal 0) has no shipped icon and no
-/// rank record uses it. Nothing is copied or committed; a missing or unexpected file
-/// gives no image.
+/// rank record uses it. Vegas 2 ships the same format at 64x64 in
+/// <c>KellerGame/Content/Menus/textures/common</c>, also without a Recruit icon. Nothing is
+/// copied or committed; a missing or unexpected file gives no image.
 /// </summary>
 public static class RankInsignia
 {
@@ -20,19 +21,24 @@ public static class RankInsignia
     private const int MaxSide = 256;
     private const int MaxBytes = 18 + 255 + MaxSide * MaxSide * 4 + 4096;
 
-    public static string PathFor(string gameRoot, string labelKey) =>
-        Path.Combine(gameRoot, TextureFolder, "Ic_" + labelKey + ".tga");
+    public static string PathFor(string gameRoot, string labelKey) => PathFor(gameRoot, labelKey, RankTable.Vegas1);
 
-    /// <summary>The insignia for a rank label key, or null when it is absent or not the shipped format.</summary>
-    public static RankImage? TryLoad(string? gameRoot, string labelKey)
+    public static string PathFor(string gameRoot, string labelKey, RankSource source) =>
+        Path.Combine(gameRoot, source.InsigniaFolder, "Ic_" + labelKey + ".tga");
+
+    /// <summary>The Vegas 1 insignia for a rank label key, or null when it is absent or not the shipped format.</summary>
+    public static RankImage? TryLoad(string? gameRoot, string labelKey) => TryLoad(gameRoot, labelKey, RankTable.Vegas1);
+
+    /// <summary>The insignia for a rank label key of <paramref name="source"/>, or null when absent or not the shipped format.</summary>
+    public static RankImage? TryLoad(string? gameRoot, string labelKey, RankSource source)
     {
-        if (string.IsNullOrEmpty(gameRoot) || !RankTable.RankLabelKeys.Contains(labelKey))
+        if (string.IsNullOrEmpty(gameRoot) || !source.LabelKeys.Contains(labelKey))
         {
             return null;
         }
         try
         {
-            var info = new FileInfo(PathFor(gameRoot, labelKey));
+            var info = new FileInfo(PathFor(gameRoot, labelKey, source));
             if (!info.Exists || info.Length > MaxBytes)
             {
                 return null;

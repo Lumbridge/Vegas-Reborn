@@ -312,7 +312,7 @@ public sealed class Vegas1Tests
         var table = RankTable.Load(Reference);
         var groups = table.Records.GroupBy(row => row.Ordinal).ToList();
         Assert.Equal(17, groups.Count);
-        Assert.All(groups, group => Assert.Equal(RetailRank.PipCount + 1, group.Count()));
+        Assert.All(groups, group => Assert.Equal(RetailRank.FivePips + 1, group.Count()));
         Assert.DoesNotContain(table.Records, row => row.Ordinal == 0);
     }
 

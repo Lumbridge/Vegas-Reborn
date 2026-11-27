@@ -7,7 +7,9 @@ using Microsoft.Win32;
 using VegasReborn.Core.Account;
 using VegasReborn.Core.Display;
 using VegasReborn.Core.Profiles;
+using VegasReborn.Core.Launch;
 using VegasReborn.Core.Profiles.Vegas1;
+using VegasReborn.Core.Profiles.Vegas2;
 using VegasReborn.Core.Settings;
 using VegasReborn.Core.Titles;
 
@@ -206,21 +208,25 @@ public sealed class GameViewModel : ObservableObject
     public bool HasRankIcon => RankIcon is not null;
     public string RankDetails => Rank?.DisplayText ?? "";
     public string RankAccessibleName => Rank is { } r
-        ? $"Rank: {r.Title}, {r.Subrank} of {RetailRank.PipCount} pips, {Math.Round(r.BarProgress * 100)} percent to the next step"
+        ? $"Rank: {r.Title}, {r.Subrank} of {r.PipCount} pips, {Math.Round(r.BarProgress * 100)} percent to the next step"
         : "";
 
     /// <summary>
-    /// Re-reads the saved character's rank. Only Vegas 1 character saves and rank data are
-    /// decoded; guests and other titles show no rank.
+    /// Re-reads the saved character's rank from this title's account save folder. Guests and
+    /// titles without a decoded save show no rank.
     /// </summary>
     public void RefreshRank(CompanionAccount account)
     {
         RetailRank? read = null;
-        if (account.Session is { IsGuest: false } session && Title.Key == TitleCatalog.Vegas1.Key)
+        if (account.Session is { IsGuest: false } session)
         {
             try
             {
-                read = RankTable.TryReadRank(account.SyncFor(Title).ProgressionFile(session), GameFolder);
+                read = Title.Key == TitleCatalog.Vegas1.Key
+                    ? RankTable.TryReadRank(account.SyncFor(Title).ProgressionFile(session), GameFolder)
+                    : Title.Key == TitleCatalog.Vegas2.Key
+                        ? RankTable.TryReadRank(Vegas2SaveFile(session), GameFolder, RankTable.Vegas2, data => PecSave.ReadXp(data))
+                        : null;
             }
             catch (Exception error) when (error is ProfileSyncException or ArgumentException or IOException)
             {
@@ -228,18 +234,26 @@ public sealed class GameViewModel : ObservableObject
             }
         }
         Rank = read;
-        RankIcon = read is null ? null : LoadRankIcon(GameFolder, read.LabelKey);
+        RankIcon = read is null ? null : LoadRankIcon(GameFolder, read.LabelKey, RankSourceFor(Title));
     }
 
-    private static ImageSource? LoadRankIcon(string gameFolder, string labelKey)
+    private string? Vegas2SaveFile(AccountSession session) =>
+        session.DiscordId is { Length: > 0 } id && id.All(char.IsAsciiDigit)
+            ? Path.Combine(LaunchLayout.ProfileDirectory(LaunchLayout.DefaultAccountDirectory(owner.Paths, Title, id), Title), PecSave.FileName)
+            : null;
+
+    private static RankSource RankSourceFor(GameTitle title) =>
+        title.Key == TitleCatalog.Vegas2.Key ? RankTable.Vegas2 : RankTable.Vegas1;
+
+    private static ImageSource? LoadRankIcon(string gameFolder, string labelKey, RankSource source)
     {
-        var path = RankInsignia.PathFor(gameFolder, labelKey);
+        var path = RankInsignia.PathFor(gameFolder, labelKey, source);
         if (RankIcons.TryGetValue(path, out var cached))
         {
             return cached;
         }
         ImageSource? icon = null;
-        if (RankInsignia.TryLoad(gameFolder, labelKey) is { } image)
+        if (RankInsignia.TryLoad(gameFolder, labelKey, source) is { } image)
         {
             var bitmap = BitmapSource.Create(image.Width, image.Height, 96, 96, PixelFormats.Bgra32, null, image.Bgra, image.Width * 4);
             bitmap.Freeze();

@@ -35,19 +35,20 @@ public sealed record RetailRank(
     uint Threshold,
     uint? NextThreshold,
     uint? ExperienceToNext,
-    double? ProgressToNext)
+    double? ProgressToNext,
+    int PipCount = RetailRank.FivePips)
 {
+    /// <summary>Vegas 1: six records per rank name, shown as five pips.</summary>
+    public const int FivePips = 5;
+
     /// <summary>The rank name in title case, for example "Private Second Class".</summary>
     public string Title => CultureInfo.InvariantCulture.TextInfo.ToTitleCase(Label.ToLowerInvariant());
 
     /// <summary>Fill for a progress bar toward the next step, 0 to 1. Full at the maximum rank.</summary>
     public double BarProgress => Math.Clamp(ProgressToNext ?? 1.0, 0.0, 1.0);
 
-    /// <summary>Pips shown for each rank name: six records per name give subranks 0 to 5.</summary>
-    public const int PipCount = 5;
-
     /// <summary>
-    /// Fill for each of the five pips, 0 to 1: earned pips are full, the next pip shows
+    /// Fill for each pip (one fewer than the records sharing this rank name), 0 to 1: earned pips are full, the next pip shows
     /// progress toward the next step, later pips are empty. All full at the maximum rank.
     /// </summary>
     public IReadOnlyList<double> PipFill
@@ -72,10 +73,27 @@ public sealed record RetailRank(
             var next = ExperienceToNext is { } remaining
                 ? remaining.ToString("N0", CultureInfo.InvariantCulture) + " XP to the next step"
                 : "Maximum rank";
-            return $"{title}  /  {Subrank}/5\n{Experience.ToString("N0", CultureInfo.InvariantCulture)} XP  ·  {next}";
+            return $"{title}  /  {Subrank}/{PipCount}\n{Experience.ToString("N0", CultureInfo.InvariantCulture)} XP  ·  {next}";
         }
     }
 }
+
+/// <summary>
+/// The pinned original files one title's rank table is read from. Both games use the same
+/// PECInfoFile.bin layout (float version 1.2, defaults, then threshold/id/ordinal records)
+/// and the same R6Menus.int [Pec] label keys; counts, hashes and the ordinal order differ.
+/// </summary>
+public sealed record RankSource(
+    string PecInfoPath,
+    int PecInfoBytes,
+    string PecInfoSha256,
+    uint DefaultCount,
+    uint RankCount,
+    string MenusPath,
+    string MenusSha256,
+    IReadOnlyList<string> LabelKeys,
+    bool FirstOrdinalUsed,
+    string InsigniaFolder);
 
 /// <summary>
 /// Rainbow Six Vegas (1) earned rank, read only, from the original PEC archive and the
@@ -86,7 +104,7 @@ public sealed record RetailRank(
 /// array 10e6c5c0; record reader 10e6c370 copies threshold/id/ordinal in that order.
 /// Client lookup 10e6d620 selects the last threshold &lt;= unsigned XP. Ordinal getter
 /// 10e6d6c0, subrank counter (server 10e6c4b0) and PC service-record UI 109c81a0 establish
-/// the label enum and five-pip display. Not valid for Vegas 2.
+/// the label enum and five-pip display. <see cref="Vegas2"/> names the Vegas 2 files.
 /// </summary>
 public sealed class RankTable
 {
@@ -112,14 +130,40 @@ public sealed class RankTable
         "RankColonel", "RankElite",
     ];
 
+    /// <summary>Rainbow Six Vegas (1).</summary>
+    public static RankSource Vegas1 { get; } = new(PecInfoPath, PecInfoBytes, PecInfoSha256, 12, 102,
+        EnglishMenusPath, EnglishMenusSha256, RankLabelKeys, FirstOrdinalUsed: false,
+        InsigniaFolder: "KellerGame/Content/MenusPC/Textures/common");
+
+    /// <summary>
+    /// Rainbow Six Vegas 2: <c>KellerGame/Pec/PECInfoFile.bin</c> holds 11 defaults and 111
+    /// records over 22 ordinals (five per name, six for Elite). The ordinal order is the
+    /// <c>Ic_Rank*</c> table in RainbowSixVegas2_SADS.exe (Recruit .. Elite, after
+    /// <c>RankNb</c>); labels are the English R6Menus.int [Pec] keys of the same names.
+    /// </summary>
+    public static RankSource Vegas2 { get; } = new("KellerGame/Pec/PECInfoFile.bin", 14628,
+        "c149b0e20f8931902f6eb8ec8d27a4f124a9396ca2ff9c3887d65f9dae12609a", 11, 111,
+        EnglishMenusPath, "c901717c8243fbdd35c3d7dbaff1741ee37ff0315ec1afbd87e3d0b8217bd333",
+        [
+            "RankRecruit", "RankPrivate2ndclass", "RankPrivate1stclass", "RankSpecialist",
+            "RankLanceCorporal", "RankCorporal", "RankSergeant", "RankStaffSergeant",
+            "RankGunnerySergeant", "RankSergeant1stClass", "RankMasterSergeant", "RankSeniorMasterSergeant",
+            "Rank1stSergeant", "RankSergeantMajor", "RankJuniorOfficer", "Rank2ndLieutenant",
+            "Rank1stLieutenant", "RankCaptain", "RankMajor", "RankLieutenantColonel",
+            "RankColonel", "RankElite",
+        ], FirstOrdinalUsed: true, InsigniaFolder: "KellerGame/Content/Menus/textures/common");
+
     private readonly uint[] _thresholds;
 
-    private RankTable(IReadOnlyList<RankRecord> records, IReadOnlyList<string> labels)
+    private RankTable(RankSource source, IReadOnlyList<RankRecord> records, IReadOnlyList<string> labels)
     {
+        Source = source;
         Records = records;
         Labels = labels;
         _thresholds = [.. records.Select(row => row.Threshold)];
     }
+
+    public RankSource Source { get; }
 
     public IReadOnlyList<RankRecord> Records { get; }
 
@@ -140,11 +184,13 @@ public sealed class RankTable
         }
         var row = Records[index];
         var subrank = 0;
-        for (var prior = 0; prior < index; prior++)
+        var sameName = 0;
+        for (var other = 0; other < Records.Count; other++)
         {
-            if (Records[prior].Ordinal == row.Ordinal)
+            if (Records[other].Ordinal == row.Ordinal)
             {
-                subrank++;
+                sameName++;
+                subrank += other < index ? 1 : 0;
             }
         }
         // Native progress reads the next record. At maximum use an explicit absent-next
@@ -152,14 +198,19 @@ public sealed class RankTable
         uint? following = index + 1 < Records.Count ? Records[index + 1].Threshold : null;
         double? progress = following is { } next ? (double)(experience - row.Threshold) / (next - row.Threshold) : null;
         return new RetailRank(experience, index, row.Ordinal, row.RecordId, subrank,
-            RankLabelKeys[(int)row.Ordinal], Labels[(int)row.Ordinal], row.Threshold,
-            following, following is { } n ? n - experience : null, progress);
+            Source.LabelKeys[(int)row.Ordinal], Labels[(int)row.Ordinal], row.Threshold,
+            following, following is { } n ? n - experience : null, progress, Math.Max(1, sameName - 1));
     }
 
-    /// <summary>Accepts only the inspected original binary and English localization.</summary>
-    public static RankTable Parse(ReadOnlySpan<byte> carrier, ReadOnlySpan<byte> englishMenus)
+    /// <summary>Accepts only the inspected original Vegas 1 binary and English localization.</summary>
+    public static RankTable Parse(ReadOnlySpan<byte> carrier, ReadOnlySpan<byte> englishMenus) =>
+        Parse(carrier, englishMenus, Vegas1);
+
+    /// <summary>Accepts only the inspected original files named by <paramref name="source"/>.</summary>
+    public static RankTable Parse(ReadOnlySpan<byte> carrier, ReadOnlySpan<byte> englishMenus, RankSource source)
     {
-        if (carrier.Length != PecInfoBytes || Convert.ToHexStringLower(SHA256.HashData(carrier)) != PecInfoSha256)
+        ArgumentNullException.ThrowIfNull(source);
+        if (carrier.Length != source.PecInfoBytes || Convert.ToHexStringLower(SHA256.HashData(carrier)) != source.PecInfoSha256)
         {
             throw new RankSourceException("unsupported_original_pec_info");
         }
@@ -168,13 +219,13 @@ public sealed class RankTable
             throw new RankSourceException("unsupported_original_pec_info_version");
         }
         var defaultCount = BinaryPrimitives.ReadUInt32LittleEndian(carrier[4..]);
-        if (defaultCount != 12)
+        if (defaultCount != source.DefaultCount)
         {
             throw new RankSourceException("unsupported_original_pec_defaults");
         }
         var rankCountOffset = 8 + (int)defaultCount * 8;
         var count = BinaryPrimitives.ReadUInt32LittleEndian(carrier[rankCountOffset..]);
-        if (count != 102)
+        if (count != source.RankCount)
         {
             throw new RankSourceException("unsupported_original_rank_count");
         }
@@ -185,21 +236,22 @@ public sealed class RankTable
             records[i] = new RankRecord(BinaryPrimitives.ReadUInt32LittleEndian(at),
                 BinaryPrimitives.ReadUInt32LittleEndian(at[4..]), BinaryPrimitives.ReadUInt32LittleEndian(at[8..]));
         }
-        if (records[0].Threshold != 0 || records.Any(row => row.Ordinal >= RankLabelKeys.Count)
+        if (records[0].Threshold != 0 || records.Any(row => row.Ordinal >= source.LabelKeys.Count)
+            || (!source.FirstOrdinalUsed && records.Any(row => row.Ordinal == 0))
             || records.Zip(records.Skip(1)).Any(pair => pair.First.Threshold >= pair.Second.Threshold))
         {
             throw new RankSourceException("invalid_original_rank_records");
         }
-        if (Convert.ToHexStringLower(SHA256.HashData(englishMenus)) != EnglishMenusSha256)
+        if (Convert.ToHexStringLower(SHA256.HashData(englishMenus)) != source.MenusSha256)
         {
             throw new RankSourceException("unsupported_original_english_labels");
         }
         var section = IniSection.Read(Encoding.Latin1.GetString(englishMenus), "Pec")
             ?? throw new RankSourceException("invalid_original_english_labels");
-        var labels = new string[RankLabelKeys.Count];
+        var labels = new string[source.LabelKeys.Count];
         for (var i = 0; i < labels.Length; i++)
         {
-            if (!section.TryGetValue(RankLabelKeys[i], out var label))
+            if (!section.TryGetValue(source.LabelKeys[i], out var label))
             {
                 throw new RankSourceException("invalid_original_english_labels");
             }
@@ -209,15 +261,48 @@ public sealed class RankTable
                 throw new RankSourceException("missing_original_rank_label");
             }
         }
-        return new RankTable(records, labels);
+        return new RankTable(source, records, labels);
     }
 
     /// <summary>Loads from a Vegas 1 installation or isolated reference; writes nothing.</summary>
-    public static RankTable Load(string gameRoot)
+    public static RankTable Load(string gameRoot) => Load(gameRoot, Vegas1);
+
+    /// <summary>Loads the table <paramref name="source"/> names from an installation; writes nothing.</summary>
+    public static RankTable Load(string gameRoot, RankSource source)
     {
-        var carrier = ReadPrefix(Path.Combine(gameRoot, PecInfoPath), PecInfoBytes + 1);
-        var menus = ReadPrefix(Path.Combine(gameRoot, EnglishMenusPath), MaxMenusBytes + 1);
-        return Parse(carrier, menus);
+        var carrier = ReadPrefix(Path.Combine(gameRoot, source.PecInfoPath), source.PecInfoBytes + 1);
+        var menus = ReadPrefix(Path.Combine(gameRoot, source.MenusPath), MaxMenusBytes + 1);
+        return Parse(carrier, menus, source);
+    }
+
+    /// <summary>
+    /// The rank for raw XP read by <paramref name="readExperience"/> from the save at
+    /// <paramref name="saveFile"/>, or null when there is no save, no pinned table in the
+    /// game folder, or either file is unreadable or not the supported format. Writes nothing.
+    /// A parsed table is reused for the same game folder.
+    /// </summary>
+    public static RetailRank? TryReadRank(string? saveFile, string? gameRoot, RankSource source, Func<byte[], uint> readExperience)
+    {
+        if (string.IsNullOrEmpty(saveFile) || string.IsNullOrEmpty(gameRoot) || !File.Exists(saveFile))
+        {
+            return null;
+        }
+        try
+        {
+            var root = Path.GetFullPath(gameRoot);
+            var key = source.PecInfoSha256 + "|" + root;
+            if (!LoadedTables.TryGetValue(key, out var table))
+            {
+                table = Load(root, source);
+                LoadedTables[key] = table;
+            }
+            return table.RankForExperience(readExperience(ReadPrefix(saveFile, PecArchive.MaxBytes + 1)));
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException
+            or RankSourceException or ArgumentException or NotSupportedException)
+        {
+            return null;
+        }
     }
 
     /// <summary>Validates the PEC archive's CRC and version, then derives its earned raw-XP rank.</summary>
@@ -241,28 +326,8 @@ public sealed class RankTable
     /// does not hold the inspected original data, or either file is unreadable. Writes nothing.
     /// A successfully parsed table is reused for the same game folder.
     /// </summary>
-    public static RetailRank? TryReadRank(string? pecFile, string? gameRoot)
-    {
-        if (string.IsNullOrEmpty(pecFile) || string.IsNullOrEmpty(gameRoot) || !File.Exists(pecFile))
-        {
-            return null;
-        }
-        try
-        {
-            var key = Path.GetFullPath(gameRoot);
-            if (!LoadedTables.TryGetValue(key, out var table))
-            {
-                table = Load(key);
-                LoadedTables[key] = table;
-            }
-            return ReadRank(pecFile, table);
-        }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException
-            or RankSourceException or ArgumentException or NotSupportedException)
-        {
-            return null;
-        }
-    }
+    public static RetailRank? TryReadRank(string? pecFile, string? gameRoot) =>
+        TryReadRank(pecFile, gameRoot, Vegas1, data => PecArchive.ReadXp(data));
 
     /// <summary>
     /// The companion's rank card text for a saved character: the rank, or
