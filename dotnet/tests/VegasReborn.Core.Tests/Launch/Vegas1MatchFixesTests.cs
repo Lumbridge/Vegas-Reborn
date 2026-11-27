@@ -1,4 +1,5 @@
 using VegasReborn.Core.Launch;
+using VegasReborn.Core.Titles;
 
 namespace VegasReborn.Core.Tests.Launch;
 
@@ -87,6 +88,34 @@ public sealed class Vegas1MatchFixesTests
         Assert.Equal(MissionPlayerLimits.Raise(Shipped), File.ReadAllText(packTarget));
         Assert.Equal(MexicoStory, File.ReadAllText(listedTarget));
         Assert.Equal(Shipped, File.ReadAllText(mapsTarget));
+    }
+
+    [Fact]
+    public void Vegas2RaisesEachOfItsMissionFolders()
+    {
+        using var root = new TestDirectory();
+        const string story = "[GameMode0]\r\nm_eGameMode=GAMEMODE_STORY\r\nm_iMaxPlayers=2\r\n";
+        const string options = "[Options]\r\nm_iMaxPlayers=14\r\n";
+        var targets = new List<string>();
+        foreach (var folder in MissionPlayerLimits.Vegas2Folders)
+        {
+            root.File($"install/{folder}/MP_Test/MP_Test.ini", Shipped);
+            targets.Add(root.File($"game/{folder}/MP_Test/MP_Test.ini", Shipped));
+        }
+        root.File("install/KellerGame/CookedPC/MapsBishop/Story/Story_01.ini", story);
+        var storyTarget = root.File("game/KellerGame/CookedPC/MapsBishop/Story/Story_01.ini", story);
+        var serverOptions = root.File("game/KellerGame/Config/R6ServerOptions.ini", options);
+        root.File("install/KellerGame/Config/R6ServerOptions.ini", options);
+
+        GamePreparer.ApplyMissionContent(new AppPaths(Path.Combine(root.Path, "app")), TitleCatalog.Vegas2,
+            Path.Combine(root.Path, "game"), Path.Combine(root.Path, "install"));
+
+        foreach (var target in targets)
+        {
+            Assert.Equal(MissionPlayerLimits.Raise(Shipped), File.ReadAllText(target));
+        }
+        Assert.Equal(story, File.ReadAllText(storyTarget));
+        Assert.Equal(options, File.ReadAllText(serverOptions));
     }
 
     [Fact]

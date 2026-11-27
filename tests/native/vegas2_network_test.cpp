@@ -1,5 +1,6 @@
 #include "../../tools/companion/native_fire_sound_loop_vegas2.h"
 #include "../../tools/companion/native_host_network_rate_vegas2.h"
+#include "../../tools/companion/native_player_limit_vegas2.h"
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -130,11 +131,51 @@ static void FireSound() {
     assert(played == SoundEnds);
 }
 
+static int OriginalLimit = 0;
+static int __fastcall StubMax(void*, void*, unsigned) { return OriginalLimit; }
+static void __cdecl StubConstruct(void*) {}
+
+static void PlayerLimit() {
+    using namespace NativePlayerLimitVegas2;
+    Base = Region;
+    OriginalMax = reinterpret_cast<MaxFn>(&StubMax);
+    OriginalConstruct = &StubConstruct;
+
+    // Only Terrorist Hunt (mode 8) with the original co-op default of 4 is raised.
+    OriginalLimit = 4;
+    assert(MaxPlayers(nullptr, nullptr, TerroristHunt) == Raised);
+    assert(MaxPlayers(nullptr, nullptr, 7) == 4);
+    OriginalLimit = 6;
+    assert(MaxPlayers(nullptr, nullptr, TerroristHunt) == 6);
+    OriginalLimit = 16;
+    assert(MaxPlayers(nullptr, nullptr, 0) == 16);
+
+    // A constructed Terrorist Hunt game gets team size 16; other classes and values are kept.
+    alignas(4) unsigned char game[MaxPlayersAllowed + 4]{};
+    void* vtable = Fake(HuntVtable);
+    memcpy(game, &vtable, 4);
+    int value = 4; memcpy(game + MaxPlayersAllowed, &value, 4);
+    Construct(game);
+    memcpy(&value, game + MaxPlayersAllowed, 4);
+    assert(value == Raised);
+    value = 8; memcpy(game + MaxPlayersAllowed, &value, 4);
+    Construct(game);
+    memcpy(&value, game + MaxPlayersAllowed, 4);
+    assert(value == 8);
+    void* other = Fake(0x11db2454);
+    memcpy(game, &other, 4);
+    value = 4; memcpy(game + MaxPlayersAllowed, &value, 4);
+    Construct(game);
+    memcpy(&value, game + MaxPlayersAllowed, 4);
+    assert(value == 4);
+}
+
 int main() {
     Region = static_cast<unsigned char*>(VirtualAlloc(nullptr, 0x1c00000, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
     assert(Region);
     HostRate();
     FireSound();
+    PlayerLimit();
 
     // Installation rejects an image that is not the pinned Vegas 2 client.
     auto blank = static_cast<unsigned char*>(VirtualAlloc(nullptr, 0x2000, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
@@ -145,10 +186,12 @@ int main() {
     assert(MH_Initialize() == MH_OK);
     assert(!NativeFireSoundLoopVegas2::Install(blank));
     assert(!strcmp(NativeFireSoundLoopVegas2::Error, "unsupportedImage"));
+    assert(!NativePlayerLimitVegas2::Install(blank));
+    assert(!strcmp(NativePlayerLimitVegas2::Error, "unsupportedImage"));
     MH_Uninitialize();
     VirtualFree(blank, 0, MEM_RELEASE);
     VirtualFree(Region, 0, MEM_RELEASE);
 
-    std::puts("PASS: Vegas 2 host flush rate and grace countdown, fire sound tracking, stop cues and image identity");
+    std::puts("PASS: Vegas 2 host flush rate and grace countdown, fire sound tracking, stop cues, player limits and image identity");
     return 0;
 }

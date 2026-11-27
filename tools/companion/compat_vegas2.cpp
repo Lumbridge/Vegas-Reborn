@@ -34,6 +34,7 @@
 #include "native_field_of_view.h"
 #include "native_fire_sound_loop_vegas2.h"
 #include "native_host_network_rate_vegas2.h"
+#include "native_player_limit_vegas2.h"
 
 static int FieldOfViewRequested=0;
 
@@ -177,6 +178,7 @@ static void WriteStatus(bool ready,unsigned gameHooks){
         "\"gamepadVerified\":%s,\"gamepadStatus\":\"%s\","
         "\"fireSoundLoopVerified\":%s,\"fireSoundLoopStatus\":\"%s\","
         "\"hostNetworkRateVerified\":%s,\"hostNetworkRateStatus\":\"%s\","
+        "\"playerLimitVerified\":%s,\"playerLimitStatus\":\"%s\","
         "\"fieldOfViewRequested\":%d,\"fieldOfViewVerified\":%s,\"fieldOfViewStatus\":\"%s\","
         "\"windowedRequested\":%s,\"borderlessRequested\":%s,\"displayViewportVerified\":%s,\"displayStyleVerified\":%s,\"displayStatus\":\"%s\"}\n",
         ready?"true":"false",gameHooks,
@@ -190,6 +192,7 @@ static void WriteStatus(bool ready,unsigned gameHooks){
         NativeGamepad::Verified?"true":"false",NativeGamepad::Error,
         NativeFireSoundLoopVegas2::Verified?"true":"false",NativeFireSoundLoopVegas2::Error,
         NativeHostNetworkRateVegas2::Verified?"true":"false",NativeHostNetworkRateVegas2::Error,
+        NativePlayerLimitVegas2::Verified?"true":"false",NativePlayerLimitVegas2::Error,
         FieldOfViewRequested,NativeFieldOfView::Verified?"true":"false",NativeFieldOfView::Error,
         NativeDisplayVegas2::Windowed?"true":"false",NativeDisplayVegas2::Borderless?"true":"false",
         NativeDisplayVegas2::ViewportArmed?"true":"false",NativeDisplayVegas2::StyleVerified?"true":"false",NativeDisplayVegas2::Error);
@@ -221,19 +224,20 @@ static DWORD WINAPI NativeInitialize(LPVOID){
     const bool display=NativeDisplayVegas2::Install(base);
     const bool punkBuster=NativePunkBusterVegas2::Install(base);
     const bool fireSound=NativeFireSoundLoopVegas2::Install(base);
+    const bool playerLimit=NativePlayerLimitVegas2::Install(base);
     // A host network rate mismatch keeps the original rate and does not stop the launch.
     NativeHostNetworkRateVegas2::Install(base);
     // A requested field of view is reported on its own; the launcher checks it.
     NativeFieldOfView::Install(base,NativeFieldOfView::Vegas2::Game,FieldOfViewRequested);
-    Trace("game hooks: animation %s, sign-in %s, name %s, solo %s, xp %s, intros %s, display %s, punkbuster %s, fire sound %s, host rate %s, field of view %s",NativeProceduralAnimationVegas2::Error,
+    Trace("game hooks: animation %s, sign-in %s, name %s, solo %s, xp %s, intros %s, display %s, punkbuster %s, fire sound %s, player limit %s, host rate %s, field of view %s",NativeProceduralAnimationVegas2::Error,
         NativeLoginVegas2::Error,NativeClaimedNameVegas2::Error,NativeSoloMatchVegas2::Error,NativeXpModifierVegas2::Error,
         NativeSkipIntrosVegas2::Error,NativeDisplayVegas2::Error,NativePunkBusterVegas2::Error,NativeFireSoundLoopVegas2::Error,
-        NativeHostNetworkRateVegas2::Error,NativeFieldOfView::Error);
-    const bool ready=animation&&login&&name&&solo&&xp&&intros&&display&&punkBuster&&fireSound;
+        NativePlayerLimitVegas2::Error,NativeHostNetworkRateVegas2::Error,NativeFieldOfView::Error);
+    const bool ready=animation&&login&&name&&solo&&xp&&intros&&display&&punkBuster&&fireSound&&playerLimit;
     WriteStatus(ready,(animation?NativeProceduralAnimationVegas2::MethodCount+1:0)+(login?2:0)+
         (NativeClaimedNameVegas2::Verified?NativeClaimedNameVegas2::Count:0)+(solo?NativeSoloMatchVegas2::Count:0)+(xp?2:0)+
         (NativeSkipIntrosVegas2::Verified?2:0)+(NativeDisplayVegas2::ViewportArmed?1:0)+(NativeDisplayVegas2::StyleVerified?1:0)+
-        (punkBuster?NativePunkBusterVegas2::HookCount:0)+(fireSound?2:0)+(NativeHostNetworkRateVegas2::Verified?1:0));
+        (punkBuster?NativePunkBusterVegas2::HookCount:0)+(fireSound?2:0)+(playerLimit?2:0)+(NativeHostNetworkRateVegas2::Verified?1:0));
     return ready?1:0;
 }
 

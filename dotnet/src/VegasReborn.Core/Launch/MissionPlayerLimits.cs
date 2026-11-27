@@ -1,8 +1,9 @@
 namespace VegasReborn.Core.Launch;
 
 /// <summary>
-/// Vegas 1 per-map player limits in the copy's mission ini files
-/// (KellerGame/Content/CookedPc/Maps/*/*.ini, read into R6MissionConfig's game mode list).
+/// Per-map player limits in the copy's mission ini files (Vegas 1:
+/// KellerGame/Content/CookedPc/Maps/*/*.ini; Vegas 2: <see cref="Vegas2Folders"/>), read into
+/// R6MissionConfig's game mode list.
 /// The original allows 4 players in Terrorist Hunt and 14 in adversarial matches hosted
 /// from the game (16 only on dedicated servers). Every file is always rebuilt from the installed
 /// original on each launch: only those exact shipped values change to 16.
@@ -11,6 +12,16 @@ internal static class MissionPlayerLimits
 {
     public const string MapsFolder = "KellerGame/Content/CookedPc/Maps";
     public const int Players = 16;
+
+    /// <summary>
+    /// Vegas 2 mission ini folders. They use the same sections and shipped values as Vegas 1.
+    /// The DLC folders at the top of KellerGame hold copies of the CookedPC/MapsDLC files.
+    /// </summary>
+    public static readonly IReadOnlyList<string> Vegas2Folders =
+    [
+        "KellerGame/CookedPC/MapsBishop", "KellerGame/CookedPC/MapsDLC",
+        "KellerGame/DLC_Casino_01", "KellerGame/DLC_Murdertown_2", "KellerGame/DLC_Training_02",
+    ];
     private const string TerroristHunt = "GAMEMODE_TERROHUNT";
     private const string MaxPlayers = "m_iMaxPlayers";
     private const string ListenServer = "m_iMaxPlayersListenServer";

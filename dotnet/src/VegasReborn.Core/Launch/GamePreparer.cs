@@ -103,7 +103,7 @@ internal static partial class GamePreparer
 
     /// <summary>
     /// Vegas 1: links or unlinks Extra Maps. Then, with the 16-player fix, rebuilds the mission
-    /// inis from the originals.
+    /// inis from the originals (Vegas 2: in each of its mission folders).
     /// </summary>
     internal static void ApplyMissionContent(AppPaths paths, GameTitle title, string destination, string source)
     {
@@ -113,7 +113,17 @@ internal static partial class GamePreparer
         }
         if (title.Fix(TitleCatalog.SixteenPlayers) is not null)
         {
-            MissionPlayerLimits.Apply(destination, source);
+            if (title.Key == TitleCatalog.Vegas2.Key)
+            {
+                foreach (var folder in MissionPlayerLimits.Vegas2Folders)
+                {
+                    MissionPlayerLimits.Apply(destination, source, folder);
+                }
+            }
+            else
+            {
+                MissionPlayerLimits.Apply(destination, source);
+            }
         }
         ApplyHuntEnemies(title, destination, source);
     }

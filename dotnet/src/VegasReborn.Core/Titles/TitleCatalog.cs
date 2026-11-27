@@ -198,6 +198,12 @@ public static class TitleCatalog
                 "Earn full XP online whatever the player count or team balance.",
                 "Online, the original game cuts XP when there are few players or the teams are uneven, down to 1%, and shows the cut as XP MODIFIER in the lobby. This keeps both factors at 100%.",
                 FixSection.GameFixes, FixKind.AlwaysOn),
+            // Same limits as Vegas 1, grounded in the Vegas 2 client, R6Game.uppc and the shipped
+            // map inis; the adapter reports playerLimitVerified.
+            new(SixteenPlayers, "16-player matches",
+                "Host Terrorist Hunt and adversarial matches for up to 16 players.",
+                "The original limits Terrorist Hunt to 4 players and adversarial matches hosted from the game to 14. This raises both to 16 in the launcher's game copy, including the Terrorist Hunt team size. Story co-op is unchanged.",
+                FixSection.GameFixes, FixKind.AlwaysOn),
             new(HuntEnemies, "Terrorist Hunt enemy types",
                 "Terrorist Hunt enemies can carry any of the game's weapons, with scopes, lasers and suppressors, and can be snipers or shield terrorists.",
                 "Each Terrorist Hunt map draws each terrorist's weapons from a list with a few weapons, no sniper rifles, no shields and no attachments. In the launcher's game copy, sniper rifles and the riot shield used by the campaign's shield terrorists are each picked for 6% of terrorists. Each weapon type keeps its share of terrorists and is spread over every weapon of that type in the game, and the pistol can be any pistol. Each terrorist has a 35% chance of a laser where the weapon takes one, otherwise a 50% chance of a random scope, and a 35% chance of a suppressor where the weapon takes one, using the game's own attachment chances for enemies. The host's game copy decides each terrorist's equipment.",

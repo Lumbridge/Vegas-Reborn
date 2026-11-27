@@ -286,6 +286,8 @@ internal static class Reports
         ["fireSoundLoopStatus"] = "ok",
         ["hostNetworkRateVerified"] = true,
         ["hostNetworkRateStatus"] = "ok",
+        ["playerLimitVerified"] = true,
+        ["playerLimitStatus"] = "ok",
     };
 
     public static JsonObject Vegas1Ready() => new()
